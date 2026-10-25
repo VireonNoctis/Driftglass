@@ -10,7 +10,7 @@ Rather than asking only whether an application has a permission, Driftglass aims
 
 It is intended for security researchers, privacy-conscious users, maintainers, and developers who want to investigate application updates before trusting them.
 
-> **Project status:** Early prototype. Versioned event-record v1 and run-manifest v1 contracts and Python validators are on main. Deterministic comparison and local JSON/HTML export are in [PR #2](https://github.com/VireonNoctis/Driftglass/pull/2); SQLite report history is in [PR #3](https://github.com/VireonNoctis/Driftglass/pull/3); the developer CLI is in [PR #4](https://github.com/VireonNoctis/Driftglass/pull/4). The experimental Linux /proc observer is proposed in [PR #1](https://github.com/VireonNoctis/Driftglass/pull/1). Automated orchestration and dashboard remain unimplemented. No OS event coverage has been verified across Linux builds.
+> **Project status:** Early prototype. Versioned event-record v1 and run-manifest v1 contracts and Python validators are on main. Deterministic comparison/report export, SQLite history, and a local CLI are proposed in [PR #2](https://github.com/VireonNoctis/Driftglass/pull/2), [PR #3](https://github.com/VireonNoctis/Driftglass/pull/3), and [PR #4](https://github.com/VireonNoctis/Driftglass/pull/4). The experimental Linux /proc observer is proposed in [PR #1](https://github.com/VireonNoctis/Driftglass/pull/1); the read-only report viewer is proposed in [PR #5](https://github.com/VireonNoctis/Driftglass/pull/5). No feature PR is merged yet. Automated orchestration remains unimplemented, and the Linux observer has passed synthetic/unit CI only—not broad real-world coverage validation.
 
 ---
 
@@ -26,6 +26,7 @@ It is intended for security researchers, privacy-conscious users, maintainers, a
 - [Evidence and comparison model](#evidence-and-comparison-model)
 - [Event schema](docs/event-schema.md)
 - [Run manifest](docs/run-manifest.md)
+- [Experimental local report viewer](docs/dashboard.md)
 - [Comparison method](docs/comparison-method.md)
 - [Local report export](docs/report-export.md)
 - [Local SQLite report history](docs/storage.md)
