@@ -2,7 +2,7 @@
 
 use serde::Serialize;
 use serde_json::Value;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::io;
 use std::net::{Ipv4Addr, Ipv6Addr};
@@ -50,6 +50,8 @@ pub struct NetworkScan {
 #[derive(Debug, Default)]
 pub struct SocketOwnerScan {
     pub inode_to_pid: BTreeMap<u64, u32>,
+    /// Socket inodes observed through file descriptors owned by multiple PIDs.
+    pub ambiguous_inodes: BTreeSet<u64>,
     pub permission_denied: u64,
     pub read_errors: u64,
 }
@@ -270,6 +272,18 @@ fn extend_descendants(
     }
 }
 
+fn record_socket_owner(scan: &mut SocketOwnerScan, inode: u64, pid: u32) {
+    match scan.inode_to_pid.get(&inode) {
+        Some(owner_pid) if *owner_pid != pid => {
+            scan.ambiguous_inodes.insert(inode);
+        }
+        Some(_) => {}
+        None => {
+            scan.inode_to_pid.insert(inode, pid);
+        }
+    }
+}
+
 pub fn read_socket_owners(proc_root: &Path, pids: &[u32]) -> SocketOwnerScan {
     let mut scan = SocketOwnerScan::default();
     for pid in pids {
@@ -313,7 +327,7 @@ pub fn read_socket_owners(proc_root: &Path, pids: &[u32]) -> SocketOwnerScan {
                 .and_then(|value| value.strip_suffix(']'))
                 .and_then(|value| value.parse::<u64>().ok())
             {
-                scan.inode_to_pid.entry(inode).or_insert(*pid);
+                record_socket_owner(&mut scan, inode, *pid);
             }
         }
     }
@@ -486,6 +500,27 @@ mod tests {
     #[test]
     fn rejects_non_ascii_proc_address_without_panicking() {
         assert_eq!(decode_proc_address("éééé", false), None);
+    }
+
+    #[test]
+    fn flags_socket_inode_referenced_by_multiple_processes() {
+        let mut scan = SocketOwnerScan::default();
+        record_socket_owner(&mut scan, 123, 10);
+        record_socket_owner(&mut scan, 123, 11);
+        record_socket_owner(&mut scan, 123, 11);
+
+        assert_eq!(scan.inode_to_pid.get(&123), Some(&10));
+        assert_eq!(scan.ambiguous_inodes, BTreeSet::from([123]));
+    }
+
+    #[test]
+    fn repeated_socket_reference_from_same_process_is_not_ambiguous() {
+        let mut scan = SocketOwnerScan::default();
+        record_socket_owner(&mut scan, 123, 10);
+        record_socket_owner(&mut scan, 123, 10);
+
+        assert_eq!(scan.inode_to_pid.get(&123), Some(&10));
+        assert!(scan.ambiguous_inodes.is_empty());
     }
 
     #[test]

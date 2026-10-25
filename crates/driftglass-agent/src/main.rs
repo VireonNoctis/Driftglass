@@ -34,6 +34,7 @@ struct Totals {
     process_malformed_rows: u64,
     fd_permission_denied: u64,
     fd_read_errors: u64,
+    ambiguous_socket_owner_observations: u64,
     network_table_errors: u64,
     network_malformed_rows: u64,
 }
@@ -45,6 +46,7 @@ impl Totals {
             || self.process_malformed_rows > 0
             || self.fd_permission_denied > 0
             || self.fd_read_errors > 0
+            || self.ambiguous_socket_owner_observations > 0
             || self.network_table_errors > 0
             || self.network_malformed_rows > 0
     }
@@ -58,6 +60,7 @@ impl Totals {
     fn add_owners(&mut self, scan: &driftglass_agent::SocketOwnerScan) {
         self.fd_permission_denied += scan.permission_denied;
         self.fd_read_errors += scan.read_errors;
+        self.ambiguous_socket_owner_observations += scan.ambiguous_inodes.len() as u64;
     }
 
     fn add_network(&mut self, scan: &driftglass_agent::NetworkScan) {
@@ -330,6 +333,7 @@ fn run(arguments: impl Iterator<Item = String>) -> Result<(), String> {
     }
     if totals.fd_permission_denied > 0
         || totals.fd_read_errors > 0
+        || totals.ambiguous_socket_owner_observations > 0
         || totals.network_table_errors > 0
         || totals.network_malformed_rows > 0
     {
@@ -346,6 +350,7 @@ fn run(arguments: impl Iterator<Item = String>) -> Result<(), String> {
                 ("category".to_owned(), json!("network")),
                 ("fd_permission_denied_reads".to_owned(), json!(totals.fd_permission_denied)),
                 ("fd_read_errors".to_owned(), json!(totals.fd_read_errors)),
+                ("ambiguous_socket_owner_observations".to_owned(), json!(totals.ambiguous_socket_owner_observations)),
                 ("tcp_table_errors".to_owned(), json!(totals.network_table_errors)),
                 ("malformed_rows".to_owned(), json!(totals.network_malformed_rows)),
             ]),
@@ -359,6 +364,7 @@ fn run(arguments: impl Iterator<Item = String>) -> Result<(), String> {
     ) + u8::from(
         totals.fd_permission_denied > 0
             || totals.fd_read_errors > 0
+            || totals.ambiguous_socket_owner_observations > 0
             || totals.network_table_errors > 0
             || totals.network_malformed_rows > 0,
     );
@@ -606,6 +612,17 @@ mod tests {
             .map(str::to_owned);
         let error = parse_args(values).expect_err("interval below minimum");
         assert!(error.contains("between 100 and 10000"));
+    }
+
+    #[test]
+    fn ambiguous_socket_ownership_marks_capture_partial() {
+        let mut totals = Totals::default();
+        let mut owners = driftglass_agent::SocketOwnerScan::default();
+        owners.ambiguous_inodes.insert(123);
+        totals.add_owners(&owners);
+
+        assert!(totals.has_gaps());
+        assert_eq!(totals.ambiguous_socket_owner_observations, 1);
     }
 
     #[test]
