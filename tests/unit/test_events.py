@@ -53,6 +53,26 @@ def test_rejects_malformed_json_with_line_number(tmp_path):
         load_jsonl(path, SCHEMA)
 
 
+def test_rejects_non_finite_numbers(tmp_path):
+    path = tmp_path / "events.jsonl"
+    write_records(path, [event(attributes={"metric": float("nan")})])
+
+    with pytest.raises(EventValidationError, match="non-finite numeric constants are not valid JSON"):
+        load_jsonl(path, SCHEMA)
+
+
+def test_rejects_duplicate_json_object_keys(tmp_path):
+    path = tmp_path / "events.jsonl"
+    line = json.dumps(event()).replace(
+        '"action": "connection_attempt"',
+        '"action": "connection_attempt", "action": "overridden"',
+    )
+    path.write_text(line + "\n", encoding="utf-8")
+
+    with pytest.raises(EventValidationError, match="duplicate JSON object keys are not valid"):
+        load_jsonl(path, SCHEMA)
+
+
 def test_rejects_blank_lines_instead_of_silently_skipping_them(tmp_path):
     path = tmp_path / "events.jsonl"
     path.write_text(json.dumps(event()) + "\n\n", encoding="utf-8")

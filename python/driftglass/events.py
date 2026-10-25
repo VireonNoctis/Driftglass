@@ -14,6 +14,19 @@ class EventValidationError(ValueError):
     """Raised when an event stream or its schema is invalid."""
 
 
+def _reject_json_constant(_value: str) -> None:
+    raise ValueError("non-finite numeric constants are not valid JSON")
+
+
+def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate JSON object keys are not valid")
+        result[key] = value
+    return result
+
+
 def _load_validator(schema_path: Path) -> Draft202012Validator:
     try:
         schema = json.loads(schema_path.read_text(encoding="utf-8"))
@@ -82,10 +95,18 @@ def load_jsonl(event_path: str | Path, schema_path: str | Path) -> list[dict[str
                     )
 
                 try:
-                    event = json.loads(line)
+                    event = json.loads(
+                        line,
+                        parse_constant=_reject_json_constant,
+                        object_pairs_hook=_unique_object,
+                    )
                 except json.JSONDecodeError as exc:
                     raise EventValidationError(
                         f"{path}:{line_number}: malformed JSON at column {exc.colno}"
+                    ) from exc
+                except ValueError as exc:
+                    raise EventValidationError(
+                        f"{path}:{line_number}: invalid JSON content ({exc})"
                     ) from exc
 
                 errors = sorted(
