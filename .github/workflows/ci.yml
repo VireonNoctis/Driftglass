@@ -18,6 +18,43 @@ jobs:
           python-version: "3.11"
       - run: python -m pip install -e ".[test]"
       - run: python -m pytest
+      - name: Verify schema contracts are included in the wheel
+        run: |
+          python -m pip wheel --no-deps --wheel-dir "$RUNNER_TEMP/dist" .
+          python - "$RUNNER_TEMP"/dist/*.whl <<'PY'
+          import sys
+          import zipfile
+          with zipfile.ZipFile(sys.argv[1]) as wheel:
+              names = wheel.namelist()
+          required = (
+              "/share/driftglass/schemas/events/event-v1.schema.json",
+              "/share/driftglass/schemas/manifests/run-manifest-v1.schema.json",
+              "/share/driftglass/schemas/reports/report-v1.schema.json",
+          )
+          missing = [suffix for suffix in required if not any(name.endswith(suffix) for name in names)]
+          if missing:
+              raise SystemExit(f"wheel is missing schema assets: {missing}")
+          PY
+      - name: Smoke-test the installed wheel CLI and its packaged schemas
+        run: |
+          python -m venv "$RUNNER_TEMP/driftglass-wheel-venv"
+          "$RUNNER_TEMP/driftglass-wheel-venv/bin/python" -m pip install "$RUNNER_TEMP"/dist/*.whl
+          "$RUNNER_TEMP/driftglass-wheel-venv/bin/python" - "$RUNNER_TEMP/wheel-event.jsonl" <<'PY'
+          import json
+          import pathlib
+          import sys
+          event = {
+              "schema_version": 1,
+              "event_id": "wheel-smoke-event",
+              "timestamp": "2026-01-01T00:00:00Z",
+              "category": "coverage",
+              "action": "capture_started",
+              "source": {"collector": "wheel-smoke-test", "event_ref": "capture:start"},
+              "collection_quality": "complete"
+          }
+          pathlib.Path(sys.argv[1]).write_text(json.dumps(event) + "\n", encoding="utf-8")
+          PY
+          "$RUNNER_TEMP/driftglass-wheel-venv/bin/driftglass" events validate "$RUNNER_TEMP/wheel-event.jsonl"
       - name: Install Rust toolchain when a workspace exists
         if: ${{ hashFiles('Cargo.toml') != '' }}
         uses: dtolnay/rust-toolchain@stable
