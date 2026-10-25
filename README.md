@@ -10,7 +10,7 @@ Rather than asking only whether an application has a permission, Driftglass aims
 
 It is intended for security researchers, privacy-conscious users, maintainers, and developers who want to investigate application updates before trusting them.
 
-> **Project status:** Early prototype. The versioned event-record v1 schema and a Python JSONL reader that validates records against it are implemented with synthetic tests. The OS collectors, run coordinator/manifests, baseline-vs-candidate comparison engine, local persistence/reporting, dashboard, and CLI are not yet implemented. No OS event coverage has been verified.
+> **Project status:** Early prototype. Versioned event-record v1 and run-manifest v1 contracts, plus Python validators for JSONL events and run manifests, are implemented with synthetic tests. The OS collectors, automated run coordinator, baseline-vs-candidate comparison engine, local persistence/reporting, dashboard, and CLI are not yet implemented. No OS event coverage has been verified.
 
 ---
 
@@ -24,6 +24,8 @@ It is intended for security researchers, privacy-conscious users, maintainers, a
 - [Architecture](#architecture)
 - [Planned technology stack](#planned-technology-stack)
 - [Evidence and comparison model](#evidence-and-comparison-model)
+- [Event schema](docs/event-schema.md)
+- [Run manifest](docs/run-manifest.md)
 - [Privacy by design](#privacy-by-design)
 - [Security model and limitations](#security-model-and-limitations)
 - [Platform strategy](#platform-strategy)
@@ -507,7 +509,7 @@ python -m pip install -e ".[test]"
 python -m pytest
 ```
 
-These checks exercise the schema validator using synthetic records. They do not collect OS events or validate real collector coverage. The package does not yet expose a user-facing CLI.
+These checks validate synthetic event records and run manifests. They do not collect OS events, launch applications, compare baseline/candidate runs, or verify real collector coverage. The package does not yet expose a user-facing CLI.
 
 ### Testing priorities
 
