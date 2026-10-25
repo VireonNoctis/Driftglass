@@ -1,4 +1,4 @@
-"""Shared helpers for loading trusted JSON Schema contracts."""
+"""Shared helpers for loading JSON Schema contracts."""
 
 from __future__ import annotations
 
@@ -13,10 +13,18 @@ from jsonschema.exceptions import SchemaError
 def load_validator(schema_path: Path, contract_name: str) -> Draft202012Validator:
     """Load and check a Draft 2020-12 schema before validating instances."""
     try:
-        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        schema = json.loads(
+            schema_path.read_text(encoding="utf-8"),
+            parse_constant=reject_json_constant,
+            object_pairs_hook=unique_json_object,
+        )
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise ValueError(
             f"could not read {contract_name} '{schema_path}' ({type(exc).__name__})"
+        ) from exc
+    except ValueError as exc:
+        raise ValueError(
+            f"could not read {contract_name} '{schema_path}' ({exc})"
         ) from exc
 
     try:
