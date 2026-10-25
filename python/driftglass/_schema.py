@@ -87,3 +87,15 @@ def unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
             raise ValueError("duplicate JSON object keys are not valid")
         result[key] = value
     return result
+
+
+
+def canonical_json(value: Any) -> str:
+    """Serialize JSON deterministically, rejecting non-standard numeric constants."""
+    return json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        allow_nan=False,
+    )

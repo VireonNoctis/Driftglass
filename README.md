@@ -10,7 +10,7 @@ Rather than asking only whether an application has a permission, Driftglass aims
 
 It is intended for security researchers, privacy-conscious users, maintainers, and developers who want to investigate application updates before trusting them.
 
-> **Project status:** Early prototype. Versioned event-record v1 and run-manifest v1 contracts, plus Python validators for JSONL events and run manifests, are implemented with synthetic tests. The OS collectors, automated run coordinator, baseline-vs-candidate comparison engine, local persistence/reporting, dashboard, and CLI are not yet implemented. No OS event coverage has been verified.
+> **Project status:** Early prototype. Versioned event-record v1 and run-manifest v1 contracts and Python validators are on main. A deterministic comparison and local JSON/HTML export prototype is developed in [PR #2](https://github.com/VireonNoctis/Driftglass/pull/2) and is not yet merged. The experimental Linux /proc observer is proposed in [PR #1](https://github.com/VireonNoctis/Driftglass/pull/1) and remains under review. Automated orchestration, SQLite history, dashboard, and CLI remain unimplemented. No OS event coverage has been verified across Linux builds.
 
 ---
 
@@ -26,6 +26,8 @@ It is intended for security researchers, privacy-conscious users, maintainers, a
 - [Evidence and comparison model](#evidence-and-comparison-model)
 - [Event schema](docs/event-schema.md)
 - [Run manifest](docs/run-manifest.md)
+- [Comparison method](docs/comparison-method.md)
+- [Local report export](docs/report-export.md)
 - [Privacy by design](#privacy-by-design)
 - [Security model and limitations](#security-model-and-limitations)
 - [Platform strategy](#platform-strategy)
@@ -509,7 +511,7 @@ python -m pip install -e ".[test]"
 python -m pytest
 ```
 
-These checks validate synthetic event records and run manifests. They do not collect OS events, launch applications, compare baseline/candidate runs, or verify real collector coverage. The package does not yet expose a user-facing CLI.
+The main-branch Python tests validate synthetic event records and run manifests. The comparison and local report-export prototypes are being developed on a separate feature branch with synthetic matching, evidence, schema, uncertainty, export-safety, and escaping tests. These checks do not establish real OS collector coverage.
 
 ### Testing priorities
 
