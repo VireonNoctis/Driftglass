@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,7 @@ def load_validator(schema_path: Path, contract_name: str) -> Draft202012Validato
         schema = json.loads(
             schema_path.read_text(encoding="utf-8"),
             parse_constant=reject_json_constant,
+            parse_float=finite_json_float,
             object_pairs_hook=unique_json_object,
         )
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
@@ -67,6 +69,14 @@ def safe_error_reason(error: Any) -> str:
 def reject_json_constant(_value: str) -> None:
     """Reject JavaScript-style NaN and Infinity tokens outside standard JSON."""
     raise ValueError("non-finite numeric constants are not valid JSON")
+
+
+def finite_json_float(value: str) -> float:
+    """Reject JSON numeric literals that overflow Python's finite float range."""
+    result = float(value)
+    if not math.isfinite(result):
+        raise ValueError("non-finite numeric values are not valid JSON")
+    return result
 
 
 def unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:

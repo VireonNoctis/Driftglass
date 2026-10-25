@@ -12,6 +12,7 @@ from jsonschema import Draft202012Validator
 from ._schema import (
     instance_path,
     load_validator,
+    finite_json_float,
     reject_json_constant,
     safe_error_reason,
     unique_json_object,
@@ -45,6 +46,7 @@ def load_manifest(
             manifest = json.load(
                 stream,
                 parse_constant=reject_json_constant,
+                parse_float=finite_json_float,
                 object_pairs_hook=unique_json_object,
             )
     except json.JSONDecodeError as exc:

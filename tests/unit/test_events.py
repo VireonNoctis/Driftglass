@@ -139,3 +139,12 @@ def test_rejects_invalid_schema(tmp_path):
 
     with pytest.raises(EventValidationError, match="event schema.*is invalid"):
         load_jsonl(events, schema)
+
+
+def test_rejects_overflowed_float_literals(tmp_path):
+    path = tmp_path / "events.jsonl"
+    raw = json.dumps(event(attributes={"metric": 1})).replace('"metric": 1', '"metric": 1e999')
+    path.write_text(raw + "\n", encoding="utf-8")
+
+    with pytest.raises(EventValidationError, match="non-finite numeric values are not valid JSON"):
+        load_jsonl(path, SCHEMA)

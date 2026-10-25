@@ -28,3 +28,11 @@ def test_rejects_non_finite_constants_in_schema(tmp_path):
 
     with pytest.raises(ValueError, match="non-finite numeric constants are not valid JSON"):
         load_validator(path, "test schema")
+
+
+def test_rejects_overflowed_float_literals_in_schema(tmp_path):
+    path = tmp_path / "schema.json"
+    path.write_text('{"type":"number","minimum":1e999}', encoding="utf-8")
+
+    with pytest.raises(ValueError, match="non-finite numeric values are not valid JSON"):
+        load_validator(path, "test schema")
