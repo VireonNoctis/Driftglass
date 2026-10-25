@@ -10,7 +10,7 @@ Rather than asking only whether an application has a permission, Driftglass aims
 
 It is intended for security researchers, privacy-conscious users, maintainers, and developers who want to investigate application updates before trusting them.
 
-> **Project status:** Early design / initial repository. The architecture and roadmap below describe the intended direction; the collection engine, comparison pipeline, dashboard, and commands are not yet implemented. Feature and platform coverage must be verified as implementation progresses.
+> **Project status:** Early prototype. The versioned event-record v1 schema and a Python JSONL reader that validates records against it are implemented with synthetic tests. The OS collectors, run coordinator/manifests, baseline-vs-candidate comparison engine, local persistence/reporting, dashboard, and CLI are not yet implemented. No OS event coverage has been verified.
 
 ---
 
@@ -498,6 +498,17 @@ All roadmap items remain planned until implemented and verified. A release shoul
 
 Development should proceed in small increments: schema first, a minimal collector next, then a deterministic comparison pipeline and a report that can be checked by hand.
 
+### Test the current prototype
+
+With Python 3.11+ installed, run:
+
+```bash
+python -m pip install -e ".[test]"
+python -m pytest
+```
+
+These checks exercise the schema validator using synthetic records. They do not collect OS events or validate real collector coverage. The package does not yet expose a user-facing CLI.
+
 ### Testing priorities
 
 - **Unit tests:** event normalization, identity matching, comparison rules, redaction, and report serialization.
@@ -539,7 +550,7 @@ driftglass report export --experiment <experiment-id> --format html
 
 The final CLI should help users understand exactly what will be captured before a run starts. It should show the target environment, collector status, required privileges, test duration or stop conditions, output location, and known coverage gaps. Destructive operations should not be implicit.
 
-Because implementation has not reached this stage, there are no supported installation or quick-start commands yet. Those instructions should be added when a first end-to-end workflow has been tested on a documented platform.
+A developer setup is now available for the Python JSONL validation prototype, but there is no supported end-to-end quick-start workflow or user-facing CLI yet. The collector, comparison engine, and platform coverage remain unimplemented.
 
 ---
 

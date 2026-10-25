@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Driftglass event record v1",
+  "description": "A normalized observation with a reference to its collector evidence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "event_id",
+    "timestamp",
+    "category",
+    "action",
+    "source",
+    "collection_quality"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "description": "Major event-record schema version."
+    },
+    "event_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Unique identifier for this normalized event within a run."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Event timestamp with an explicit UTC offset."
+    },
+    "category": {
+      "type": "string",
+      "enum": ["process", "network", "file", "system", "coverage"]
+    },
+    "action": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["collector", "event_ref"],
+      "properties": {
+        "collector": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Identifier and version of the event source."
+        },
+        "event_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "description": "Reference to the original source event or record."
+        }
+      }
+    },
+    "process": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "pid": {"type": "integer", "minimum": 0},
+        "parent_pid": {"type": "integer", "minimum": 0},
+        "executable": {"type": "string", "maxLength": 4096},
+        "command_line": {
+          "type": "string",
+          "maxLength": 8192,
+          "description": "Optional and potentially sensitive; omit unless required by the capture profile."
+        }
+      }
+    },
+    "resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["process", "file", "network", "system", "unknown"]
+        },
+        "identifier": {"type": "string", "maxLength": 4096},
+        "address": {"type": "string", "maxLength": 253},
+        "port": {"type": "integer", "minimum": 0, "maximum": 65535},
+        "protocol": {"type": "string", "maxLength": 32}
+      }
+    },
+    "outcome": {
+      "type": "string",
+      "enum": ["success", "failure", "unknown"]
+    },
+    "collection_quality": {
+      "type": "string",
+      "enum": ["complete", "partial", "unknown"],
+      "description": "Quality of this observation, not a claim that the run had complete event coverage."
+    },
+    "attributes": {
+      "type": "object",
+      "maxProperties": 64,
+      "propertyNames": {"pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}$"},
+      "additionalProperties": {
+        "anyOf": [
+          {"type": "string", "maxLength": 2048},
+          {"type": "integer"},
+          {"type": "number"},
+          {"type": "boolean"},
+          {"type": "null"}
+        ]
+      },
+      "description": "Bounded scalar metadata only. Do not place packet payloads or file contents here."
+    }
+  }
+}
