@@ -17,6 +17,50 @@ class ReportExportError(ValueError):
     """Raised when a report is invalid or cannot be written safely."""
 
 
+def _validate_report_relationships(report: dict[str, Any]) -> None:
+    """Check cross-field invariants that JSON Schema cannot express directly."""
+    baseline_run_id = report["baseline"]["run_id"]
+    candidate_run_id = report["candidate"]["run_id"]
+    if baseline_run_id == candidate_run_id:
+        raise ReportExportError("baseline and candidate must reference distinct runs")
+
+    summary = report["summary"]
+    findings = report["findings"]
+    for change_type in ("added", "removed", "changed"):
+        expected_count = sum(
+            finding["change_type"] == change_type for finding in findings
+        )
+        if summary[f"{change_type}_count"] != expected_count:
+            raise ReportExportError(
+                f"summary.{change_type}_count does not match findings"
+            )
+    if summary["uncertainty_count"] != len(report["uncertainties"]):
+        raise ReportExportError("summary.uncertainty_count does not match uncertainties")
+    if summary["baseline_behaviour_event_count"] > summary["baseline_event_count"]:
+        raise ReportExportError(
+            "summary.baseline_behaviour_event_count exceeds baseline_event_count"
+        )
+    if summary["candidate_behaviour_event_count"] > summary["candidate_event_count"]:
+        raise ReportExportError(
+            "summary.candidate_behaviour_event_count exceeds candidate_event_count"
+        )
+
+    for finding in findings:
+        for evidence_key, expected_run_id in (
+            ("baseline_evidence", baseline_run_id),
+            ("candidate_evidence", candidate_run_id),
+        ):
+            for evidence in finding[evidence_key]:
+                if evidence["run_id"] != expected_run_id:
+                    raise ReportExportError(
+                        f"finding {evidence_key} references an unexpected run_id"
+                    )
+                if evidence["observed"]["category"] != finding["category"]:
+                    raise ReportExportError(
+                        f"finding {evidence_key} category does not match finding category"
+                    )
+
+
 def validate_report(report: dict[str, Any], schema_path: str | Path) -> None:
     if not isinstance(report, dict):
         raise ReportExportError("report must be a JSON object")
@@ -40,6 +84,7 @@ def validate_report(report: dict[str, Any], schema_path: str | Path) -> None:
             f"{instance_path(error.absolute_path)}: {safe_error_reason(error)}"
         )
 
+    _validate_report_relationships(report)
     core = {key: value for key, value in report.items() if key != "report_id"}
     try:
         expected_id = hashlib.sha256(canonical_json(core).encode("utf-8")).hexdigest()
