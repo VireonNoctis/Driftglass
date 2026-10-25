@@ -10,7 +10,7 @@ Rather than asking only whether an application has a permission, Driftglass aims
 
 It is intended for security researchers, privacy-conscious users, maintainers, and developers who want to investigate application updates before trusting them.
 
-> **Project status:** Early prototype. Versioned event-record v1 and run-manifest v1 contracts, plus Python validators for JSONL events and run manifests, are implemented with synthetic tests. The OS collectors, automated run coordinator, baseline-vs-candidate comparison engine, local persistence/reporting, dashboard, and CLI are not yet implemented. No OS event coverage has been verified.
+> **Project status:** Early prototype. Versioned event-record v1 and run-manifest v1 contracts, plus Python validators for JSONL events and run manifests, are implemented with synthetic tests. An experimental Linux `/proc` polling observer is implemented in this PR and passes GitHub CI build/unit tests; real-world event coverage across Linux builds remains unverified. The automated run coordinator, baseline-vs-candidate comparison engine, local persistence/reporting, dashboard, and CLI remain unimplemented. OS event coverage is best-effort and has not been validated across Linux builds.
 
 ---
 
@@ -26,6 +26,7 @@ It is intended for security researchers, privacy-conscious users, maintainers, a
 - [Evidence and comparison model](#evidence-and-comparison-model)
 - [Event schema](docs/event-schema.md)
 - [Run manifest](docs/run-manifest.md)
+- [Experimental Linux observer](docs/linux-observer.md)
 - [Privacy by design](#privacy-by-design)
 - [Security model and limitations](#security-model-and-limitations)
 - [Platform strategy](#platform-strategy)
@@ -509,7 +510,7 @@ python -m pip install -e ".[test]"
 python -m pytest
 ```
 
-These checks validate synthetic event records and run manifests. They do not collect OS events, launch applications, compare baseline/candidate runs, or verify real collector coverage. The package does not yet expose a user-facing CLI.
+These checks validate synthetic event records and run manifests. They do not launch applications, compare baseline/candidate runs, or establish real collector coverage. The experimental Linux observer has separate Cargo checks and remains subject to platform-specific testing.
 
 ### Testing priorities
 

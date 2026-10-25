@@ -10,7 +10,7 @@ The authoritative contract is **schemas/manifests/run-manifest-v1.schema.json**.
 - **Capture:** status, start/end times, test scenario, and capture profile.
 - **Coverage:** the configured event sources, each source's state and event categories, unavailable categories, dropped-event count, and collection errors.
 
-The manifest should be produced by the future run coordinator. In this prototype it is a validated data contract only; there is no run lifecycle or collector implementation.
+The manifest should be produced by the future run coordinator. The Python contract validator is implemented, but no coordinator produces this manifest yet; the separate experimental Linux observer emits event JSONL only. It does not create run manifests or orchestrate application launches.
 
 ## Consistency rules
 
