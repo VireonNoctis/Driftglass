@@ -5,7 +5,7 @@ import pytest
 
 from driftglass._schema import canonical_json
 from driftglass.comparison import compare_loaded_runs
-from driftglass.reporting import ReportExportError, export_html_report, export_json_report, render_html_report
+from driftglass.reporting import ReportExportError, export_html_report, export_json_report, render_html_report, validate_report
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -85,6 +85,23 @@ def test_html_escapes_untrusted_event_text_and_has_no_remote_assets(tmp_path):
     assert '<script>alert("fixture")</script>' not in text
     assert "http://" not in text
     assert "https://" not in text
+
+
+@pytest.mark.parametrize(
+    ("status", "uncertainties", "expected_status"),
+    [
+        ("complete", [{"code": "synthetic_gap", "message": "A capture gap was reported.", "run_id": None}], "partial"),
+        ("partial", [], "complete"),
+    ],
+)
+def test_report_status_matches_declared_uncertainties(status, uncertainties, expected_status):
+    report = make_report()
+    report["status"] = status
+    report["uncertainties"] = uncertainties
+    report["summary"]["uncertainty_count"] = len(uncertainties)
+
+    with pytest.raises(ReportExportError, match=expected_status):
+        validate_report(report, REPORT_SCHEMA)
 
 
 def test_report_id_is_checked_before_rendering():

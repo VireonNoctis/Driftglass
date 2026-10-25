@@ -32,6 +32,17 @@
       }
     }
   },
+
+  "allOf": [
+    {
+      "if": {"properties": {"uncertainties": {"minItems": 1}}, "required": ["uncertainties"]},
+      "then": {"properties": {"status": {"const": "partial"}}}
+    },
+    {
+      "if": {"properties": {"uncertainties": {"maxItems": 0}}, "required": ["uncertainties"]},
+      "then": {"properties": {"status": {"const": "complete"}}}
+    }
+  ],
   "$defs": {
     "runSummary": {
       "type": "object",
