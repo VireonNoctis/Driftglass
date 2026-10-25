@@ -9,7 +9,13 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
-from ._schema import instance_path, load_validator, safe_error_reason
+from ._schema import (
+    instance_path,
+    load_validator,
+    reject_json_constant,
+    safe_error_reason,
+    unique_json_object,
+)
 
 
 class ManifestValidationError(ValueError):
@@ -36,10 +42,18 @@ def load_manifest(
 
     try:
         with path.open("r", encoding="utf-8") as stream:
-            manifest = json.load(stream)
+            manifest = json.load(
+                stream,
+                parse_constant=reject_json_constant,
+                object_pairs_hook=unique_json_object,
+            )
     except json.JSONDecodeError as exc:
         raise ManifestValidationError(
             f"manifest '{path}' contains malformed JSON at line {exc.lineno}, column {exc.colno}"
+        ) from exc
+    except ValueError as exc:
+        raise ManifestValidationError(
+            f"manifest '{path}' contains invalid JSON content ({exc})"
         ) from exc
     except (OSError, UnicodeError) as exc:
         raise ManifestValidationError(

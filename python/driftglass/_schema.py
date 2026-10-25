@@ -54,3 +54,18 @@ def safe_error_reason(error: Any) -> str:
     if error.validator:
         return f"'{error.validator}' constraint failed"
     return "schema constraint failed"
+
+
+def reject_json_constant(_value: str) -> None:
+    """Reject JavaScript-style NaN and Infinity tokens outside standard JSON."""
+    raise ValueError("non-finite numeric constants are not valid JSON")
+
+
+def unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Reject duplicate keys rather than silently accepting the last value."""
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate JSON object keys are not valid")
+        result[key] = value
+    return result

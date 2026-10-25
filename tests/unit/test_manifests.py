@@ -150,6 +150,27 @@ def test_rejects_unknown_run_role(tmp_path):
         load_manifest(path, SCHEMA)
 
 
+
+def test_rejects_duplicate_json_object_keys(tmp_path):
+    path = tmp_path / "manifest.json"
+    raw = json.dumps(manifest()).replace(
+        '"role": "baseline"',
+        '"role": "baseline", "role": "candidate"',
+    )
+    path.write_text(raw + "\\n", encoding="utf-8")
+
+    with pytest.raises(ManifestValidationError, match="duplicate JSON object keys are not valid"):
+        load_manifest(path, SCHEMA)
+
+
+def test_rejects_non_finite_numbers(tmp_path):
+    path = tmp_path / "manifest.json"
+    raw = json.dumps(manifest()).replace('"dropped_events": 0', '"dropped_events": NaN')
+    path.write_text(raw + "\\n", encoding="utf-8")
+
+    with pytest.raises(ManifestValidationError, match="non-finite numeric constants are not valid JSON"):
+        load_manifest(path, SCHEMA)
+
 def test_rejects_missing_manifest_file(tmp_path):
     with pytest.raises(ManifestValidationError, match="could not read manifest"):
         load_manifest(tmp_path / "missing.json", SCHEMA)
