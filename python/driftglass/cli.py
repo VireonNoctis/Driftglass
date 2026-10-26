@@ -10,6 +10,7 @@ import sysconfig
 from typing import Sequence
 
 from .capture import CaptureError, capture_run
+from .integrity import IntegrityError, attest_report, verify_report
 from .capabilities import capabilities_report
 from .comparison import ComparisonError, compare_runs
 from .events import EventValidationError, load_jsonl
@@ -37,6 +38,7 @@ def _default_schema_root() -> Path:
         Path("reports/report-v1.schema.json"),
         Path("reports/repeat-analysis-v1.schema.json"),
         Path("rules/rule-profile-v1.schema.json"),
+        Path("reports/export-manifest-v1.schema.json"),
     )
     for candidate in candidates:
         if all((candidate / relative).is_file() for relative in required):
@@ -50,6 +52,7 @@ MANIFEST_SCHEMA = SCHEMA_ROOT / "manifests" / "run-manifest-v1.schema.json"
 REPORT_SCHEMA = SCHEMA_ROOT / "reports" / "report-v1.schema.json"
 REPEAT_ANALYSIS_SCHEMA = SCHEMA_ROOT / "reports" / "repeat-analysis-v1.schema.json"
 RULE_PROFILE_SCHEMA = SCHEMA_ROOT / "rules" / "rule-profile-v1.schema.json"
+EXPORT_MANIFEST_SCHEMA = SCHEMA_ROOT / "reports" / "export-manifest-v1.schema.json"
 
 
 class CliError(ValueError):
@@ -106,6 +109,46 @@ def _validate_report_file(args: argparse.Namespace) -> int:
         f"valid comparison report: report_id={report['report_id']} "
         f"status={report['status']} findings={len(report['findings'])} "
         f"uncertainties={len(report['uncertainties'])}"
+    )
+    return 0
+
+
+def _attest_report_file(args: argparse.Namespace) -> int:
+    _reject_path_collisions(
+        [("integrity manifest output", args.manifest_output)],
+        [
+            ("comparison report", args.path),
+            ("report schema", args.report_schema),
+            ("integrity manifest schema", args.manifest_schema),
+        ],
+    )
+    manifest = attest_report(
+        args.path,
+        args.report_schema,
+        args.manifest_schema,
+        args.manifest_output,
+        overwrite=args.overwrite,
+    )
+    print(
+        f"attested report_id={manifest['report_id']} "
+        f"sha256={manifest['artifact_sha256']} bytes={manifest['artifact_size_bytes']} "
+        f"manifest={args.manifest_output}"
+    )
+    return 0
+
+
+def _verify_report_file(args: argparse.Namespace) -> int:
+    if _resolved_path(args.path) == _resolved_path(args.manifest):
+        raise CliError("comparison report and integrity manifest must use different paths")
+    manifest = verify_report(
+        args.path,
+        args.manifest,
+        args.report_schema,
+        args.manifest_schema,
+    )
+    print(
+        f"verified report_id={manifest['report_id']} "
+        f"sha256={manifest['artifact_sha256']} bytes={manifest['artifact_size_bytes']}"
     )
     return 0
 
@@ -401,6 +444,27 @@ def build_parser() -> argparse.ArgumentParser:
     _add_schema_argument(report_validate, "report_schema", REPORT_SCHEMA)
     report_validate.set_defaults(handler=_validate_report_file)
 
+    report_attest = report_commands.add_parser(
+        "attest",
+        help="write a detached SHA-256 integrity manifest for a validated report",
+    )
+    report_attest.add_argument("path")
+    report_attest.add_argument("--manifest-output", required=True)
+    _add_schema_argument(report_attest, "report_schema", REPORT_SCHEMA)
+    _add_schema_argument(report_attest, "manifest_schema", EXPORT_MANIFEST_SCHEMA)
+    report_attest.add_argument("--overwrite", action="store_true", help="allow replacing the integrity manifest")
+    report_attest.set_defaults(handler=_attest_report_file)
+
+    report_verify = report_commands.add_parser(
+        "verify",
+        help="verify a report against a previously saved integrity manifest",
+    )
+    report_verify.add_argument("path")
+    report_verify.add_argument("--manifest", required=True)
+    _add_schema_argument(report_verify, "report_schema", REPORT_SCHEMA)
+    _add_schema_argument(report_verify, "manifest_schema", EXPORT_MANIFEST_SCHEMA)
+    report_verify.set_defaults(handler=_verify_report_file)
+
     capture_parser = commands.add_parser(
         "capture",
         help="sample an already-running Linux PID and write a validated run manifest",
@@ -501,6 +565,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     except (
         CliError,
         RepeatAnalysisError,
+        IntegrityError,
         RuleProfileError,
         CaptureError,
         ComparisonError,
