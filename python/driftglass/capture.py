@@ -252,6 +252,10 @@ def capture_run(
         finished=finished,
     )
 
+    observer_reported_incomplete = any(
+        record.get("category") == "coverage" and record.get("action") == "capture_incomplete"
+        for record in records
+    )
     normal_completion = (
         return_code == 0
         and not timed_out
@@ -259,6 +263,7 @@ def capture_run(
         and stream_error is None
         and started
         and finished
+        and not observer_reported_incomplete
     )
     status = "completed" if normal_completion else ("incomplete" if records else "failed")
     source_state = "active" if started else "failed"

@@ -167,3 +167,70 @@ def test_rejects_invalid_pid_before_running_observer(tmp_path, monkeypatch):
         capture_run(**args)
 
     assert calls == []
+
+
+
+def test_capture_incomplete_signal_overrides_zero_exit_and_boundary_events(tmp_path, monkeypatch):
+    records = [
+        event("start", "capture_started"),
+        event(
+            "incomplete",
+            "capture_incomplete",
+            quality="partial",
+            attributes={"reason_code": "process_scan_failed"},
+        ),
+        event(
+            "finish",
+            "capture_finished",
+            quality="partial",
+            attributes={"capture_status": "completed"},
+        ),
+    ]
+    args, _, _, manifest_path = setup_capture(tmp_path, monkeypatch, records=records)
+
+    with pytest.raises(CaptureError, match="capture status is incomplete"):
+        capture_run(**args)
+
+    manifest = load_manifest(manifest_path, MANIFEST_SCHEMA)
+    assert manifest["capture"]["status"] == "incomplete"
+    assert any("observer reported an incomplete capture" in note for note in manifest["coverage"]["errors"])
+    assert manifest["capture"]["status_reason"]
+
+
+def test_timeout_with_partial_stream_writes_incomplete_manifest(tmp_path, monkeypatch):
+    args, _, event_path, manifest_path = setup_capture(tmp_path, monkeypatch)
+
+    def timeout_run(command, **options):
+        output_path = Path(command[command.index("--output") + 1])
+        write_jsonl(output_path, [event("start", "capture_started")])
+        raise capture.subprocess.TimeoutExpired(command, options["timeout"])
+
+    monkeypatch.setattr(capture.subprocess, "run", timeout_run)
+
+    with pytest.raises(CaptureError, match="capture status is incomplete"):
+        capture_run(**args)
+
+    manifest = load_manifest(manifest_path, MANIFEST_SCHEMA)
+    assert event_path.is_file()
+    assert manifest["capture"]["status"] == "incomplete"
+    assert any("exceeded the coordinator time limit" in note for note in manifest["coverage"]["errors"])
+
+
+def test_malformed_observer_stream_writes_failed_manifest(tmp_path, monkeypatch):
+    args, _, event_path, manifest_path = setup_capture(tmp_path, monkeypatch)
+
+    def malformed_run(command, **options):
+        output_path = Path(command[command.index("--output") + 1])
+        output_path.write_text('{"schema_version": 1\\n', encoding="utf-8")
+        return SimpleNamespace(returncode=0, stderr="", stdout="")
+
+    monkeypatch.setattr(capture.subprocess, "run", malformed_run)
+
+    with pytest.raises(CaptureError, match="capture status is failed"):
+        capture_run(**args)
+
+    manifest = load_manifest(manifest_path, MANIFEST_SCHEMA)
+    assert event_path.is_file()
+    assert manifest["capture"]["status"] == "failed"
+    assert any("did not pass JSONL validation" in note for note in manifest["coverage"]["errors"])
+    assert any("capture_started" in note for note in manifest["coverage"]["errors"])
