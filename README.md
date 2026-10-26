@@ -38,6 +38,7 @@ It is intended for security researchers, privacy-conscious users, maintainers, a
 - [Research notes](docs/research-notes.md)
 - [Mitigation strategy](docs/mitigation-strategy.md)
 - [Architecture research](docs/architecture-research.md)
+- [macOS observer deferral decision](docs/decisions/macos-observer-deferral.md)
 - [Implemented architecture](docs/architecture.md)
 - [Threat model](docs/threat-model.md)
 - [Privacy model](docs/privacy-model.md)
