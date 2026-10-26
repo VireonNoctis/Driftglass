@@ -1,0 +1,29 @@
+# Experimental Linux /proc observer
+
+The Rust package **driftglass-agent** is an experimental, best-effort sampler for Linux. It is not yet a complete collector and is not a security boundary.
+
+## Run
+
+Build with a Rust toolchain:
+
+~~~bash
+cargo test --workspace
+cargo build -p driftglass-agent --release
+./target/release/driftglass-agent --pid 1234 --duration-seconds 30 --interval-ms 250 --output ./run-events.jsonl
+~~~
+
+Supply the PID of an already-running application inside a disposable test environment. The agent does not start, stop, elevate, block, or remediate the target. The duration defaults to 30 seconds; valid duration values are 1–3600 seconds. The sampling interval defaults to 250 ms and must be 100–10000 ms. The output path must name a new file; the agent refuses to overwrite an existing path. Omit the output option to write JSONL to standard output.
+
+The observer samples procfs process stat records to identify the target and processes whose parent chain descends from it. It samples TCP tables in the selected target's network namespace and inspects the tracked processes' file-descriptor symlinks to associate socket inodes with that process tree. Descendants in a different network namespace are not covered by the same TCP table sampling. Emitted event records use the schema in schemas/events/event-v1.schema.json.
+
+## Scope and coverage limitations
+
+- This is polling, not kernel event tracing. Processes and sockets that start and stop between samples can be missed. Observation timestamps represent sample time, not the precise time an action occurred.
+- A process or socket absent from a later sample is reported as no longer observed; this does not prove the exact exit or close time.
+- The collector emits TCP metadata only. It does not inspect packet payloads, DNS, UDP, file contents, file access, persistence changes, or command-line arguments.
+- TCP socket ownership can be unreadable due to permissions or process races. If the same socket inode is referenced by multiple scoped PIDs, the event keeps one deterministic representative owner but emits a network coverage gap recording the ambiguous-owner observation count; treat that process attribution as uncertain. Missing procfs tables, denied reads, and malformed rows are also summarized as coverage-gap or incomplete-capture records when possible. Inspect capture-finished collection quality and preceding coverage events; a finished capture can have incomplete coverage.
+- It does not produce the run manifest yet. Environment details, artifact hashes, permissions, dropped kernel events, and a formal comparison are not inferred.
+- It emits records only for the selected process and observed descendants, but samples process stat metadata and TCP tables from procfs to perform that filter. Run it in a disposable VM; these sources can reveal sensitive local system information.
+- Procfs visibility and socket-to-PID ownership differ with user privileges, container configuration, kernel settings, and distribution. No cross-kernel coverage claim is made.
+
+The first-sample actions record what was already present at the first sample. They do not claim that the process or connection started during capture. A capture-finished record means the sampling interval ended; partial collection quality signals known gaps, not a negative result.
