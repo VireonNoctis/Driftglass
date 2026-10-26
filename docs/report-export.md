@@ -19,6 +19,12 @@ HTML output is standalone: CSS is embedded, no scripts or remote resources are a
 
 Report export is a local file operation initiated explicitly by the caller; it does not transmit data over a network.
 
+## Per-run coverage snapshot
+
+New comparison reports include an optional per-run coverage snapshot: source names/states and declared categories, explicitly unavailable categories, the collector-reported dropped-event count, declared errors, and the number of records actually supplied to comparison by event category. The standalone HTML exporter displays the same source declarations and input counts. Older report-v1 files without this optional property remain valid.
+
+A zero input record count does not establish that no activity occurred. An active source declaration is not proof that all relevant activity was observed; inspect errors, dropped counts, unavailable categories, and the limits of each collector. A zero dropped-event count means only that the manifest reported zero drops, not that no observations were missed.
+
 ## Explicit privacy redaction
 
 For exports only, the CLI accepts optional --redact-paths, --redact-network, and --redact-process-names flags. For example:

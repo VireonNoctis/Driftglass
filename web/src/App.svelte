@@ -1,6 +1,7 @@
 <script lang="ts">
   import { validateReportV1 } from "./lib/report-validation.js";
   import { buildEvidenceTimeline } from "./lib/evidence-timeline.js";
+  import { buildCoverageMatrix } from "./lib/coverage-matrix.js";
   import { buildProcessTree } from "./lib/process-tree.js";
   import type { Finding, ReportV1 } from "./types";
 
@@ -18,6 +19,7 @@
 
   let timelineItems = $derived.by(() => buildEvidenceTimeline(visibleFindings));
   let processTree = $derived.by(() => buildProcessTree(timelineItems));
+  let coverageMatrix = $derived.by(() => buildCoverageMatrix(report?.coverage));
 
   let visibleFindings = $derived.by(() => {
     if (!report) return [];
@@ -293,6 +295,69 @@
                 </details>
                 <details class="interpretation-details"><summary>Rule interpretation and limits</summary><p>{finding.interpretation}</p></details>
               </article>
+            {/each}
+          </div>
+        {/if}
+      </section>
+
+      <section class="section-block coverage-section">
+        <div class="section-heading">
+          <div><p class="eyebrow">COLLECTOR DECLARATIONS / INPUT COUNTS</p><h3>Coverage matrix</h3></div>
+          <span class="count">{report.coverage ? "REPORT V1 SNAPSHOT" : "LEGACY REPORT"}</span>
+        </div>
+        <p class="coverage-explainer">Declared source states, unavailable categories, and records received by the comparator are separate signals. A zero record count does not establish that no activity occurred. Source declarations do not prove that every relevant event was observed.</p>
+        {#if !coverageMatrix}
+          <p class="muted empty-uncertainty">This older report-v1 file does not contain a per-run coverage snapshot. Its declared uncertainty items remain below; coverage has not been inferred.</p>
+        {:else}
+          <div class="coverage-table-wrap">
+            <table class="coverage-table">
+              <thead><tr><th scope="col">Category</th><th scope="col">Baseline declaration</th><th scope="col">Candidate declaration</th><th scope="col">Input records (B / C)</th></tr></thead>
+              <tbody>
+                {#each coverageMatrix.rows as row (row.category)}
+                  <tr>
+                    <th scope="row"><code>{row.category}</code></th>
+                    <td>
+                      <span class="coverage-state" class:coverage-positive={row.baseline.status === "Active source declared"} class:coverage-warning={row.baseline.status !== "Active source declared"}>{row.baseline.status}</span>
+                      <p class="coverage-source-names">{row.baseline.source_names.length ? row.baseline.source_names.join(", ") : "No source declares this category"}</p>
+                    </td>
+                    <td>
+                      <span class="coverage-state" class:coverage-positive={row.candidate.status === "Active source declared"} class:coverage-warning={row.candidate.status !== "Active source declared"}>{row.candidate.status}</span>
+                      <p class="coverage-source-names">{row.candidate.source_names.length ? row.candidate.source_names.join(", ") : "No source declares this category"}</p>
+                    </td>
+                    <td class="coverage-counts">
+                      <span>{row.baseline.record_count === null ? "Not represented" : formatCount(row.baseline.record_count)}</span>
+                      <span>{row.candidate.record_count === null ? "Not represented" : formatCount(row.candidate.record_count)}</span>
+                    </td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+          <div class="coverage-run-details">
+            {#each [{label: "Baseline", run: coverageMatrix.baseline}, {label: "Candidate", run: coverageMatrix.candidate}] as item (item.label)}
+              <details>
+                <summary>{item.label} source declarations, dropped events, and errors</summary>
+                <div class="coverage-detail-body">
+                  <p><strong>Dropped-event count reported:</strong> {formatCount(item.run.dropped_events)}</p>
+                  <p><strong>Declared unavailable categories:</strong> {item.run.unavailable_categories.length ? item.run.unavailable_categories.join(", ") : "None"}</p>
+                  <h4>Event sources</h4>
+                  {#if item.run.event_sources.length}
+                    <ul>
+                      {#each item.run.event_sources as source, i (source.name + ":" + source.state + ":" + i)}
+                        <li><code>{source.name}</code> — {source.state}; categories: {source.categories.join(", ") || "none declared"}</li>
+                      {/each}
+                    </ul>
+                  {:else}
+                    <p>No event sources were declared.</p>
+                  {/if}
+                  <h4>Declared errors</h4>
+                  {#if item.run.errors.length}
+                    <ul>{#each item.run.errors as error, i (i + ":" + error)}<li>{error}</li>{/each}</ul>
+                  {:else}
+                    <p>No collection errors declared in the run manifest.</p>
+                  {/if}
+                </div>
+              </details>
             {/each}
           </div>
         {/if}

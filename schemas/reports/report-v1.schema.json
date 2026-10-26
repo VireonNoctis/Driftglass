@@ -114,6 +114,9 @@
           "minimum": 0
         }
       }
+    },
+    "coverage": {
+      "$ref": "#/$defs/reportCoverage"
     }
   },
   "allOf": [
@@ -506,6 +509,142 @@
           "maxLength": 128
         }
       }
+    },
+    "coverageSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "state",
+        "categories"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "active",
+            "inactive",
+            "failed",
+            "unavailable",
+            "not_configured"
+          ]
+        },
+        "categories": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "process",
+              "network",
+              "file",
+              "system",
+              "persistence"
+            ]
+          }
+        }
+      }
+    },
+    "runCoverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_sources",
+        "unavailable_categories",
+        "dropped_events",
+        "errors",
+        "recorded_event_counts"
+      ],
+      "properties": {
+        "event_sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/coverageSource"
+          }
+        },
+        "unavailable_categories": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "process",
+              "network",
+              "file",
+              "system",
+              "persistence"
+            ]
+          }
+        },
+        "dropped_events": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
+        "recorded_event_counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "process",
+            "network",
+            "file",
+            "system",
+            "coverage"
+          ],
+          "properties": {
+            "process": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "network": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "file": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "system": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "coverage": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "description": "Input records by event category. Zero records do not establish that no activity occurred."
+        }
+      }
+    },
+    "reportCoverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "baseline",
+        "candidate"
+      ],
+      "properties": {
+        "baseline": {
+          "$ref": "#/$defs/runCoverage"
+        },
+        "candidate": {
+          "$ref": "#/$defs/runCoverage"
+        }
+      },
+      "description": "Optional report-v1 copy of per-run declared collection coverage and input record counts. Missing in older report-v1 files."
     }
   }
 }

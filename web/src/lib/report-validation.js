@@ -48,6 +48,34 @@ function isEvidence(value) {
     (value.observed.process_identity === undefined || isProcessIdentity(value.observed.process_identity));
 }
 /** @param {unknown} value @returns {boolean} */
+function isCoverageSource(value) {
+  return isRecord(value) &&
+    isText(value.name) &&
+    ["active", "inactive", "failed", "unavailable", "not_configured"].includes(value.state) &&
+    Array.isArray(value.categories) &&
+    value.categories.every(category => ["process", "network", "file", "system", "persistence"].includes(category)) &&
+    new Set(value.categories).size === value.categories.length;
+}
+/** @param {unknown} value @returns {boolean} */
+function isRunCoverage(value) {
+  if (!isRecord(value) ||
+      !Array.isArray(value.event_sources) || !value.event_sources.every(isCoverageSource) ||
+      !Array.isArray(value.unavailable_categories) ||
+      !value.unavailable_categories.every(category => ["process", "network", "file", "system", "persistence"].includes(category)) ||
+      new Set(value.unavailable_categories).size !== value.unavailable_categories.length ||
+      !isCount(value.dropped_events) ||
+      !Array.isArray(value.errors) || !value.errors.every(isText) ||
+      !isRecord(value.recorded_event_counts)) return false;
+  const categories = ["process", "network", "file", "system", "coverage"];
+  return Object.keys(value.recorded_event_counts).length === categories.length &&
+    categories.every(category => isCount(value.recorded_event_counts[category]));
+}
+/** @param {unknown} value @returns {boolean} */
+function isReportCoverage(value) {
+  return isRecord(value) && isRunCoverage(value.baseline) && isRunCoverage(value.candidate);
+}
+
+/** @param {unknown} value @returns {boolean} */
 function isFinding(value) {
   if (!isRecord(value)) return false;
   if (typeof value.finding_id !== "string" || !/^[a-f0-9]{64}$/.test(value.finding_id)) return false;
@@ -80,6 +108,9 @@ export function validateReportV1(value) {
   }
   if (!isRun(value.baseline) || !isRun(value.candidate)) {
     return { ok: false, message: "The baseline or candidate summary is malformed." };
+  }
+  if (value.coverage !== undefined && !isReportCoverage(value.coverage)) {
+    return { ok: false, message: "The declared per-run coverage snapshot is malformed." };
   }
   if (!Array.isArray(value.environment_differences) || !value.environment_differences.every((item) =>
     isRecord(item) && isText(item.field) &&

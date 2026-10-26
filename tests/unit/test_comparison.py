@@ -313,3 +313,43 @@ def test_process_start_ticks_do_not_turn_equivalent_behaviour_into_a_difference(
     report = compare(tmp_path, base, candidate, [left], [right])
 
     assert report["findings"] == []
+
+
+
+def test_report_preserves_declared_coverage_and_counts_received_records(tmp_path):
+    base, candidate = pair()
+    base["coverage"]["unavailable_categories"] = ["persistence"]
+    base["coverage"]["errors"] = ["synthetic permission note"]
+    candidate["coverage"]["event_sources"][0]["state"] = "inactive"
+    candidate["coverage"]["dropped_events"] = 2
+    candidate["coverage"]["errors"] = ["synthetic observer read error"]
+
+    baseline_records = [event("base-network"), event("base-process", category="process")]
+    candidate_records = [event("candidate-network"), event("candidate-gap", category="coverage")]
+
+    report = compare(tmp_path, base, candidate, baseline_records, candidate_records)
+
+    baseline_coverage = report["coverage"]["baseline"]
+    candidate_coverage = report["coverage"]["candidate"]
+    assert baseline_coverage["unavailable_categories"] == ["persistence"]
+    assert baseline_coverage["errors"] == ["synthetic permission note"]
+    assert baseline_coverage["recorded_event_counts"] == {
+        "process": 1, "network": 1, "file": 0, "system": 0, "coverage": 0
+    }
+    assert any(source["state"] == "inactive" for source in candidate_coverage["event_sources"])
+    assert candidate_coverage["dropped_events"] == 2
+    assert candidate_coverage["errors"] == ["synthetic observer read error"]
+    assert candidate_coverage["recorded_event_counts"]["network"] == 1
+    assert candidate_coverage["recorded_event_counts"]["coverage"] == 1
+    schema = json.loads(REPORT_SCHEMA.read_text(encoding="utf-8"))
+    Draft202012Validator(schema, format_checker=FormatChecker()).validate(report)
+
+
+def test_coverage_source_order_is_normalized_for_deterministic_report_ids(tmp_path):
+    base, candidate = pair()
+    base["coverage"]["event_sources"].reverse()
+    first = compare(tmp_path, base, candidate, [event()], [event("candidate-event")])
+    base["coverage"]["event_sources"].reverse()
+    second = compare(tmp_path, base, candidate, [event()], [event("candidate-event")])
+    assert first["coverage"] == second["coverage"]
+    assert first["report_id"] == second["report_id"]

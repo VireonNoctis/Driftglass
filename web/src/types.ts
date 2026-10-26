@@ -44,6 +44,25 @@ export interface RunSummary {
   capture_status: "running" | "completed" | "incomplete" | "failed";
 }
 
+export type CoverageCategory = "process" | "network" | "file" | "system" | "persistence";
+export type CoverageEventCategory = "process" | "network" | "file" | "system" | "coverage";
+export type EventSourceState = "active" | "inactive" | "failed" | "unavailable" | "not_configured";
+export interface CoverageSource {
+  name: string;
+  state: EventSourceState;
+  categories: CoverageCategory[];
+}
+export interface RunCoverage {
+  event_sources: CoverageSource[];
+  unavailable_categories: CoverageCategory[];
+  dropped_events: number;
+  errors: string[];
+  recorded_event_counts: Record<CoverageEventCategory, number>;
+}
+export interface ReportCoverage {
+  baseline: RunCoverage;
+  candidate: RunCoverage;
+}
 export interface ReportV1 {
   schema_version: 1;
   report_id: string;
@@ -52,6 +71,7 @@ export interface ReportV1 {
   application_name: string;
   baseline: RunSummary;
   candidate: RunSummary;
+  coverage?: ReportCoverage;
   environment_differences: Array<{
     field: string;
     baseline_value: string | null;

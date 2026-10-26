@@ -186,3 +186,31 @@ def test_html_export_refuses_existing_file(tmp_path):
 def test_canonical_json_rejects_non_finite_values():
     with pytest.raises(ValueError, match="Out of range float values are not JSON compliant"):
         canonical_json({"metric": float("nan")})
+
+
+
+def test_html_report_includes_escaped_per_run_coverage_and_input_counts():
+    report = make_report()
+    report["coverage"]["baseline"]["errors"] = ["synthetic note <script>alert(1)</script>"]
+    report["report_id"] = __import__("hashlib").sha256(
+        canonical_json({key: value for key, value in report.items() if key != "report_id"}).encode("utf-8")
+    ).hexdigest()
+
+    html_report = render_html_report(report, REPORT_SCHEMA)
+
+    assert "Declared collection coverage" in html_report
+    assert "Baseline" in html_report and "Candidate" in html_report
+    source_name = report["coverage"]["baseline"]["event_sources"][0]["name"]
+    assert source_name in html_report
+    assert "Input records" in html_report
+    assert "<script>alert(1)</script>" not in html_report
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html_report
+
+
+def test_html_report_keeps_older_v1_reports_without_coverage_viewable():
+    report = make_report()
+    report.pop("coverage")
+    core = {key: value for key, value in report.items() if key != "report_id"}
+    report["report_id"] = __import__("hashlib").sha256(canonical_json(core).encode("utf-8")).hexdigest()
+    html_report = render_html_report(report, REPORT_SCHEMA)
+    assert "does not include a per-run coverage snapshot" in html_report
