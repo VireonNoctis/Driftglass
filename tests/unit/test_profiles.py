@@ -74,3 +74,12 @@ def test_rejects_duplicate_json_object_keys(tmp_path):
     )
     with pytest.raises(RuleProfileError, match="duplicate JSON object keys"):
         load_rule_profile(path, PROFILE_SCHEMA)
+
+
+def test_rejects_profile_over_file_size_limit(tmp_path, monkeypatch):
+    path = tmp_path / "large-profile.json"
+    write_profile(path)
+    monkeypatch.setattr("driftglass.profiles.MAX_RULE_PROFILE_FILE_BYTES", 8)
+
+    with pytest.raises(RuleProfileError, match="exceeds the 8-byte file limit"):
+        load_rule_profile(path, PROFILE_SCHEMA)

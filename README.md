@@ -530,7 +530,7 @@ python -m pip install -e ".[test]"
 python -m pytest
 ```
 
-The Python suite covers event/run-manifest validation (including stream, line and record limits), bounded comparison-report file loading, deterministic comparison and versioned profiles, repeat-run aggregation, report export, SQLite history/cleanup, CLI behaviour, capability-report schema validation, synthetic capture coordination, and schema-validated redacted exports. Capture tests mock the observer; they do not prove actual OS event coverage. Cargo tests cover synthetic procfs parsing, and broad real-world Linux coverage remains unverified.
+The Python suite covers event/run-manifest validation (including stream, line and record limits), bounded event, manifest, rule-profile and comparison-report file loading, deterministic comparison and versioned profiles, repeat-run aggregation, report export, SQLite history/cleanup, CLI behaviour, capability-report schema validation, synthetic capture coordination, and schema-validated redacted exports. Capture tests mock the observer; they do not prove actual OS event coverage. Cargo tests cover synthetic procfs parsing, and broad real-world Linux coverage remains unverified.
 
 ### Testing priorities
 

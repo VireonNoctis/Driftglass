@@ -19,6 +19,8 @@ from ._schema import (
 )
 
 
+MAX_RULE_PROFILE_FILE_BYTES = 1024 * 1024
+
 RULE_CATEGORIES = ("process", "network", "file", "system")
 
 
@@ -76,13 +78,20 @@ def load_rule_profile(
     """Load a strict JSON profile; list ordering does not affect its digest."""
     path = Path(profile_path).expanduser()
     try:
-        with path.open("r", encoding="utf-8") as stream:
-            value = json.load(
-                stream,
-                parse_constant=reject_json_constant,
-                parse_float=finite_json_float,
-                object_pairs_hook=unique_json_object,
+        with path.open("rb") as stream:
+            raw = stream.read(MAX_RULE_PROFILE_FILE_BYTES + 1)
+        if len(raw) > MAX_RULE_PROFILE_FILE_BYTES:
+            raise RuleProfileError(
+                f"rule profile exceeds the {MAX_RULE_PROFILE_FILE_BYTES}-byte file limit"
             )
+        value = json.loads(
+            raw.decode("utf-8"),
+            parse_constant=reject_json_constant,
+            parse_float=finite_json_float,
+            object_pairs_hook=unique_json_object,
+        )
+    except RuleProfileError:
+        raise
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
         if isinstance(exc, json.JSONDecodeError):
             reason = f"malformed JSON at line {exc.lineno}, column {exc.colno}"

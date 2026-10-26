@@ -17,7 +17,7 @@ Driftglass is a local-first prototype for comparing observations from two applic
 |---|---|---|
 | Application being inspected | May behave unexpectedly or be hostile. | Driftglass does not launch or elevate it; run it in a disposable VM managed by the operator. |
 | Procfs observations | May be incomplete because of polling, permissions, namespace differences or process races. | Coverage records, incomplete status, event quality and manifest warnings are retained. |
-| Imported JSON/JSONL | May be malformed, very large or contain misleading fields. | Strict schema validation, a 64 MiB event-stream limit, 1 MiB event-line limit, 250,000-record limit, 64 MiB comparison-report file limit and non-zero errors for invalid inputs. |
+| Imported JSON/JSONL | May be malformed, very large or contain misleading fields. | Strict schema validation, a 64 MiB event-stream limit, 1 MiB event-line limit, 250,000-record limit, 4 MiB manifest limit, 1 MiB rule-profile limit, 64 MiB comparison-report file limit and non-zero errors for invalid inputs. |
 | Imported report in browser | Is untrusted input, including HTML-like text. | Structural validation and text rendering; no report-supplied HTML execution is intended. |
 | Local history and exported files | May reveal sensitive metadata and can be modified by a local user. | Owner-only file creation where supported, validated report writes and parameterized SQLite queries; local history is not cryptographically immutable. |
 | Host/kernel/observer | May be misconfigured or compromised. | No reliable defense against a compromised underlying host is claimed. |

@@ -20,4 +20,4 @@ A run may end with status **completed** and still have coverage gaps or dropped 
 
 ## Privacy and limitations
 
-Manifests and their error strings can contain sensitive local environment details. Use synthetic data in tests and review content before export. The v1 contract has only been tested against synthetic fixtures; it has not been validated against a real OS collector.
+The loader reads at most 4 MiB per manifest and rejects larger files before JSON parsing. Manifests and their error strings can contain sensitive local environment details. Use synthetic data in tests and review content before export. The v1 contract has only been tested against synthetic fixtures; it has not been validated against a real OS collector.

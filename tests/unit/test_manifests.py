@@ -174,3 +174,12 @@ def test_rejects_non_finite_numbers(tmp_path):
 def test_rejects_missing_manifest_file(tmp_path):
     with pytest.raises(ManifestValidationError, match="could not read manifest"):
         load_manifest(tmp_path / "missing.json", SCHEMA)
+
+
+def test_rejects_manifest_over_file_size_limit(tmp_path, monkeypatch):
+    path = tmp_path / "large-manifest.json"
+    path.write_text('{"schema_version":1}', encoding="utf-8")
+    monkeypatch.setattr("driftglass.manifests.MAX_MANIFEST_FILE_BYTES", 8)
+
+    with pytest.raises(ManifestValidationError, match="exceeds the 8-byte file limit"):
+        load_manifest(path, SCHEMA)

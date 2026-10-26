@@ -19,6 +19,9 @@ from ._schema import (
 )
 
 
+MAX_MANIFEST_FILE_BYTES = 4 * 1024 * 1024
+
+
 class ManifestValidationError(ValueError):
     """Raised when a run manifest is missing, malformed, or inconsistent."""
 
@@ -42,13 +45,20 @@ def load_manifest(
         raise ManifestValidationError(str(exc)) from exc
 
     try:
-        with path.open("r", encoding="utf-8") as stream:
-            manifest = json.load(
-                stream,
-                parse_constant=reject_json_constant,
-                parse_float=finite_json_float,
-                object_pairs_hook=unique_json_object,
+        with path.open("rb") as stream:
+            raw = stream.read(MAX_MANIFEST_FILE_BYTES + 1)
+        if len(raw) > MAX_MANIFEST_FILE_BYTES:
+            raise ManifestValidationError(
+                f"manifest exceeds the {MAX_MANIFEST_FILE_BYTES}-byte file limit"
             )
+        manifest = json.loads(
+            raw.decode("utf-8"),
+            parse_constant=reject_json_constant,
+            parse_float=finite_json_float,
+            object_pairs_hook=unique_json_object,
+        )
+    except ManifestValidationError:
+        raise
     except json.JSONDecodeError as exc:
         raise ManifestValidationError(
             f"manifest '{path}' contains malformed JSON at line {exc.lineno}, column {exc.colno}"
