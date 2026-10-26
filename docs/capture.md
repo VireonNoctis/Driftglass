@@ -35,7 +35,7 @@ Output paths must be distinct, must not already exist, and must have an existing
 
 ## Manifest and failure handling
 
-The wrapper validates the event stream against the event schema and validates the generated run manifest against manifest v1. A normal observer exit without both capture boundary records is treated as incomplete. A failed start, non-zero exit, timeout, missing stream, or invalid JSONL produces a failed/incomplete manifest when the schema and output path allow it, then returns a non-zero command status.
+The wrapper validates the event stream against the event schema and validates the generated run manifest against manifest v1. A normal observer exit without both capture boundary records is treated as incomplete. An explicit `capture_incomplete` event also invalidates the capture, even if the process exits zero and emits both boundary records. A failed start, non-zero exit, timeout, missing stream, or invalid JSONL produces a failed/incomplete manifest when the schema and output path allow it, then returns a non-zero command status.
 
 The Linux observer samples process and TCP metadata. File, system, and persistence categories are declared unavailable. It can miss short-lived activity, and permission/read errors or ambiguous socket ownership can produce partial-quality records and coverage notes. A capture status of completed means the sampling interval ended and its boundary records were present; it does not mean collection was comprehensive.
 
