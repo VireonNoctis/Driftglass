@@ -102,3 +102,45 @@ test("rejects malformed process identity in report evidence", () => {
   assert.equal(result.ok, false);
   assert.match(result.message, /findings are malformed/);
 });
+
+
+
+test("accepts an optional per-run coverage snapshot in report v1", () => {
+  const report = validReport();
+  const runCoverage = {
+    event_sources: [{ name: "network-source", state: "active", categories: ["network"] }],
+    unavailable_categories: ["persistence"],
+    dropped_events: 2,
+    errors: ["synthetic permission note"],
+    recorded_event_counts: { process: 1, network: 2, file: 0, system: 0, coverage: 1 }
+  };
+  report.coverage = { baseline: runCoverage, candidate: { ...runCoverage, dropped_events: 0 } };
+  assert.equal(validateReportV1(report).ok, true);
+});
+
+test("rejects malformed per-run coverage counts instead of showing a guessed matrix", () => {
+  const report = validReport();
+  report.coverage = {
+    baseline: {
+      event_sources: [],
+      unavailable_categories: [],
+      dropped_events: 0,
+      errors: [],
+      recorded_event_counts: { process: 0, network: -1, file: 0, system: 0, coverage: 0 }
+    },
+    candidate: {
+      event_sources: [],
+      unavailable_categories: [],
+      dropped_events: 0,
+      errors: [],
+      recorded_event_counts: { process: 0, network: 0, file: 0, system: 0, coverage: 0 }
+    }
+  };
+  const result = validateReportV1(report);
+  assert.equal(result.ok, false);
+  assert.match(result.message, /coverage snapshot is malformed/);
+});
+
+test("continues to accept older report-v1 fixtures without coverage", () => {
+  assert.equal(validateReportV1(validReport()).ok, true);
+});
