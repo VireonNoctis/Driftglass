@@ -177,8 +177,6 @@ def test_real_destination_change_survives_noise_in_other_observations(tmp_path):
     assert finding["baseline_evidence"][0]["event_id"] == "base-a"
     assert finding["candidate_evidence"][0]["event_id"] == "candidate-a"
     assert finding["candidate_evidence"][0]["observed"]["resource"]["address"] == "203.0.113.77"
-    assert finding["baseline_evidence"][0]["observed"]["resource"]["identifier"] == "192.0.2.2:51000"
-    assert finding["candidate_evidence"][0]["observed"]["resource"]["identifier"] == "192.0.2.2:61000"
     assert report["summary"]["added_count"] == 0
     assert report["summary"]["removed_count"] == 0
     assert report["summary"]["changed_count"] == 1
@@ -201,6 +199,8 @@ def test_changed_network_destination_is_linked_to_both_inputs(tmp_path):
     assert finding["baseline_evidence"][0]["event_id"] == "evt-001"
     assert finding["candidate_evidence"][0]["event_id"] == "evt-new"
     assert finding["candidate_evidence"][0]["observed"]["resource"]["address"] == "203.0.113.77"
+    assert finding["baseline_evidence"][0]["observed"]["resource"]["identifier"] == "192.0.2.2:51000"
+    assert finding["candidate_evidence"][0]["observed"]["resource"]["identifier"] == "192.0.2.2:61000"
 
 
 def test_action_change_is_reported_as_added_and_removed(tmp_path):
