@@ -93,6 +93,32 @@ def test_equivalent_observations_ignore_timestamps_pids_and_source_refs(tmp_path
     assert report["summary"]["baseline_behaviour_event_count"] == 1
 
 
+def test_network_local_source_port_changes_do_not_create_findings(tmp_path):
+    base, candidate = pair()
+    resource = event()["resource"]
+    left = event(
+        "base-network",
+        resource={**resource, "identifier": "192.0.2.2:51000"},
+    )
+    right = event(
+        "candidate-network",
+        timestamp="2026-10-25T10:03:00Z",
+        source={"collector": "synthetic/2", "event_ref": "candidate-record"},
+        process={"pid": 900, "parent_pid": 7, "executable": "synthetic-app"},
+        attributes={"socket_state": "ESTABLISHED", "process_start_time_ticks": 9000},
+        resource={**resource, "identifier": "192.0.2.2:61000"},
+    )
+
+    report = compare(tmp_path, base, candidate, [left], [right])
+
+    assert report["findings"] == []
+    assert report["summary"]["added_count"] == 0
+    assert report["summary"]["removed_count"] == 0
+    assert report["summary"]["changed_count"] == 0
+    # Volatile identity is ignored for matching, not stripped from evidence.
+    assert report["status"] == "complete"
+
+
 def noisy_variant(original, event_id, minute, pid, *, address=None):
     resource = dict(original["resource"])
     if address is not None:
@@ -151,6 +177,8 @@ def test_real_destination_change_survives_noise_in_other_observations(tmp_path):
     assert finding["baseline_evidence"][0]["event_id"] == "base-a"
     assert finding["candidate_evidence"][0]["event_id"] == "candidate-a"
     assert finding["candidate_evidence"][0]["observed"]["resource"]["address"] == "203.0.113.77"
+    assert finding["baseline_evidence"][0]["observed"]["resource"]["identifier"] == "192.0.2.2:51000"
+    assert finding["candidate_evidence"][0]["observed"]["resource"]["identifier"] == "192.0.2.2:61000"
     assert report["summary"]["added_count"] == 0
     assert report["summary"]["removed_count"] == 0
     assert report["summary"]["changed_count"] == 1
@@ -159,7 +187,12 @@ def test_real_destination_change_survives_noise_in_other_observations(tmp_path):
 def test_changed_network_destination_is_linked_to_both_inputs(tmp_path):
     base, candidate = pair()
     left = event()
-    right = event("evt-new", resource={**event()["resource"], "address": "203.0.113.77", "port": 8443})
+    right = event("evt-new", resource={
+        **event()["resource"],
+        "identifier": "192.0.2.2:61000",
+        "address": "203.0.113.77",
+        "port": 8443,
+    })
     report = compare(tmp_path, base, candidate, [left], [right])
     assert len(report["findings"]) == 1
     finding = report["findings"][0]

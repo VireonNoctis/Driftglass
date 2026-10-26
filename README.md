@@ -480,7 +480,7 @@ Progress should be measured by verified capabilities and tests, not the number o
 - [x] Implement deterministic baseline/candidate matching.
 - [x] Report added, removed, changed, and uncertain observations.
 - [x] Link findings to source-referenced evidence and rule explanations.
-- [ ] Test noisy and equivalent runs to measure false positives.
+- [x] Add synthetic noisy/equivalent-run regressions for false-positive control (not an empirical production rate).
 
 ### Phase 3 — Local reports and persistence
 

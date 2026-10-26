@@ -25,12 +25,18 @@ def _process_name(event: dict[str, Any]) -> str | None:
 
 def _identity(event: dict[str, Any]) -> str:
     resource = event.get("resource") or {}
+    resource_identifier = resource.get("identifier")
+    if event["category"] == "network" and resource.get("kind") == "network":
+        # The Linux procfs observer records the local socket address and
+        # ephemeral source port here; these can vary between equivalent runs.
+        resource_identifier = None
+
     return canonical_json({
         "category": event["category"],
         "action": event["action"],
         "process_executable": _process_name(event),
         "resource_kind": resource.get("kind"),
-        "resource_identifier": resource.get("identifier"),
+        "resource_identifier": resource_identifier,
         "protocol": resource.get("protocol"),
     })
 
@@ -53,8 +59,16 @@ def _details(event: dict[str, Any], profile: RuleProfile | None = None) -> dict[
 
 def _signature(event: dict[str, Any], profile: RuleProfile) -> str:
     # Run-specific IDs, timestamps, PIDs, and source references are evidence
-    # pointers, not behaviour identity.
-    return canonical_json(_details(event, profile))
+    # pointers, not behaviour identity. The current network observer also
+    # puts the local socket endpoint in resource.identifier; that endpoint is
+    # preserved in evidence but is volatile across otherwise equivalent runs.
+    details = _details(event, profile)
+    resource = details.get("resource")
+    if event["category"] == "network" and isinstance(resource, dict) and resource.get("kind") == "network":
+        details["resource"] = {
+            key: value for key, value in resource.items() if key != "identifier"
+        }
+    return canonical_json(details)
 
 
 def _event_order(event: dict[str, Any], profile: RuleProfile) -> tuple[str, str, str]:

@@ -5,13 +5,17 @@ The comparison prototype consumes two already-captured inputs: a baseline run ma
 ## Matching rules
 
 - Coverage-category records are not compared as application behaviour. They feed the uncertainty section.
-- The comparison identity uses event category, action, process executable name, and available resource kind, identifier, and protocol. Run-specific event IDs, timestamps, PIDs, and source references remain evidence pointers but do not determine whether behaviours match.
+- The comparison identity uses event category, action, process executable name, resource kind, and protocol. Resource identifiers distinguish resources for non-network events. The current Linux procfs observer places the local socket address and source port in network `resource.identifier`; that field is retained in evidence but excluded from network matching identity and detail signatures because local ports can change between equivalent runs. Remote network address and port remain in normalized details, so a destination change still produces a changed finding. Run-specific event IDs, timestamps, PIDs, and source references remain evidence pointers but do not determine whether behaviours match.
 - Within a matching identity, equal normalized details are multiset-matched. Remaining records are paired as changed details; excess baseline records become removed observations, and excess candidate records become added observations.
 - Normalized detail comparison includes action, process executable name, resource details, outcome, and attributes. This can identify changed destination or state metadata without requiring run-local PIDs to match.
 - `process_start_time_ticks` is excluded from behavior details because it identifies a process instance within a run, not application behavior. Evidence records keep PID, parent PID, executable, and available start ticks separately as optional `observed.process_identity` metadata.
 - Finding IDs and report IDs are SHA-256 hashes of canonical JSON payloads. No wall-clock generation timestamp is included, so equal inputs produce equal report content.
 
 These rules are a first documented baseline, not a universal semantic equivalence algorithm. Different applications can produce similar names and metadata, events may be absent due to sampling, and broad identity groups can produce changed pairings that need human review.
+
+### Synthetic noise regression scope
+
+The comparison tests cover equivalent observations whose timestamps, event IDs, source references, process IDs/start ticks, local TCP source ports, and ordering vary, plus a labelled remote-destination change that must remain visible. These fixtures provide deterministic regression cases, not an empirical false-positive rate: they do not measure real-world observer coverage, workload variance, or the frequency of benign changes.
 
 ## Input compatibility and uncertainty
 
