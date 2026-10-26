@@ -502,3 +502,43 @@ def test_report_validate_rejects_a_tampered_content_hash(tmp_path, capsys):
     output = capsys.readouterr()
     assert result == 2
     assert "report_id does not match the report content" in output.err
+
+
+def test_report_attest_and_verify_cli(tmp_path, capsys):
+    base_manifest, candidate_manifest, base_events, candidate_events = captured_inputs(tmp_path)
+    report_path = tmp_path / "comparison.json"
+    sidecar_path = tmp_path / "comparison.integrity.json"
+    result = main([
+        "compare", "--baseline-manifest", str(base_manifest),
+        "--candidate-manifest", str(candidate_manifest),
+        "--baseline-events", str(base_events), "--candidate-events", str(candidate_events),
+        "--manifest-schema", str(MANIFEST_SCHEMA), "--event-schema", str(EVENT_SCHEMA),
+        "--report-schema", str(REPORT_SCHEMA), "--json-output", str(report_path),
+    ])
+    assert result == 0
+    capsys.readouterr()
+
+    result = main([
+        "report", "attest", str(report_path),
+        "--manifest-output", str(sidecar_path),
+        "--report-schema", str(REPORT_SCHEMA),
+    ])
+    assert result == 0
+    assert "attested report_id=" in capsys.readouterr().out
+
+    result = main([
+        "report", "verify", str(report_path),
+        "--manifest", str(sidecar_path),
+        "--report-schema", str(REPORT_SCHEMA),
+    ])
+    assert result == 0
+    assert "verified report_id=" in capsys.readouterr().out
+
+    report_path.write_text(report_path.read_text(encoding="utf-8") + " ", encoding="utf-8")
+    result = main([
+        "report", "verify", str(report_path),
+        "--manifest", str(sidecar_path),
+        "--report-schema", str(REPORT_SCHEMA),
+    ])
+    assert result == 2
+    assert "does not match integrity manifest" in capsys.readouterr().err
