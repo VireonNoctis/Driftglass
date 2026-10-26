@@ -444,3 +444,61 @@ def test_repeat_cli_overwrite_requires_json_output(tmp_path, capsys):
     ])
     assert result == 2
     assert "--overwrite requires --json-output" in capsys.readouterr().err
+
+
+
+def test_report_validate_checks_schema_and_content_hash(tmp_path, capsys):
+    base_manifest, candidate_manifest, base_events, candidate_events = captured_inputs(tmp_path)
+    report_path = tmp_path / "comparison.json"
+    result = main([
+        "compare",
+        "--baseline-manifest", str(base_manifest),
+        "--candidate-manifest", str(candidate_manifest),
+        "--baseline-events", str(base_events),
+        "--candidate-events", str(candidate_events),
+        "--manifest-schema", str(MANIFEST_SCHEMA),
+        "--event-schema", str(EVENT_SCHEMA),
+        "--report-schema", str(REPORT_SCHEMA),
+        "--json-output", str(report_path),
+    ])
+    assert result == 0
+    capsys.readouterr()
+
+    result = main([
+        "report", "validate", str(report_path),
+        "--report-schema", str(REPORT_SCHEMA),
+    ])
+    output = capsys.readouterr()
+    assert result == 0
+    assert "valid comparison report:" in output.out
+    assert "findings=2" in output.out
+    assert "198.51.100.10" not in output.out
+
+
+def test_report_validate_rejects_a_tampered_content_hash(tmp_path, capsys):
+    base_manifest, candidate_manifest, base_events, candidate_events = captured_inputs(tmp_path)
+    report_path = tmp_path / "comparison.json"
+    assert main([
+        "compare",
+        "--baseline-manifest", str(base_manifest),
+        "--candidate-manifest", str(candidate_manifest),
+        "--baseline-events", str(base_events),
+        "--candidate-events", str(candidate_events),
+        "--manifest-schema", str(MANIFEST_SCHEMA),
+        "--event-schema", str(EVENT_SCHEMA),
+        "--report-schema", str(REPORT_SCHEMA),
+        "--json-output", str(report_path),
+    ]) == 0
+    capsys.readouterr()
+
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    report["summary"]["added_count"] += 1
+    write_json(report_path, report)
+
+    result = main([
+        "report", "validate", str(report_path),
+        "--report-schema", str(REPORT_SCHEMA),
+    ])
+    output = capsys.readouterr()
+    assert result == 2
+    assert "report_id does not match the report content" in output.err

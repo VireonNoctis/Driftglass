@@ -100,6 +100,16 @@ def _validate_events(args: argparse.Namespace) -> int:
     return 0
 
 
+def _validate_report_file(args: argparse.Namespace) -> int:
+    report = load_report_file(args.path, args.report_schema)
+    print(
+        f"valid comparison report: report_id={report['report_id']} "
+        f"status={report['status']} findings={len(report['findings'])} "
+        f"uncertainties={len(report['uncertainties'])}"
+    )
+    return 0
+
+
 def _validate_manifest(args: argparse.Namespace) -> int:
     manifest = load_manifest(args.path, args.manifest_schema)
     coverage = manifest["coverage"]
@@ -380,6 +390,16 @@ def build_parser() -> argparse.ArgumentParser:
     manifest_validate.add_argument("path")
     _add_schema_argument(manifest_validate, "manifest_schema", MANIFEST_SCHEMA)
     manifest_validate.set_defaults(handler=_validate_manifest)
+
+    report_parser = commands.add_parser("report", help="validate an exported comparison report")
+    report_commands = report_parser.add_subparsers(dest="report_command", required=True)
+    report_validate = report_commands.add_parser(
+        "validate",
+        help="validate one comparison report's schema, evidence links and content hash",
+    )
+    report_validate.add_argument("path")
+    _add_schema_argument(report_validate, "report_schema", REPORT_SCHEMA)
+    report_validate.set_defaults(handler=_validate_report_file)
 
     capture_parser = commands.add_parser(
         "capture",
