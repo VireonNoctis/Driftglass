@@ -1,21 +1,27 @@
 const SHA256 = /^[a-f0-9]{64}$/;
 const CATEGORIES = ["process", "network", "file", "system"];
 
+/** @param {unknown} value @returns {value is Record<string, any>} */
 function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
+/** @param {unknown} value @returns {value is string} */
 function isHash(value) {
   return typeof value === "string" && SHA256.test(value);
 }
+/** @param {unknown} value @returns {value is string | null} */
 function isNullableHash(value) {
   return value === null || isHash(value);
 }
+/** @param {unknown} value @returns {value is number} */
 function isCount(value) {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 }
+/** @param {unknown} value @param {number} [max] @returns {value is string} */
 function isText(value, max = Number.MAX_SAFE_INTEGER) {
   return typeof value === "string" && value.length > 0 && value.length <= max;
 }
+/** @param {unknown} value @returns {value is import("../types").RepeatAnalysisCohort} */
 function isCohort(value) {
   return isRecord(value) &&
     isText(value.application_name) &&
@@ -25,18 +31,21 @@ function isCohort(value) {
     isNullableHash(value.candidate_artifact_sha256) &&
     isNullableHash(value.comparison_profile_sha256);
 }
+/** @param {unknown} value @returns {value is import("../types").RepeatSourceReport} */
 function isSourceReport(value) {
   return isRecord(value) && isHash(value.report_id) &&
     ["complete", "partial"].includes(value.status) &&
     isCount(value.added_count) && isCount(value.removed_count) &&
     isCount(value.changed_count) && isCount(value.uncertainty_count);
 }
+/** @param {unknown} value @returns {value is import("../types").RepeatPatternReportRef} */
 function isPatternRef(value) {
   return isRecord(value) && isHash(value.report_id) &&
     Array.isArray(value.finding_ids) && value.finding_ids.length > 0 &&
     value.finding_ids.every(isHash) &&
     new Set(value.finding_ids).size === value.finding_ids.length;
 }
+/** @param {unknown} value @returns {value is import("../types").RepeatPattern} */
 function isPattern(value) {
   return isRecord(value) && isHash(value.fingerprint) &&
     ["DG-COMPARE-001", "DG-COMPARE-002"].includes(value.rule_id) &&
@@ -48,6 +57,7 @@ function isPattern(value) {
     Array.isArray(value.report_refs) && value.report_refs.length > 0 &&
     value.report_refs.every(isPatternRef);
 }
+/** @param {unknown} value @returns {value is RepeatAnalysisV1["summary"]} */
 function isSummary(value) {
   return isRecord(value) && isCount(value.recurring_pattern_count) &&
     isCount(value.not_consistently_observed_pattern_count) &&
@@ -72,7 +82,9 @@ export function validateRepeatAnalysisV1(value) {
     return { ok: false, message: "The source-report list or report count is malformed." };
   }
 
-  const reportIds = value.reports.map(report => report.report_id);
+  /** @type {import("../types").RepeatSourceReport[]} */
+  const reports = value.reports;
+  const reportIds = reports.map(report => report.report_id);
   const reportIdSet = new Set(reportIds);
   if (reportIdSet.size !== reportIds.length) {
     return { ok: false, message: "The repeat analysis contains duplicate source report IDs." };
@@ -82,11 +94,13 @@ export function validateRepeatAnalysisV1(value) {
       new Set(value.partial_report_ids).size !== value.partial_report_ids.length) {
     return { ok: false, message: "The partial source-report ID list is malformed." };
   }
-  const expectedPartialIds = value.reports
+  /** @type {string[]} */
+  const partialReportIds = value.partial_report_ids;
+  const expectedPartialIds = reports
     .filter(report => report.status === "partial")
     .map(report => report.report_id)
     .sort();
-  const actualPartialIds = [...value.partial_report_ids].sort();
+  const actualPartialIds = [...partialReportIds].sort();
   if (expectedPartialIds.length !== actualPartialIds.length ||
       expectedPartialIds.some((id, index) => id !== actualPartialIds[index])) {
     return { ok: false, message: "Partial source-report IDs do not match the reported source statuses." };
@@ -94,12 +108,14 @@ export function validateRepeatAnalysisV1(value) {
   if (!Array.isArray(value.patterns) || !value.patterns.every(isPattern)) {
     return { ok: false, message: "One or more repeat patterns are malformed." };
   }
-  const fingerprints = value.patterns.map(pattern => pattern.fingerprint);
+  /** @type {import("../types").RepeatPattern[]} */
+  const patterns = value.patterns;
+  const fingerprints = patterns.map(pattern => pattern.fingerprint);
   if (new Set(fingerprints).size !== fingerprints.length) {
     return { ok: false, message: "The repeat analysis contains duplicate pattern fingerprints." };
   }
 
-  for (const pattern of value.patterns) {
+  for (const pattern of patterns) {
     const referenceIds = pattern.report_refs.map(reference => reference.report_id);
     if (new Set(referenceIds).size !== referenceIds.length) {
       return { ok: false, message: "A pattern references one source report more than once." };
@@ -119,13 +135,14 @@ export function validateRepeatAnalysisV1(value) {
   }
 
   if (!isSummary(value.summary)) return { ok: false, message: "The repeat-analysis summary counts are malformed." };
-  const recurring = value.patterns.filter(pattern => pattern.repeatability === "recurring").length;
-  const inconsistent = value.patterns.filter(
+  const summary = /** @type {import("../types").RepeatAnalysisV1["summary"]} */ (value.summary);
+  const recurring = patterns.filter(pattern => pattern.repeatability === "recurring").length;
+  const inconsistent = patterns.filter(
     pattern => pattern.repeatability === "not_consistently_observed"
   ).length;
-  if (value.summary.recurring_pattern_count !== recurring ||
-      value.summary.not_consistently_observed_pattern_count !== inconsistent ||
-      value.summary.partial_report_count !== expectedPartialIds.length) {
+  if (summary.recurring_pattern_count !== recurring ||
+      summary.not_consistently_observed_pattern_count !== inconsistent ||
+      summary.partial_report_count !== expectedPartialIds.length) {
     return { ok: false, message: "Repeat-analysis summary counts do not match the report and pattern lists." };
   }
 
