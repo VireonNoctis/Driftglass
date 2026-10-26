@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -345,5 +346,44 @@ def get_report(
         return report
     except sqlite3.Error as exc:
         raise StorageError(f"could not read stored report ({type(exc).__name__})") from exc
+    finally:
+        connection.close()
+
+
+
+def delete_report(database_path: str | Path, report_id: str) -> bool:
+    """Delete one local report and its indexes; return False when it is absent.
+
+    Report removal is explicit and transactional. Run rows are removed only if
+    no remaining report references them. The function does not delete source
+    JSONL or manifest files.
+    """
+    if not isinstance(report_id, str) or re.fullmatch(r"[a-f0-9]{64}", report_id) is None:
+        raise StorageError("report_id must be a 64-character lowercase SHA-256 digest")
+
+    connection = _open_database(database_path)
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        cursor = connection.execute(
+            "DELETE FROM reports WHERE report_id = ?",
+            (report_id,),
+        )
+        if cursor.rowcount == 0:
+            connection.commit()
+            return False
+
+        connection.execute(
+            """
+            DELETE FROM runs
+            WHERE NOT EXISTS (
+                SELECT 1 FROM report_runs WHERE report_runs.run_id = runs.run_id
+            )
+            """
+        )
+        connection.commit()
+        return True
+    except sqlite3.Error as exc:
+        connection.rollback()
+        raise StorageError(f"could not delete stored report ({type(exc).__name__})") from exc
     finally:
         connection.close()

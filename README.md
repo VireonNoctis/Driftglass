@@ -10,7 +10,7 @@ Rather than asking only whether an application has a permission, Driftglass aims
 
 It is intended for security researchers, privacy-conscious users, maintainers, and developers who want to investigate application updates before trusting them.
 
-> **Project status:** Early prototype. Versioned event-record v1 and run-manifest v1 contracts, Python validators, and an experimental Linux `/proc` polling observer are implemented. Deterministic comparison, evidence-linked JSON/standalone HTML reporting, local SQLite history, the developer CLI, and a read-only Svelte report viewer are implemented for supplied captures/reports. An experimental capture command can invoke the observer for a user-supplied, already-running Linux PID and write a validated run manifest; it does not launch the target or manage a VM. Real-world observer coverage across Linux builds remains unverified.
+> **Project status:** Early prototype. Versioned event-record v1 and run-manifest v1 contracts, Python validators, and an experimental Linux `/proc` polling observer are implemented. Deterministic comparison, evidence-linked JSON/standalone HTML reporting, local SQLite history with explicit report deletion, the developer CLI, a read-only Svelte report viewer, and opt-in export redaction are implemented. An experimental capture command can invoke the observer for a user-supplied, already-running Linux PID and write a validated run manifest; it does not launch the target or manage a VM. Real-world observer coverage across Linux builds remains unverified.
 
 ---
 
@@ -484,7 +484,7 @@ Progress should be measured by verified capabilities and tests, not the number o
 - [x] Export structured JSON and standalone HTML.
 - [x] Include collection coverage, rule versions, and environment differences in reports.
 - [x] Add explicit path, network-address/host, and process-name redaction for exported report copies.
-- [ ] Add local cleanup controls before sharing becomes a common workflow.
+- [x] Add explicit, confirmation-gated SQLite report deletion and orphan-run cleanup.
 
 ### Phase 4 — Dashboard and repeatability
 
