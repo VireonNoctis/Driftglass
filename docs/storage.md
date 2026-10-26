@@ -4,7 +4,7 @@ The storage module keeps validated comparison reports and searchable summary row
 
 ## Python API
 
-The API is library-only; there is no CLI yet.
+The Python API is available to local code, and the developer CLI exposes the same store through `history list`, `history show`, and `history export` (see [Developer CLI](cli.md)).
 
 ~~~python
 from driftglass.storage import get_report, list_reports, save_report

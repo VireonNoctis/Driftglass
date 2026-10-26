@@ -9,6 +9,9 @@ description = "Local-first application update behaviour auditing utilities"
 requires-python = ">=3.11"
 dependencies = ["jsonschema[format]>=4.21,<5"]
 
+[project.scripts]
+driftglass = "driftglass.cli:main"
+
 [project.optional-dependencies]
 test = ["pytest>=8,<10"]
 
@@ -17,6 +20,11 @@ package-dir = {"" = "python"}
 
 [tool.setuptools.packages.find]
 where = ["python"]
+
+[tool.setuptools.data-files]
+"share/driftglass/schemas/events" = ["schemas/events/event-v1.schema.json"]
+"share/driftglass/schemas/manifests" = ["schemas/manifests/run-manifest-v1.schema.json"]
+"share/driftglass/schemas/reports" = ["schemas/reports/report-v1.schema.json"]
 
 [tool.pytest.ini_options]
 pythonpath = ["python"]
