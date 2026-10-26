@@ -73,6 +73,7 @@ impl Totals {
 struct OwnedSocket {
     socket: SocketInfo,
     owner: ProcessInfo,
+    ambiguous_owner: bool,
 }
 
 fn main() {
@@ -131,7 +132,7 @@ fn run(arguments: impl Iterator<Item = String>) -> Result<(), String> {
     totals.add_network(&initial_network);
     let mut previous_sockets = owned_sockets(
         &initial_network.sockets,
-        &initial_owners.inode_to_pid,
+        &initial_owners,
         &previous_scope,
     );
 
@@ -268,7 +269,7 @@ fn run(arguments: impl Iterator<Item = String>) -> Result<(), String> {
             totals.add_network(&network);
             owned_sockets(
                 &network.sockets,
-                &owners.inode_to_pid,
+                &owners,
                 &current_scope,
             )
         };
@@ -523,7 +524,7 @@ fn emit_socket_event(
         format!("proc-net-tcp:{}", owned.socket.key),
         Some(ProcessContext::from(&owned.owner)),
         Some(ResourceContext::from(&owned.socket)),
-        quality,
+        socket_collection_quality(owned, quality),
         BTreeMap::from([
             ("socket_state".to_owned(), json!(owned.socket.state)),
             ("socket_inode".to_owned(), json!(owned.socket.inode)),
@@ -531,6 +532,14 @@ fn emit_socket_event(
             ("local_port".to_owned(), json!(owned.socket.local_port)),
         ]),
     )
+}
+
+fn socket_collection_quality<'a>(owned: &OwnedSocket, requested: &'a str) -> &'a str {
+    if owned.ambiguous_owner {
+        "partial"
+    } else {
+        requested
+    }
 }
 
 fn create_new_output_file(path: &Path) -> io::Result<std::fs::File> {
@@ -551,12 +560,12 @@ fn scope_pids(scope: &BTreeMap<u32, ProcessInfo>) -> Vec<u32> {
 
 fn owned_sockets(
     sockets: &BTreeMap<String, SocketInfo>,
-    inode_to_pid: &BTreeMap<u64, u32>,
+    owners: &driftglass_agent::SocketOwnerScan,
     scope: &BTreeMap<u32, ProcessInfo>,
 ) -> BTreeMap<String, OwnedSocket> {
     let mut result = BTreeMap::new();
     for (key, socket) in sockets {
-        let Some(pid) = inode_to_pid.get(&socket.inode) else {
+        let Some(pid) = owners.inode_to_pid.get(&socket.inode) else {
             continue;
         };
         let Some(owner) = scope.get(pid) else {
@@ -567,6 +576,7 @@ fn owned_sockets(
             OwnedSocket {
                 socket: socket.clone(),
                 owner: owner.clone(),
+                ambiguous_owner: owners.ambiguous_inodes.contains(&socket.inode),
             },
         );
     }
@@ -612,6 +622,39 @@ mod tests {
             .map(str::to_owned);
         let error = parse_args(values).expect_err("interval below minimum");
         assert!(error.contains("between 100 and 10000"));
+    }
+
+    #[test]
+    fn ambiguous_socket_attribution_reduces_each_event_quality() {
+        let socket = SocketInfo {
+            key: "tcp:ipv4:123:127.0.0.1:50000:198.51.100.2:443".into(),
+            inode: 123,
+            family: "ipv4",
+            local_address: "127.0.0.1".into(),
+            local_port: 50000,
+            remote_address: "198.51.100.2".into(),
+            remote_port: 443,
+            state: "ESTABLISHED".into(),
+        };
+        let owner = ProcessInfo {
+            pid: 10,
+            parent_pid: 1,
+            name: "fixture".into(),
+            start_time_ticks: 100,
+        };
+        let ambiguous = OwnedSocket {
+            socket: socket.clone(),
+            owner: owner.clone(),
+            ambiguous_owner: true,
+        };
+        let unambiguous = OwnedSocket {
+            socket,
+            owner,
+            ambiguous_owner: false,
+        };
+
+        assert_eq!(socket_collection_quality(&ambiguous, "complete"), "partial");
+        assert_eq!(socket_collection_quality(&unambiguous, "complete"), "complete");
     }
 
     #[test]
