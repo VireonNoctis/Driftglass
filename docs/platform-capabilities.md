@@ -19,6 +19,17 @@ Collection is polling-based. A process or socket that appears and disappears bet
 
 The current capture wrapper declares `file`, `system`, and `persistence` categories unavailable. The `process` and `network` categories do not represent comprehensive collection; network coverage is TCP metadata only.
 
+### CI runner configurations actually tested
+
+The following runner/kernel configurations have passed the Rust workspace tests and controlled paired-capture loopback test:
+
+| CI image | OS release | Kernel observed in CI logs | Checks |
+|---|---|---|---|
+| `ubuntu-22.04` | Ubuntu 22.04.5 LTS | `6.8.0-1064-azure` | Rust workspace tests; paired-capture integration test |
+| `ubuntu-24.04` | Ubuntu 24.04.5 LTS | `6.17.0-1022-azure` | Rust workspace tests; paired-capture integration test |
+
+This is two observed hosted-runner configurations, not exhaustive distribution/kernel coverage. Permission profiles, non-Azure kernels, other filesystems and separate network namespaces still need independent validation.
+
 ## Validation status
 
 Automated CI runs synthetic Python and Rust tests and a live paired-capture test using the test process and a loopback TCP listener. A separate CI matrix runs the Rust tests and paired-capture test on Ubuntu 22.04 and 24.04 runner images and records each image's OS/kernel metadata. This is a limited CI matrix, not a general Linux support guarantee. This smoke test validates visibility for that CI environment; it does not measure event loss, prove coverage on every Linux distribution/kernel, or establish a production false-positive rate. Windows and macOS collector support must remain unclaimed until implementations and platform-specific tests exist.
