@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[2]
 EVENT_SCHEMA = ROOT / "schemas" / "events" / "event-v1.schema.json"
 MANIFEST_SCHEMA = ROOT / "schemas" / "manifests" / "run-manifest-v1.schema.json"
 REPORT_SCHEMA = ROOT / "schemas" / "reports" / "report-v1.schema.json"
+REPEAT_SCHEMA = ROOT / "schemas" / "reports" / "repeat-analysis-v1.schema.json"
 
 
 def manifest(role, run_id, version, artifact_hash):
@@ -186,10 +187,14 @@ def test_default_schema_root_contains_all_contracts():
     from driftglass.cli import EVENT_SCHEMA as default_event_schema
     from driftglass.cli import MANIFEST_SCHEMA as default_manifest_schema
     from driftglass.cli import REPORT_SCHEMA as default_report_schema
+    from driftglass.cli import REPEAT_ANALYSIS_SCHEMA as default_repeat_schema
+    from driftglass.cli import RULE_PROFILE_SCHEMA as default_profile_schema
 
     assert default_event_schema.is_file()
     assert default_manifest_schema.is_file()
     assert default_report_schema.is_file()
+    assert default_repeat_schema.is_file()
+    assert default_profile_schema.is_file()
 
 
 def test_history_export_refuses_history_database_as_output(tmp_path, capsys):
@@ -336,3 +341,106 @@ def test_history_delete_requires_exact_confirmation_and_removes_only_database_ro
     connection = sqlite3.connect(database)
     assert connection.execute("SELECT count(*) FROM reports").fetchone()[0] == 0
     connection.close()
+
+
+
+def test_compare_accepts_custom_rule_profile_and_records_its_digest(tmp_path, capsys):
+    base_manifest, candidate_manifest, base_events, candidate_events = captured_inputs(tmp_path)
+    profile_path = tmp_path / "network-review.json"
+    write_json(profile_path, {
+        "schema_version": 1,
+        "profile_id": "network-review",
+        "included_categories": ["network"],
+        "ignored_attributes": ["state"],
+    })
+    output_path = tmp_path / "network-report.json"
+
+    result = main([
+        "compare",
+        "--baseline-manifest", str(base_manifest),
+        "--candidate-manifest", str(candidate_manifest),
+        "--baseline-events", str(base_events),
+        "--candidate-events", str(candidate_events),
+        "--manifest-schema", str(MANIFEST_SCHEMA),
+        "--event-schema", str(EVENT_SCHEMA),
+        "--report-schema", str(REPORT_SCHEMA),
+        "--rule-profile", str(profile_path),
+        "--json-output", str(output_path),
+    ])
+
+    assert result == 0
+    capsys.readouterr()
+    report = json.loads(output_path.read_text(encoding="utf-8"))
+    assert report["comparison_profile"]["profile_id"] == "network-review"
+    assert report["comparison_profile"]["included_categories"] == ["network"]
+    assert report["comparison_profile"]["ignored_attributes"] == ["state"]
+    assert len(report["comparison_profile"]["sha256"]) == 64
+
+
+def test_repeat_cli_aggregates_distinct_comparison_reports(tmp_path, capsys):
+    base_manifest, candidate_manifest, base_events, candidate_events = captured_inputs(tmp_path)
+    first_output = tmp_path / "first-report.json"
+    second_output = tmp_path / "second-report.json"
+
+    common_args = [
+        "compare",
+        "--baseline-manifest", str(base_manifest),
+        "--candidate-manifest", str(candidate_manifest),
+        "--baseline-events", str(base_events),
+        "--candidate-events", str(candidate_events),
+        "--manifest-schema", str(MANIFEST_SCHEMA),
+        "--event-schema", str(EVENT_SCHEMA),
+        "--report-schema", str(REPORT_SCHEMA),
+    ]
+    assert main(common_args + ["--json-output", str(first_output)]) == 0
+    capsys.readouterr()
+
+    base_value = json.loads(base_manifest.read_text(encoding="utf-8"))
+    candidate_value = json.loads(candidate_manifest.read_text(encoding="utf-8"))
+    base_value["run_id"] = "run-base-repeat-2"
+    candidate_value["run_id"] = "run-candidate-repeat-2"
+    write_json(base_manifest, base_value)
+    write_json(candidate_manifest, candidate_value)
+
+    baseline_records = [json.loads(line) for line in base_events.read_text(encoding="utf-8").splitlines()]
+    candidate_records = [json.loads(line) for line in candidate_events.read_text(encoding="utf-8").splitlines()]
+    for record in baseline_records + candidate_records:
+        record["event_id"] += "-repeat-2"
+        record["source"]["event_ref"] += "-repeat-2"
+    write_jsonl(base_events, baseline_records)
+    write_jsonl(candidate_events, candidate_records)
+
+    assert main(common_args + ["--json-output", str(second_output)]) == 0
+    capsys.readouterr()
+
+    analysis_path = tmp_path / "repeat-analysis.json"
+    result = main([
+        "repeat",
+        "--reports", str(first_output), str(second_output),
+        "--report-schema", str(REPORT_SCHEMA),
+        "--analysis-schema", str(REPEAT_SCHEMA),
+        "--json-output", str(analysis_path),
+    ])
+    assert result == 0
+    assert "reports=2" in capsys.readouterr().out
+    analysis = json.loads(analysis_path.read_text(encoding="utf-8"))
+    assert analysis["report_count"] == 2
+    assert analysis["summary"]["recurring_pattern_count"] == 2
+    assert all(pattern["repeatability"] == "recurring" for pattern in analysis["patterns"])
+
+
+
+def test_repeat_cli_requires_two_reports_before_reading_inputs(tmp_path, capsys):
+    result = main(["repeat", "--reports", str(tmp_path / "missing.json")])
+    assert result == 2
+    assert "at least two comparison reports" in capsys.readouterr().err
+
+
+def test_repeat_cli_overwrite_requires_json_output(tmp_path, capsys):
+    result = main([
+        "repeat",
+        "--reports", str(tmp_path / "missing-a.json"), str(tmp_path / "missing-b.json"),
+        "--overwrite",
+    ])
+    assert result == 2
+    assert "--overwrite requires --json-output" in capsys.readouterr().err

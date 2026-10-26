@@ -76,6 +76,19 @@ function isReportCoverage(value) {
 }
 
 /** @param {unknown} value @returns {boolean} */
+function isComparisonProfile(value) {
+  return isRecord(value) &&
+    typeof value.profile_id === "string" && /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(value.profile_id) &&
+    typeof value.sha256 === "string" && /^[a-f0-9]{64}$/.test(value.sha256) &&
+    Array.isArray(value.included_categories) && value.included_categories.length > 0 &&
+    value.included_categories.every(category => ["process", "network", "file", "system"].includes(category)) &&
+    new Set(value.included_categories).size === value.included_categories.length &&
+    Array.isArray(value.ignored_attributes) && value.ignored_attributes.length <= 64 &&
+    value.ignored_attributes.every(attribute => typeof attribute === "string" && /^[A-Za-z_][A-Za-z0-9_.-]{0,127}$/.test(attribute)) &&
+    new Set(value.ignored_attributes).size === value.ignored_attributes.length;
+}
+
+/** @param {unknown} value @returns {boolean} */
 function isFinding(value) {
   if (!isRecord(value)) return false;
   if (typeof value.finding_id !== "string" || !/^[a-f0-9]{64}$/.test(value.finding_id)) return false;
@@ -111,6 +124,9 @@ export function validateReportV1(value) {
   }
   if (value.coverage !== undefined && !isReportCoverage(value.coverage)) {
     return { ok: false, message: "The declared per-run coverage snapshot is malformed." };
+  }
+  if (value.comparison_profile !== undefined && !isComparisonProfile(value.comparison_profile)) {
+    return { ok: false, message: "The comparison-profile metadata is malformed." };
   }
   if (!Array.isArray(value.environment_differences) || !value.environment_differences.every((item) =>
     isRecord(item) && isText(item.field) &&
