@@ -13,7 +13,7 @@ Validation must establish what the tool captures, what it misses, and whether ea
 | Reporting | Malformed records, hostile HTML-like text, missing event IDs | Safe rendering and explicit errors |
 | Storage | Insert, reopen, delete, corrupt DB, interrupted write | Documented local lifecycle |
 | Privacy | Redacted paths and identifiers | Export matches configured policy and records redaction |
-| Integration | Fixed fixtures and rule versions | Reproducible output |
+| Integration | Fixed fixtures, rule versions, and two bounded captures of a known loopback listener | Reproducible output; expected listener observation is present in both captures and equivalent pair yields no findings |
 | Platform | Each claimed OS/build | Support claims match recorded tests |
 
 ## Synthetic fixtures
@@ -40,4 +40,4 @@ Track event-loss rate under controlled workloads, malformed-record rate, false-p
 
 Record date; OS and kernel/build; observer version; target-fixture hash; setup; privileges; expected and actual observations; missing capabilities; manifest path; and reviewer notes.
 
-A passing synthetic fixture is not proof of production reliability. Keep laboratory results, real-environment results, and assumptions distinct.
+A passing synthetic fixture is not proof of production reliability. The controlled live loopback pair is one known event path, not a general loss-rate measurement. Keep laboratory results, real-environment results, and assumptions distinct.

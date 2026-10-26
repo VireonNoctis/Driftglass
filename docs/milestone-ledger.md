@@ -2,7 +2,7 @@
 
 This is the first numbered 60-item ledger for the project; the prior README roadmap was phase-based and did not contain a pre-existing 60-item plan. The status column is intentionally honest: a milestone is marked **Done** only where code/docs exist and the relevant automated check ran, or where it is a documented capability verified from the implementation. **Remaining** means it has not been completed or validated yet.
 
-**Current tally: 53 done, 7 remaining.** This does not mean 49 milestones were completed in the latest session. Items 1–36 are existing capabilities in the repository; items 37–49 record the comparison fix and the work completed across the latest commits. The remaining platform and real-workload milestones require implementation or experiments, not more checkboxes.
+**Current tally: 55 done, 5 remaining.** This does not mean 49 milestones were completed in the latest session. Items 1–36 are existing capabilities in the repository; items 37–49 record the comparison fix and the work completed across the latest commits. The remaining platform and real-workload milestones require implementation or experiments, not more checkboxes.
 
 | # | Milestone | Status | Evidence / acceptance |
 |---:|---|---|---|
@@ -56,14 +56,14 @@ This is the first numbered 60-item ledger for the project; the prior README road
 | 48 | Add `driftglass report validate` for schema, evidence relationships and content hash | Done | CLI validation success/tamper tests |
 | 49 | Mark socket events partial when PID ownership is ambiguous | Done | `5f4c8ae`; Rust quality regression test |
 | 50 | Smoke-test live Linux procfs process and loopback TCP listener visibility | Done | Rust test uses a loopback-only listener and checks process metadata, TCP table entry and socket-owner attribution; does not measure event loss |
-| 51 | Measure event loss against a benign controlled Linux workload with expected events | Remaining | Needs an isolated workload harness and recorded expected/actual observations; the loopback smoke test does not measure loss |
+| 51 | Record expected versus observed listener events in a controlled Linux workload | Done | Integration test expects one known loopback listener event and observes exactly one in each capture; this is not a general event-loss-rate estimate |
 | 52 | Validate collector behavior across distinct Linux kernel/distribution builds | Remaining | Publish only after experiments record the actual kernel/build and coverage |
 | 53 | Measure network-namespace visibility and document/test unsupported cases | Remaining | Current observer's namespace coverage is limited; more specific tests are needed |
 | 54 | Add file-system activity collection with explicit coverage and tests | Remaining | No file-event collector currently exists |
 | 55 | Add system/persistence observation only after defined supported sources and tests | Remaining | Currently declared unavailable |
 | 56 | Implement and validate a native Windows observer | Remaining | No Windows collector exists |
 | 57 | Formally defer the native macOS observer pending entitlements, distribution and platform test readiness | Done | Decision record cites Apple Endpoint Security/System Extension requirements and defines re-entry criteria; no macOS support is claimed |
-| 58 | Add a reproducible paired-run test harness that does not silently launch unknown targets | Remaining | Capture is one-run/manual; repeat analysis does not schedule runs |
+| 58 | Add a reproducible paired-capture harness without launching unknown targets | Done | `tests/integration/test_linux_paired_capture.py` captures the already-running synthetic test process twice, checks expected listener evidence and compares reports |
 | 59 | Add a detached SHA-256 export integrity manifest and verifier with honest trust semantics | Done | `report attest`/`report verify`, versioned schema and tamper tests; explicitly not a signature or author authentication |
 | 60 | Bound SQLite history by report count and aggregate report JSON, and document retention/recovery limits | Done | Save rejects over 1,000 reports or 256 MiB aggregate report JSON transactionally; documentation explains SQLite file overhead and explicit deletion |
 

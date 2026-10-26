@@ -40,3 +40,10 @@ The wrapper validates the event stream against the event schema and validates th
 The Linux observer samples process and TCP metadata. File, system, and persistence categories are declared unavailable. It can miss short-lived activity, and permission/read errors or ambiguous socket ownership can produce partial-quality records and coverage notes. A capture status of completed means the sampling interval ended and its boundary records were present; it does not mean collection was comprehensive.
 
 The dropped_events field is zero because this observer does not report an event-queue drop count. It is not proof that no relevant activity was missed. Review coverage records, manifest errors, and environment metadata before comparing runs. The observer and wrapper are experimental; the coordinator does not verify actual VM isolation or broad Linux event coverage.
+
+
+## Controlled paired-capture CI test
+
+CI builds the observer and runs `tests/integration/test_linux_paired_capture.py`. The test uses a loopback-only TCP listener held open by the test process itself; it does not launch a third-party or user-supplied target. The capture wrapper records two bounded runs, checks that each contains exactly one `socket_present` observation for the known listener, and compares the resulting reports.
+
+This validates the expected event path for one long-lived loopback listener on the CI runner. It does not estimate a general event-loss rate, cover short-lived socket lifetimes, or establish coverage across Linux kernel/distribution configurations. The live run can remain partial for declared unavailable categories or other collection gaps.

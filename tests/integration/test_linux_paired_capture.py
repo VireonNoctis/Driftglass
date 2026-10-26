@@ -4,6 +4,7 @@ The target is this test process itself, which holds a loopback-only listener.
 No third-party or user-supplied application is started.
 """
 
+import json
 import os
 import platform
 import socket
@@ -56,7 +57,7 @@ def test_paired_captures_observe_a_stable_loopback_listener(tmp_path):
             )
             assert result.manifest["capture"]["status"] == "completed"
             events = [
-                __import__("json").loads(line)
+                json.loads(line)
                 for line in event_path.read_text(encoding="utf-8").splitlines()
             ]
             observed_listener = [
