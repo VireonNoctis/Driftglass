@@ -21,6 +21,6 @@ The current capture wrapper declares `file`, `system`, and `persistence` categor
 
 ## Validation status
 
-Automated CI runs synthetic Python and Rust tests and one live Linux procfs smoke test using the test process and a loopback TCP listener, along with packaging and web checks. This smoke test validates visibility for that CI environment; it does not measure event loss, prove coverage on every Linux distribution/kernel, or establish a production false-positive rate. Windows and macOS collector support must remain unclaimed until implementations and platform-specific tests exist.
+Automated CI runs synthetic Python and Rust tests and a live paired-capture test using the test process and a loopback TCP listener. A separate CI matrix runs the Rust tests and paired-capture test on Ubuntu 22.04 and 24.04 runner images and records each image's OS/kernel metadata. This is a limited CI matrix, not a general Linux support guarantee. This smoke test validates visibility for that CI environment; it does not measure event loss, prove coverage on every Linux distribution/kernel, or establish a production false-positive rate. Windows and macOS collector support must remain unclaimed until implementations and platform-specific tests exist.
 
 Driftglass does not launch the target application, create or validate VM isolation, capture packet payloads, collect file contents, or automatically block/remediate an application. Reports are evidence for investigation, not safety verdicts.
