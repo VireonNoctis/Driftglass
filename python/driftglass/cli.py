@@ -15,7 +15,7 @@ from .events import EventValidationError, load_jsonl
 from .manifests import ManifestValidationError, load_manifest
 from .redaction import redact_report
 from .reporting import ReportExportError, export_html_report, export_json_report
-from .storage import StorageError, get_report, list_reports, save_report
+from .storage import StorageError, delete_report, get_report, list_reports, save_report
 
 def _default_schema_root() -> Path:
     """Locate schema contracts in a checkout or a normal wheel installation."""
@@ -247,6 +247,19 @@ def _history_export(args: argparse.Namespace) -> int:
     return 0
 
 
+
+def _history_delete(args: argparse.Namespace) -> int:
+    if args.confirm != args.report_id:
+        raise CliError("confirmation must exactly match --report-id; nothing was deleted")
+    if not delete_report(args.database, args.report_id):
+        raise CliError(f"report not found in local history: {args.report_id}")
+    print(
+        f"deleted local report {args.report_id}; "
+        "unreferenced run rows removed; source capture files unchanged"
+    )
+    return 0
+
+
 def _capture(args: argparse.Namespace) -> int:
     result = capture_run(
         observer_path=args.observer,
@@ -348,6 +361,19 @@ def build_parser() -> argparse.ArgumentParser:
     history_list.add_argument("--database", required=True)
     history_list.add_argument("--limit", type=int, default=100)
     history_list.set_defaults(handler=_history_list)
+
+    history_delete = history_commands.add_parser(
+        "delete",
+        help="delete one local report after exact report-ID confirmation",
+    )
+    history_delete.add_argument("--database", required=True)
+    history_delete.add_argument("--report-id", required=True)
+    history_delete.add_argument(
+        "--confirm",
+        required=True,
+        help="repeat the exact report ID to confirm irreversible local history deletion",
+    )
+    history_delete.set_defaults(handler=_history_delete)
 
     history_show = history_commands.add_parser("show", help="print one stored report as JSON")
     history_show.add_argument("--database", required=True)

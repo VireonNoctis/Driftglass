@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from driftglass.comparison import compare_loaded_runs
-from driftglass.storage import StorageError, get_report, list_reports, save_report
+from driftglass.storage import StorageError, delete_report, get_report, list_reports, save_report
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -210,3 +210,48 @@ def test_does_not_create_missing_parent_directory(tmp_path):
     with pytest.raises(StorageError, match="database directory does not exist"):
         list_reports(db)
     assert not db.parent.exists()
+
+
+
+def test_delete_report_removes_indexes_and_unreferenced_runs_transactionally(tmp_path):
+    db = tmp_path / "history.db"
+    report = make_report()
+    save_report(db, report, REPORT_SCHEMA)
+
+    assert delete_report(db, report["report_id"]) is True
+    assert get_report(db, report["report_id"], REPORT_SCHEMA) is None
+    assert list_reports(db) == []
+
+    connection = sqlite3.connect(db)
+    assert connection.execute("SELECT count(*) FROM reports").fetchone()[0] == 0
+    assert connection.execute("SELECT count(*) FROM report_runs").fetchone()[0] == 0
+    assert connection.execute("SELECT count(*) FROM findings").fetchone()[0] == 0
+    assert connection.execute("SELECT count(*) FROM runs").fetchone()[0] == 0
+    connection.close()
+
+    assert delete_report(db, report["report_id"]) is False
+
+
+def test_delete_report_keeps_runs_referenced_by_another_report(tmp_path):
+    db = tmp_path / "history.db"
+    first = make_report(base_run="shared-base", candidate_run="candidate-one")
+    second = make_report(base_run="shared-base", candidate_run="candidate-two")
+
+    save_report(db, first, REPORT_SCHEMA)
+    save_report(db, second, REPORT_SCHEMA)
+    assert delete_report(db, first["report_id"]) is True
+
+    assert list_reports(db) and [row["report_id"] for row in list_reports(db)] == [second["report_id"]]
+    assert get_report(db, second["report_id"], REPORT_SCHEMA) == second
+
+    connection = sqlite3.connect(db)
+    run_ids = {row[0] for row in connection.execute("SELECT run_id FROM runs")}
+    connection.close()
+    assert run_ids == {"shared-base", "candidate-two"}
+
+
+def test_delete_report_rejects_malformed_id_before_opening_database(tmp_path):
+    db = tmp_path / "history.db"
+    with pytest.raises(StorageError, match="64-character lowercase SHA-256"):
+        delete_report(db, "not-a-report-id")
+    assert not db.exists()

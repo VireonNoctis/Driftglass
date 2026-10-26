@@ -18,6 +18,22 @@ The database parent directory must already exist. A new database is created with
 
 Saving a report verifies the report schema and deterministic report ID. Re-saving the same report is idempotent. Run IDs are unique within the local store; reusing a run ID with different experiment, application, version, artifact hash, or capture status is rejected transactionally. Reports, run associations, and finding indexes are committed in one transaction.
 
+
+## Explicit local cleanup
+
+To delete one report from the SQLite history, repeat its full report ID as the confirmation value:
+
+~~~bash
+python -m driftglass history delete \
+  --database ./driftglass-history.db \
+  --report-id REPORT_ID \
+  --confirm REPORT_ID
+~~~
+
+The command refuses mismatched confirmation and performs the report-row deletion, finding-index cleanup, report/run-association cleanup, and removal of run rows no longer referenced by any remaining report in one transaction. A report that still shares a run with another saved report does not remove that run row.
+
+This only changes the specified local SQLite database. It does not delete the original JSONL event streams, run-manifest files, exported reports, filesystem backups, or securely erase storage media. There is no automatic retention/deletion policy.
+
 The history index is a local convenience, not an immutable or tamper-proof evidence store. SQLite, the filesystem, and the local machine remain in the trust boundary. Report JSON and event metadata can contain sensitive information. Review database file permissions and back up or remove local data according to the lab's retention policy.
 
-This stage does not implement automatic cleanup, report sharing, migrations beyond schema version 1, or a command-line interface.
+The store supports explicit, confirmation-gated deletion of one history report. It does not implement automatic retention/cleanup, report sharing, or migrations beyond schema version 1.

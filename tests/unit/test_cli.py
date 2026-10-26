@@ -289,3 +289,50 @@ def test_redaction_requires_file_export_and_does_not_create_history(tmp_path, ca
     assert result == 2
     assert "redaction flags require" in capsys.readouterr().err
     assert not database.exists()
+
+
+
+def test_history_delete_requires_exact_confirmation_and_removes_only_database_rows(tmp_path, capsys):
+    base_manifest, candidate_manifest, base_events, candidate_events = captured_inputs(tmp_path)
+    database = tmp_path / "history.db"
+    assert main([
+        "compare",
+        "--baseline-manifest", str(base_manifest),
+        "--candidate-manifest", str(candidate_manifest),
+        "--baseline-events", str(base_events),
+        "--candidate-events", str(candidate_events),
+        "--manifest-schema", str(MANIFEST_SCHEMA),
+        "--event-schema", str(EVENT_SCHEMA),
+        "--report-schema", str(REPORT_SCHEMA),
+        "--history-db", str(database),
+    ]) == 0
+    capsys.readouterr()
+
+    connection = sqlite3.connect(database)
+    report_id = connection.execute("SELECT report_id FROM reports LIMIT 1").fetchone()[0]
+    connection.close()
+
+    result = main([
+        "history", "delete",
+        "--database", str(database),
+        "--report-id", report_id,
+        "--confirm", "wrong-confirmation",
+    ])
+    assert result == 2
+    assert "nothing was deleted" in capsys.readouterr().err
+    connection = sqlite3.connect(database)
+    assert connection.execute("SELECT count(*) FROM reports").fetchone()[0] == 1
+    connection.close()
+
+    result = main([
+        "history", "delete",
+        "--database", str(database),
+        "--report-id", report_id,
+        "--confirm", report_id,
+    ])
+    assert result == 0
+    output = capsys.readouterr().out
+    assert "source capture files unchanged" in output
+    connection = sqlite3.connect(database)
+    assert connection.execute("SELECT count(*) FROM reports").fetchone()[0] == 0
+    connection.close()

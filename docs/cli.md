@@ -80,6 +80,18 @@ Use only the categories you need. Redaction returns a separate report copy, repl
 
 The report v1 JSON schema has no redaction-provenance field. The CLI reports the redacted export ID and source report ID; keep that output and label the exported file clearly. Redaction is best-effort, so inspect the result for remaining sensitive data before sharing.
 
+
+## Delete one local history report
+
+~~~bash
+python -m driftglass history delete \
+  --database ./driftglass-history.db \
+  --report-id REPORT_ID \
+  --confirm REPORT_ID
+~~~
+
+The confirmation value must exactly match the full report ID. This irreversibly removes that report and its finding/report-run index rows from the selected SQLite database, then removes only run metadata no longer referenced by another report. It does not delete source JSONL, manifest, or exported files, and does not securely erase backups or storage media. No automatic cleanup is performed.
+
 ## Browse local history
 
 ~~~bash
