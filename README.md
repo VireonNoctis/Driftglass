@@ -513,7 +513,7 @@ python -m pip install -e ".[test]"
 python -m pytest
 ```
 
-These checks validate synthetic event records and run manifests. They do not launch applications, compare baseline/candidate runs, or establish real collector coverage. The experimental Linux observer has separate Cargo checks and remains subject to platform-specific testing.
+The Python suite covers synthetic event records and manifests, deterministic baseline/candidate comparisons, evidence-linked JSON/HTML reports, and local SQLite history. It does not launch applications or establish broad real-world collector coverage. The experimental Linux observer has separate Cargo checks and remains subject to platform-specific testing.
 
 ### Testing priorities
 
