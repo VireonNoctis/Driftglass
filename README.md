@@ -37,6 +37,10 @@ It is intended for security researchers, privacy-conscious users, maintainers, a
 - [Research notes](docs/research-notes.md)
 - [Mitigation strategy](docs/mitigation-strategy.md)
 - [Architecture research](docs/architecture-research.md)
+- [Implemented architecture](docs/architecture.md)
+- [Threat model](docs/threat-model.md)
+- [Privacy model](docs/privacy-model.md)
+- [Experiment lifecycle and isolation boundaries](docs/experiment-lifecycle.md)
 - [Validation matrix](docs/validation-matrix.md)
 - [Privacy by design](#privacy-by-design)
 - [Security model and limitations](#security-model-and-limitations)
@@ -463,10 +467,10 @@ Progress should be measured by verified capabilities and tests, not the number o
 
 ### Phase 0 — Design and contracts
 
-- [ ] Write the architecture, threat model, privacy model, and supported-platform policy.
+- [x] Document the implemented architecture, threat model, privacy model, and collector platform policy.
 - [x] Define versioned run-manifest, event, and report schemas (v1).
-- [ ] Specify the experiment lifecycle and the meaning of incomplete or dropped telemetry.
-- [ ] Decide how isolation is managed and what the tool must never do automatically.
+- [x] Specify the manual experiment lifecycle and the meaning and limits of incomplete/dropped telemetry.
+- [x] Document that isolation is operator-managed and that capture never launches targets, manages VMs, elevates privileges, blocks, or remediates.
 
 ### Phase 1 — Small, testable collector
 

@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://driftglass.local/schemas/capabilities/capabilities-v1.schema.json",
+  "title": "Driftglass collector capability report v1",
+  "description": "Implemented collector scope and platform status. This is not a per-run coverage report or a guarantee of collection.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "collector",
+    "platforms"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "collector": {
+      "$ref": "#/$defs/collector"
+    },
+    "platforms": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "$ref": "#/$defs/platform"
+      },
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "collector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "implementation_status",
+        "platform",
+        "mechanism",
+        "implemented_categories",
+        "category_scope",
+        "unavailable_categories",
+        "not_collected",
+        "known_limitations"
+      ],
+      "properties": {
+        "name": {
+          "const": "driftglass-agent"
+        },
+        "implementation_status": {
+          "enum": [
+            "experimental",
+            "implemented",
+            "unavailable"
+          ]
+        },
+        "platform": {
+          "const": "Linux"
+        },
+        "mechanism": {
+          "const": "procfs polling"
+        },
+        "implemented_categories": {
+          "const": [
+            "process",
+            "network"
+          ]
+        },
+        "category_scope": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "process",
+            "network"
+          ],
+          "properties": {
+            "process": {
+              "type": "string",
+              "minLength": 1
+            },
+            "network": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "unavailable_categories": {
+          "const": [
+            "file",
+            "system",
+            "persistence"
+          ]
+        },
+        "not_collected": {
+          "type": "array",
+          "minItems": 7,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "known_limitations": {
+          "type": "array",
+          "minItems": 5,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "platform",
+        "collector_status",
+        "validation_status"
+      ],
+      "properties": {
+        "platform": {
+          "enum": [
+            "Linux",
+            "Windows",
+            "macOS",
+            "Other"
+          ]
+        },
+        "collector_status": {
+          "enum": [
+            "experimental",
+            "implemented",
+            "not_implemented"
+          ]
+        },
+        "validation_status": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        }
+      }
+    }
+  }
+}

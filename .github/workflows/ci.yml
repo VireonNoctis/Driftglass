@@ -32,6 +32,7 @@ jobs:
               "/share/driftglass/schemas/reports/report-v1.schema.json",
               "/share/driftglass/schemas/reports/repeat-analysis-v1.schema.json",
               "/share/driftglass/schemas/rules/rule-profile-v1.schema.json",
+              "/share/driftglass/schemas/capabilities/capabilities-v1.schema.json",
           )
           missing = [suffix for suffix in required if not any(name.endswith(suffix) for name in names)]
           if missing:
@@ -57,6 +58,19 @@ jobs:
           pathlib.Path(sys.argv[1]).write_text(json.dumps(event) + "\n", encoding="utf-8")
           PY
           "$RUNNER_TEMP/driftglass-wheel-venv/bin/driftglass" events validate "$RUNNER_TEMP/wheel-event.jsonl"
+          "$RUNNER_TEMP/driftglass-wheel-venv/bin/driftglass" capabilities > "$RUNNER_TEMP/wheel-capabilities.json"
+          "$RUNNER_TEMP/driftglass-wheel-venv/bin/python" - "$RUNNER_TEMP/wheel-capabilities.json" <<'PY'
+          import json
+          import sys
+          import sysconfig
+          from pathlib import Path
+          from jsonschema import Draft202012Validator
+          schema_path = Path(sysconfig.get_path("data")) / "share/driftglass/schemas/capabilities/capabilities-v1.schema.json"
+          schema = json.loads(schema_path.read_text(encoding="utf-8"))
+          report = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          Draft202012Validator(schema).validate(report)
+          print("valid installed collector capability report")
+          PY
       - name: Install Rust toolchain when a workspace exists
         if: ${{ hashFiles('Cargo.toml') != '' }}
         uses: dtolnay/rust-toolchain@stable

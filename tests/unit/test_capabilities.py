@@ -1,11 +1,15 @@
 import json
 from pathlib import Path
 
+import pytest
+from jsonschema import Draft202012Validator, ValidationError
+
 from driftglass.capabilities import capabilities_report
 from driftglass.cli import main
 
 ROOT = Path(__file__).resolve().parents[2]
 CAPABILITIES_DOC = ROOT / "docs" / "platform-capabilities.md"
+CAPABILITIES_SCHEMA = ROOT / "schemas" / "capabilities" / "capabilities-v1.schema.json"
 
 
 def test_capability_summary_matches_the_implemented_observer_scope():
@@ -63,3 +67,29 @@ def test_capability_matrix_documents_unavailable_categories_and_limits():
     assert "real-world coverage across linux builds is unverified" in document
     assert "windows" in document and "not implemented" in document
     assert "macos" in document and "not implemented" in document
+
+
+
+def test_capability_report_conforms_to_versioned_schema_and_rejects_false_status():
+    schema = json.loads(CAPABILITIES_SCHEMA.read_text(encoding="utf-8"))
+    validator = Draft202012Validator(schema)
+    report = capabilities_report()
+
+    validator.validate(report)
+    invalid = json.loads(json.dumps(report))
+    invalid["platforms"][1]["collector_status"] = "supported"
+    with pytest.raises(ValidationError):
+        validator.validate(invalid)
+
+
+def test_architecture_security_and_lifecycle_documents_are_linked_from_readme():
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    documents = (
+        "architecture.md",
+        "threat-model.md",
+        "privacy-model.md",
+        "experiment-lifecycle.md",
+    )
+    for filename in documents:
+        assert f"docs/{filename}" in readme
+        assert (ROOT / "docs" / filename).is_file()

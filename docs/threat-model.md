@@ -1,0 +1,44 @@
+# Threat model
+
+## Scope
+
+Driftglass is a local-first prototype for comparing observations from two application runs. This model covers the current CLI, Linux procfs polling observer, JSONL/manifests, comparison/report pipeline, SQLite history, and browser-only report viewer. It does not assert that the software has undergone a complete independent security audit.
+
+## Assets to protect
+
+- Event streams, run manifests, comparison reports, and SQLite history.
+- Hostnames, IP addresses, executable names, process identifiers, filesystem paths in imported reports, and operator-supplied artifact metadata.
+- Integrity of comparison results and links between findings and source evidence.
+- The integrity of the developer's host and test environment.
+
+## Trust boundaries and adversaries
+
+| Input or boundary | Assumption | Relevant controls in the current prototype |
+|---|---|---|
+| Application being inspected | May behave unexpectedly or be hostile. | Driftglass does not launch or elevate it; run it in a disposable VM managed by the operator. |
+| Procfs observations | May be incomplete because of polling, permissions, namespace differences or process races. | Coverage records, incomplete status, event quality and manifest warnings are retained. |
+| Imported JSON/JSONL | May be malformed, oversized or contain misleading fields. | Strict versioned schema validation and non-zero errors for invalid inputs. |
+| Imported report in browser | Is untrusted input, including HTML-like text. | Structural validation and text rendering; no report-supplied HTML execution is intended. |
+| Local history and exported files | May reveal sensitive metadata and can be modified by a local user. | Owner-only file creation where supported, validated report writes and parameterized SQLite queries; local history is not cryptographically immutable. |
+| Host/kernel/observer | May be misconfigured or compromised. | No reliable defense against a compromised underlying host is claimed. |
+
+## Main risks and limits
+
+- **Missed or misattributed activity:** sampling can miss short-lived processes and sockets; access errors or ambiguous ownership reduce confidence. Reports must not turn lack of observation into proof of absence.
+- **Hostile or malformed input:** malformed event/report structures may trigger errors or misleading display. Schemas and parser tests reduce this risk, but do not prove all inputs safe.
+- **Sensitive report disclosure:** paths, process names and network metadata may be private. Local-first defaults and opt-in export redaction help; users must inspect redacted outputs before sharing.
+- **Environment contamination:** a candidate application could access host resources if the operator runs it outside isolation. The observer itself is not a sandbox.
+- **False attribution:** external network behavior, runtime noise or environment differences may explain an observed change. Findings are review leads, not maliciousness verdicts.
+- **Tampering:** a local actor can edit JSONL, reports or SQLite data. Content-derived IDs detect some accidental changes when revalidated; they are not signatures, secure timestamps or tamper-proof storage.
+
+## Explicit non-goals
+
+Driftglass does not provide a containment boundary, automatically block/delete/remediate an application, silently elevate privileges, launch targets when opening reports, protect a compromised kernel/hypervisor, or prove software safety. No local API currently exists, so API access-control validation is not applicable to this version; introducing one requires a separate threat review before implementation.
+
+## Security validation still needed
+
+- Controlled, real Linux workloads with expected event sets and measured misses.
+- Testing under restricted procfs permissions and namespace configurations.
+- Adversarial report/JSONL fuzzing and bounded resource-consumption checks.
+- Independent review of HTML export escaping and browser rendering paths.
+- Dependency and release-artifact integrity review.
