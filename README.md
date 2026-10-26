@@ -483,7 +483,8 @@ Progress should be measured by verified capabilities and tests, not the number o
 - [x] Add local SQLite report, run, and finding storage.
 - [x] Export structured JSON and standalone HTML.
 - [x] Include collection coverage, rule versions, and environment differences in reports.
-- [ ] Add redaction and local cleanup controls before sharing becomes a common workflow.
+- [x] Add explicit path, network-address/host, and process-name redaction for exported report copies.
+- [ ] Add local cleanup controls before sharing becomes a common workflow.
 
 ### Phase 4 — Dashboard and repeatability
 
@@ -517,7 +518,7 @@ python -m pip install -e ".[test]"
 python -m pytest
 ```
 
-The Python suite covers event/run-manifest validation, deterministic comparison, report export, SQLite history, CLI behaviour, and synthetic capture coordination. Capture tests mock the observer; they do not prove actual OS event coverage. Cargo tests cover synthetic procfs parsing, and broad real-world Linux coverage remains unverified.
+The Python suite covers event/run-manifest validation, deterministic comparison, report export, SQLite history, CLI behaviour, synthetic capture coordination, and schema-validated redacted exports. Capture tests mock the observer; they do not prove actual OS event coverage. Cargo tests cover synthetic procfs parsing, and broad real-world Linux coverage remains unverified.
 
 ### Testing priorities
 

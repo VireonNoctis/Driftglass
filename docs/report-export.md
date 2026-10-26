@@ -4,7 +4,7 @@ The reporting module accepts a comparison report object, validates it against th
 
 ## Python API
 
-The exporter is library-only; there is no CLI yet.
+The exporter is available as a Python library and through the local developer CLI (driftglass compare and driftglass history export).
 
 ~~~python
 from driftglass.reporting import export_html_report, export_json_report
@@ -17,4 +17,27 @@ Output directories must already exist. Exports refuse to overwrite existing file
 
 HTML output is standalone: CSS is embedded, no scripts or remote resources are added, and untrusted finding text and evidence JSON are HTML-escaped. Reports may still contain sensitive hostnames, paths, process names, and attributes. Review before sharing.
 
-This stage does not add SQLite history, automatic export, a command-line interface, or network transmission. Report export is a local file operation initiated explicitly by the caller.
+Report export is a local file operation initiated explicitly by the caller; it does not transmit data over a network.
+
+## Explicit privacy redaction
+
+For exports only, the CLI accepts optional --redact-paths, --redact-network, and --redact-process-names flags. For example:
+
+~~~bash
+python -m driftglass compare \
+  --baseline-manifest ./baseline-manifest.json \
+  --candidate-manifest ./candidate-manifest.json \
+  --baseline-events ./baseline-events.jsonl \
+  --candidate-events ./candidate-events.jsonl \
+  --json-output ./comparison-redacted.json \
+  --html-output ./comparison-redacted.html \
+  --redact-paths \
+  --redact-network \
+  --redact-process-names
+~~~
+
+Redaction replaces detected absolute paths, values associated with network evidence, and executable names with stable tokens within one exported report. It recomputes finding and report IDs so the redacted JSON remains valid under report schema v1. It does not modify the in-memory source report or a report already stored in SQLite; when comparison and history storage are used together, the database retains the unredacted source.
+
+Redaction is a best-effort privacy aid, not proof that every sensitive value has been removed. Report v1 does not carry a redaction-provenance field, so keep the CLI output and label the exported file clearly. Inspect the copy before sharing.
+
+
