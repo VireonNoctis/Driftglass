@@ -1,0 +1,229 @@
+import json
+import sqlite3
+from pathlib import Path
+
+from driftglass.cli import main
+
+
+ROOT = Path(__file__).resolve().parents[2]
+EVENT_SCHEMA = ROOT / "schemas" / "events" / "event-v1.schema.json"
+MANIFEST_SCHEMA = ROOT / "schemas" / "manifests" / "run-manifest-v1.schema.json"
+REPORT_SCHEMA = ROOT / "schemas" / "reports" / "report-v1.schema.json"
+
+
+def manifest(role, run_id, version, artifact_hash):
+    return {
+        "schema_version": 1,
+        "run_id": run_id,
+        "experiment_id": "cli-test",
+        "role": role,
+        "application": {"name": "CLI Fixture", "version": version, "artifact_sha256": artifact_hash, "package_id": "org.example.cli"},
+        "environment": {"os": "Linux", "os_version": "fixture", "architecture": "x86_64", "snapshot_id": "cli-snapshot"},
+        "capture": {"status": "completed", "started_at": "2026-10-25T10:00:00Z", "ended_at": "2026-10-25T10:01:00Z", "scenario": "launch", "profile": "minimal"},
+        "coverage": {
+            "event_sources": [
+                {"name": "process", "state": "active", "categories": ["process"]},
+                {"name": "network", "state": "active", "categories": ["network"]},
+                {"name": "file", "state": "active", "categories": ["file"]},
+                {"name": "system", "state": "active", "categories": ["system"]},
+                {"name": "persistence", "state": "active", "categories": ["persistence"]}
+            ],
+            "unavailable_categories": [],
+            "dropped_events": 0,
+            "errors": []
+        }
+    }
+
+
+def event(event_id, action):
+    return {
+        "schema_version": 1,
+        "event_id": event_id,
+        "timestamp": "2026-10-25T10:00:30Z",
+        "category": "network",
+        "action": action,
+        "source": {"collector": "cli-fixture/1", "event_ref": event_id},
+        "collection_quality": "complete",
+        "process": {"pid": 10, "parent_pid": 1, "executable": "cli-fixture"},
+        "resource": {"kind": "network", "identifier": "192.0.2.2:50000", "address": "198.51.100.10", "port": 443, "protocol": "tcp"},
+        "attributes": {"state": "ESTABLISHED"}
+    }
+
+
+def write_json(path, value):
+    path.write_text(json.dumps(value) + "\n", encoding="utf-8")
+
+
+def write_jsonl(path, values):
+    path.write_text("".join(json.dumps(value) + "\n" for value in values), encoding="utf-8")
+
+
+def captured_inputs(tmp_path):
+    base_manifest = tmp_path / "base.json"
+    candidate_manifest = tmp_path / "candidate.json"
+    base_events = tmp_path / "base.jsonl"
+    candidate_events = tmp_path / "candidate.jsonl"
+    write_json(base_manifest, manifest("baseline", "run-base", "1.0", "a" * 64))
+    write_json(candidate_manifest, manifest("candidate", "run-candidate", "2.0", "b" * 64))
+    write_jsonl(base_events, [event("e-base", "connection_attempt")])
+    write_jsonl(candidate_events, [event("e-candidate", "connection_established")])
+    return base_manifest, candidate_manifest, base_events, candidate_events
+
+
+def test_events_validate_reports_count_without_printing_event_values(tmp_path, capsys):
+    events_path = tmp_path / "events.jsonl"
+    write_jsonl(events_path, [event("evt", "connection_attempt")])
+    result = main(["events", "validate", str(events_path), "--event-schema", str(EVENT_SCHEMA)])
+    output = capsys.readouterr()
+    assert result == 0
+    assert "valid event stream: 1 record(s)" in output.out
+    assert "198.51.100.10" not in output.out
+
+
+def test_manifest_validate_reports_identity_and_capture_state(tmp_path, capsys):
+    manifest_path = tmp_path / "manifest.json"
+    write_json(manifest_path, manifest("baseline", "run-base", "1.0", "a" * 64))
+    result = main(["manifest", "validate", str(manifest_path), "--manifest-schema", str(MANIFEST_SCHEMA)])
+    assert result == 0
+    output = capsys.readouterr().out
+    assert "run_id=run-base" in output
+    assert "role=baseline" in output
+    assert "capture=completed" in output
+
+
+def test_compare_exports_and_stores_local_report(tmp_path, capsys):
+    base_manifest, candidate_manifest, base_events, candidate_events = captured_inputs(tmp_path)
+    json_output = tmp_path / "comparison.json"
+    html_output = tmp_path / "comparison.html"
+    database = tmp_path / "history.db"
+    result = main([
+        "compare", "--baseline-manifest", str(base_manifest),
+        "--candidate-manifest", str(candidate_manifest),
+        "--baseline-events", str(base_events), "--candidate-events", str(candidate_events),
+        "--manifest-schema", str(MANIFEST_SCHEMA), "--event-schema", str(EVENT_SCHEMA),
+        "--report-schema", str(REPORT_SCHEMA), "--json-output", str(json_output),
+        "--html-output", str(html_output), "--history-db", str(database),
+    ])
+    assert result == 0
+    output = capsys.readouterr().out
+    report = json.loads(json_output.read_text(encoding="utf-8"))
+    assert f"report_id={report['report_id']}" in output
+    assert report["summary"]["added_count"] == 1
+    assert report["summary"]["removed_count"] == 1
+    assert "Uncertainty and coverage gaps" in html_output.read_text(encoding="utf-8")
+
+
+def test_history_list_show_and_export_workflow(tmp_path, capsys):
+    base_manifest, candidate_manifest, base_events, candidate_events = captured_inputs(tmp_path)
+    database = tmp_path / "history.db"
+    assert main([
+        "compare", "--baseline-manifest", str(base_manifest), "--candidate-manifest", str(candidate_manifest),
+        "--baseline-events", str(base_events), "--candidate-events", str(candidate_events),
+        "--manifest-schema", str(MANIFEST_SCHEMA), "--event-schema", str(EVENT_SCHEMA),
+        "--report-schema", str(REPORT_SCHEMA), "--history-db", str(database)
+    ]) == 0
+    report_id = capsys.readouterr().out.split("report_id=", 1)[1].split()[0]
+
+    assert main(["history", "list", "--database", str(database)]) == 0
+    assert report_id in capsys.readouterr().out
+
+    assert main(["history", "show", "--database", str(database), "--report-id", report_id, "--report-schema", str(REPORT_SCHEMA)]) == 0
+    shown = json.loads(capsys.readouterr().out)
+    assert shown["report_id"] == report_id
+
+    export_path = tmp_path / "from-history.html"
+    assert main([
+        "history", "export", "--database", str(database), "--report-id", report_id,
+        "--format", "html", "--output", str(export_path), "--report-schema", str(REPORT_SCHEMA)
+    ]) == 0
+    assert export_path.exists()
+
+
+def test_compare_refuses_to_overwrite_input_capture(tmp_path, capsys):
+    base_manifest, candidate_manifest, base_events, candidate_events = captured_inputs(tmp_path)
+    original = base_events.read_text(encoding="utf-8")
+    result = main([
+        "compare",
+        "--baseline-manifest", str(base_manifest),
+        "--candidate-manifest", str(candidate_manifest),
+        "--baseline-events", str(base_events),
+        "--candidate-events", str(candidate_events),
+        "--manifest-schema", str(MANIFEST_SCHEMA),
+        "--event-schema", str(EVENT_SCHEMA),
+        "--report-schema", str(REPORT_SCHEMA),
+        "--json-output", str(base_events),
+        "--overwrite",
+    ])
+
+    assert result == 2
+    assert base_events.read_text(encoding="utf-8") == original
+    assert "JSON report output must not target the same path as baseline events" in capsys.readouterr().err
+
+
+def test_compare_refuses_shared_json_and_history_output_path(tmp_path, capsys):
+    base_manifest, candidate_manifest, base_events, candidate_events = captured_inputs(tmp_path)
+    shared_output = tmp_path / "shared-output"
+    result = main([
+        "compare",
+        "--baseline-manifest", str(base_manifest),
+        "--candidate-manifest", str(candidate_manifest),
+        "--baseline-events", str(base_events),
+        "--candidate-events", str(candidate_events),
+        "--manifest-schema", str(MANIFEST_SCHEMA),
+        "--event-schema", str(EVENT_SCHEMA),
+        "--report-schema", str(REPORT_SCHEMA),
+        "--json-output", str(shared_output),
+        "--history-db", str(shared_output),
+    ])
+
+    assert result == 2
+    assert not shared_output.exists()
+    assert "must use different paths" in capsys.readouterr().err
+
+
+def test_default_schema_root_contains_all_contracts():
+    from driftglass.cli import EVENT_SCHEMA as default_event_schema
+    from driftglass.cli import MANIFEST_SCHEMA as default_manifest_schema
+    from driftglass.cli import REPORT_SCHEMA as default_report_schema
+
+    assert default_event_schema.is_file()
+    assert default_manifest_schema.is_file()
+    assert default_report_schema.is_file()
+
+
+def test_history_export_refuses_history_database_as_output(tmp_path, capsys):
+    base_manifest, candidate_manifest, base_events, candidate_events = captured_inputs(tmp_path)
+    database = tmp_path / "history.db"
+    result = main([
+        "compare",
+        "--baseline-manifest", str(base_manifest),
+        "--candidate-manifest", str(candidate_manifest),
+        "--baseline-events", str(base_events), "--candidate-events", str(candidate_events),
+        "--manifest-schema", str(MANIFEST_SCHEMA), "--event-schema", str(EVENT_SCHEMA),
+        "--report-schema", str(REPORT_SCHEMA), "--history-db", str(database),
+    ])
+    assert result == 0
+    capsys.readouterr()
+
+    # The database remains the protected target regardless of whether the report ID is known.
+    connection = sqlite3.connect(database)
+    stored_id = connection.execute("SELECT report_id FROM reports LIMIT 1").fetchone()[0]
+    connection.close()
+    result = main([
+        "history", "export", "--database", str(database), "--report-id", stored_id,
+        "--format", "json", "--output", str(database), "--report-schema", str(REPORT_SCHEMA),
+        "--overwrite",
+    ])
+
+    assert result == 2
+    assert "export output must not target the same path as history database" in capsys.readouterr().err
+    connection = sqlite3.connect(database)
+    assert connection.execute("SELECT count(*) FROM reports").fetchone()[0] == 1
+    connection.close()
+
+
+def test_invalid_input_returns_nonzero_and_writes_error_to_stderr(tmp_path, capsys):
+    result = main(["events", "validate", str(tmp_path / "missing.jsonl"), "--event-schema", str(EVENT_SCHEMA)])
+    output = capsys.readouterr()
+    assert result == 2
+    assert "could not read event file" in output.err

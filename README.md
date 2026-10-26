@@ -10,7 +10,7 @@ Rather than asking only whether an application has a permission, Driftglass aims
 
 It is intended for security researchers, privacy-conscious users, maintainers, and developers who want to investigate application updates before trusting them.
 
-> **Project status:** Early prototype. Versioned event-record v1 and run-manifest v1 contracts and Python validators are on main. Deterministic comparison and local JSON/HTML export are in [PR #2](https://github.com/VireonNoctis/Driftglass/pull/2); SQLite report history is a follow-on review in [PR #3](https://github.com/VireonNoctis/Driftglass/pull/3). The experimental Linux /proc observer is proposed in [PR #1](https://github.com/VireonNoctis/Driftglass/pull/1). Automated orchestration, dashboard, and CLI remain unimplemented. No OS event coverage has been verified across Linux builds.
+> **Project status:** Early prototype. Versioned event-record v1 and run-manifest v1 contracts and Python validators are on main. Deterministic comparison and local JSON/HTML export are in [PR #2](https://github.com/VireonNoctis/Driftglass/pull/2); SQLite report history is in [PR #3](https://github.com/VireonNoctis/Driftglass/pull/3); the developer CLI is in [PR #4](https://github.com/VireonNoctis/Driftglass/pull/4). The experimental Linux /proc observer is proposed in [PR #1](https://github.com/VireonNoctis/Driftglass/pull/1). Automated orchestration and dashboard remain unimplemented. No OS event coverage has been verified across Linux builds.
 
 ---
 
@@ -29,6 +29,7 @@ It is intended for security researchers, privacy-conscious users, maintainers, a
 - [Comparison method](docs/comparison-method.md)
 - [Local report export](docs/report-export.md)
 - [Local SQLite report history](docs/storage.md)
+- [Developer CLI](docs/cli.md)
 - [Privacy by design](#privacy-by-design)
 - [Security model and limitations](#security-model-and-limitations)
 - [Platform strategy](#platform-strategy)
@@ -512,7 +513,7 @@ python -m pip install -e ".[test]"
 python -m pytest
 ```
 
-The main-branch Python tests validate synthetic event records and run manifests. Comparison, local report export, and SQLite history are being developed in review branches with synthetic matching, evidence, schema, uncertainty, export-safety, escaping, and persistence tests. These checks do not establish real OS collector coverage.
+The main-branch Python tests validate synthetic event records and run manifests. Comparison, local export, SQLite history, and the developer CLI are in review branches with synthetic matching, evidence, uncertainty, escaping, persistence, and integration tests. These checks do not establish real OS collector coverage.
 
 ### Testing priorities
 
