@@ -1,12 +1,14 @@
 <script lang="ts">
   import { validateReportV1 } from "./lib/report-validation.js";
+  import { validateRepeatAnalysisV1 } from "./lib/repeat-analysis-validation.js";
   import { buildEvidenceTimeline } from "./lib/evidence-timeline.js";
   import { buildCoverageMatrix } from "./lib/coverage-matrix.js";
   import { buildProcessTree } from "./lib/process-tree.js";
-  import type { Finding, ReportV1 } from "./types";
+  import type { Finding, ReportV1, RepeatAnalysisV1 } from "./types";
 
   const MAX_FILE_BYTES = 20 * 1024 * 1024;
   let report: ReportV1 | null = $state(null);
+  let repeatAnalysis: RepeatAnalysisV1 | null = $state(null);
   let errorMessage = $state("");
   let fileName = $state("");
   let query = $state("");
@@ -52,12 +54,23 @@
         return;
       }
       const parsed: unknown = JSON.parse(await file.text());
-      const result = validateReportV1(parsed);
-      if (!result.ok) {
-        errorMessage = result.message;
-        return;
+      if (isRepeatAnalysisInput(parsed)) {
+        const result = validateRepeatAnalysisV1(parsed);
+        if (!result.ok) {
+          errorMessage = result.message;
+          return;
+        }
+        repeatAnalysis = result.analysis;
+        report = null;
+      } else {
+        const result = validateReportV1(parsed);
+        if (!result.ok) {
+          errorMessage = result.message;
+          return;
+        }
+        report = result.report;
+        repeatAnalysis = null;
       }
-      report = result.report;
       evidenceView = "findings";
       fileName = file.name;
       query = "";
@@ -68,6 +81,11 @@
     } finally {
       loading = false;
     }
+  }
+
+  function isRepeatAnalysisInput(value: unknown): boolean {
+    return typeof value === "object" && value !== null &&
+      !Array.isArray(value) && "analysis_id" in value;
   }
 
   function handleInputChange(event: Event) {
@@ -83,7 +101,7 @@
     if (file) void loadFile(file);
   }
   function resetReport() {
-    report = null; fileName = ""; errorMessage = ""; query = "";
+    report = null; repeatAnalysis = null; fileName = ""; errorMessage = ""; query = "";
     categoryFilter = "all"; changeFilter = "all"; evidenceView = "findings";
   }
 
@@ -117,7 +135,7 @@
 <div class="app-shell">
   <header class="topbar">
     <a class="wordmark" href="#top" aria-label="Driftglass home"><span class="mark" aria-hidden="true">D</span><span>DRIFTGLASS</span></a>
-    <div class="topbar-right"><span class="eyebrow">LOCAL EVIDENCE VIEWER</span><span class="version">REPORT V1</span></div>
+    <div class="topbar-right"><span class="eyebrow">LOCAL EVIDENCE VIEWER</span><span class="version">REPORT V1 / REPEAT V1</span></div>
   </header>
 
   <main id="top">
@@ -130,7 +148,7 @@
       <div class="intro-stamp" aria-hidden="true"><span>DG</span><span>01 — LOCAL</span><span>NO UPLOAD</span></div>
     </section>
 
-    {#if !report}
+    {#if !report && !repeatAnalysis}
       <section
         class:drag-active={dragActive}
         class="dropzone"
@@ -142,18 +160,18 @@
         <div class="drop-symbol" aria-hidden="true">↧</div>
         <p class="eyebrow">LOAD EVIDENCE REPORT</p>
         <h2>Select a report to inspect</h2>
-        <p class="muted">Choose a Driftglass JSON export. It stays in this browser tab; this viewer does not upload or persist it.</p>
-        <button class="primary-button" type="button" disabled={loading} onclick={() => fileInput?.click()}>{loading ? "Reading report…" : "Choose JSON report"}</button>
+        <p class="muted">Choose a Driftglass comparison report or repeat-analysis JSON export. The file stays in this browser tab; this viewer does not upload or persist it.</p>
+        <button class="primary-button" type="button" disabled={loading} onclick={() => fileInput?.click()}>{loading ? "Reading file…" : "Choose JSON file"}</button>
         <input bind:this={fileInput} class="visually-hidden" type="file" accept=".json,application/json" disabled={loading} onchange={handleInputChange} />
         {#if loading}
           <p class="loading-message" role="status" aria-live="polite">Reading and validating the selected report…</p>
         {:else}
-          <p class="micro">JSON only · 20 MiB maximum · report schema v1</p>
+          <p class="micro">JSON only · 20 MiB maximum · report v1 or repeat-analysis v1</p>
         {/if}
         {#if errorMessage}<p class="error-message" role="alert">{errorMessage}</p>{/if}
       </section>
       <section class="privacy-note"><span aria-hidden="true">○</span><p><strong>Local-only review.</strong> Paths, process names, hostnames and evidence may be sensitive. Use this viewer on a trusted machine.</p></section>
-    {:else}
+    {:else if report}
       <section class="report-heading">
         <div>
           <p class="eyebrow">LOADED REPORT / {fileName}</p>
@@ -386,6 +404,137 @@
         {/if}
       </section>
       <footer class="report-footer"><p>Differences are observations, not verdicts. Missing events are not proof that an action did not occur.</p><button class="quiet-button" type="button" onclick={resetReport}>Close report</button></footer>
+    {:else if repeatAnalysis}
+      <section class="report-heading">
+        <div>
+          <p class="eyebrow">REPEAT ANALYSIS / {fileName}</p>
+          <h2>{repeatAnalysis.cohort.application_name}</h2>
+          <p class="muted">Baseline <code>{repeatAnalysis.cohort.baseline_version}</code> → Candidate <code>{repeatAnalysis.cohort.candidate_version}</code></p>
+          <p class="micro muted">Analysis ID <code>{repeatAnalysis.analysis_id}</code></p>
+        </div>
+        <div class="heading-actions">
+          <span class="count">{formatCount(repeatAnalysis.report_count)} REPORTS</span>
+          <button class="quiet-button" type="button" onclick={resetReport}>Close analysis</button>
+        </div>
+      </section>
+
+      <section class="repeat-summary-grid" aria-label="Repeat-analysis summary">
+        <article class="repeat-summary-card">
+          <p class="eyebrow">RECURRING</p>
+          <strong>{formatCount(repeatAnalysis.summary.recurring_pattern_count)}</strong>
+          <p>Patterns observed in every supplied report</p>
+        </article>
+        <article class="repeat-summary-card">
+          <p class="eyebrow">NOT CONSISTENTLY OBSERVED</p>
+          <strong>{formatCount(repeatAnalysis.summary.not_consistently_observed_pattern_count)}</strong>
+          <p>Patterns present in only some supplied reports</p>
+        </article>
+        <article class="repeat-summary-card">
+          <p class="eyebrow">PARTIAL INPUTS</p>
+          <strong>{formatCount(repeatAnalysis.summary.partial_report_count)}</strong>
+          <p>Source reports with declared uncertainty</p>
+        </article>
+      </section>
+
+      <section class="section-block repeat-cohort">
+        <div class="section-heading">
+          <div><p class="eyebrow">COMPARISON COHORT</p><h3>Version and profile identity</h3></div>
+          <span class="count">V1</span>
+        </div>
+        <div class="repeat-cohort-grid">
+          <div><span>Application</span><strong>{repeatAnalysis.cohort.application_name}</strong></div>
+          <div><span>Baseline artifact SHA-256</span><code>{repeatAnalysis.cohort.baseline_artifact_sha256 ?? "Not supplied"}</code></div>
+          <div><span>Candidate artifact SHA-256</span><code>{repeatAnalysis.cohort.candidate_artifact_sha256 ?? "Not supplied"}</code></div>
+          <div><span>Comparison profile SHA-256</span><code>{repeatAnalysis.cohort.comparison_profile_sha256 ?? "Not recorded in source reports"}</code></div>
+        </div>
+        <p class="timeline-note">This analysis groups reports by application, versions, artifact hashes, and comparison-profile fingerprint. It does not establish that every run used identical environment conditions or achieved comprehensive collection.</p>
+      </section>
+
+      {#if repeatAnalysis.partial_report_ids.length > 0}
+        <section class="repeat-partial-notice" aria-labelledby="partial-repeat-heading">
+          <p class="eyebrow">COLLECTION UNCERTAINTY</p>
+          <h3 id="partial-repeat-heading">Partial source reports are included</h3>
+          <p>Patterns can be absent from a partial run because collection gaps or run variability affected what was observed. Do not treat absence from these reports as proof that an activity did not occur.</p>
+          <ul>
+            {#each repeatAnalysis.partial_report_ids as reportId (reportId)}
+              <li><code>{reportId}</code></li>
+            {/each}
+          </ul>
+        </section>
+      {/if}
+
+      <section class="section-block repeat-pattern-section">
+        <div class="section-heading">
+          <div><p class="eyebrow">NORMALIZED FINDING PATTERNS</p><h3>Repeatability findings</h3></div>
+          <span class="count">{formatCount(repeatAnalysis.patterns.length)} PATTERNS</span>
+        </div>
+        <p class="timeline-note">“Recurring” means this normalized pattern appears in every supplied comparison report. “Not consistently observed” means it appeared in only some reports. Neither label is a verdict about intent or safety.</p>
+        {#if repeatAnalysis.patterns.length === 0}
+          <div class="empty-state">
+            <p class="eyebrow">NO FINDING PATTERNS</p>
+            <p>The supplied reports contain no findings to aggregate. This is bounded by those reports and their collection coverage; it is not a claim that the application had no relevant activity.</p>
+          </div>
+        {:else}
+          <div class="repeat-pattern-list">
+            {#each repeatAnalysis.patterns as pattern (pattern.fingerprint)}
+              <article class="repeat-pattern">
+                <div class="repeat-pattern-topline">
+                  <div class="tag-row">
+                    <span class="tag secondary-tag">{pattern.change_type.toUpperCase()}</span>
+                    <span class="tag secondary-tag">{pattern.category.toUpperCase()}</span>
+                    <code>{pattern.rule_id}</code>
+                  </div>
+                  <span class="repeatability-tag" class:repeatable={pattern.repeatability === "recurring"} class:inconsistent={pattern.repeatability === "not_consistently_observed"}>
+                    {pattern.repeatability === "recurring" ? "RECURRING" : "NOT CONSISTENTLY OBSERVED"}
+                  </span>
+                </div>
+                <h4>{pattern.summary}</h4>
+                <p>{pattern.observation}</p>
+                <div class="repeat-pattern-meta">
+                  <span>Observed in <strong>{formatCount(pattern.occurrence_count)} of {formatCount(repeatAnalysis.report_count)}</strong> reports</span>
+                  <code>Fingerprint {pattern.fingerprint}</code>
+                </div>
+                <details class="repeat-reference-details">
+                  <summary>Source references ({pattern.report_refs.length} reports)</summary>
+                  <div class="repeat-reference-list">
+                    {#each pattern.report_refs as reference (reference.report_id)}
+                      <div class="repeat-reference">
+                        <p><span class="side-label">SOURCE REPORT</span><code>{reference.report_id}</code></p>
+                        <p class="muted">Finding ID reference(s) — open the source comparison report to inspect the original evidence.</p>
+                        <ul>
+                          {#each reference.finding_ids as findingId (findingId)}
+                            <li><code>{findingId}</code></li>
+                          {/each}
+                        </ul>
+                      </div>
+                    {/each}
+                  </div>
+                </details>
+              </article>
+            {/each}
+          </div>
+        {/if}
+      </section>
+
+      <section class="section-block repeat-source-section">
+        <div class="section-heading">
+          <div><p class="eyebrow">INPUT REPORTS</p><h3>Source comparison reports</h3></div>
+          <span class="count">{formatCount(repeatAnalysis.reports.length)} SOURCES</span>
+        </div>
+        <div class="repeat-source-list">
+          {#each repeatAnalysis.reports as source (source.report_id)}
+            <article class:partial-source={source.status === "partial"}>
+              <div>
+                <code class="repeat-source-id">{source.report_id}</code>
+                <p class="micro muted">{formatCount(source.added_count)} added · {formatCount(source.removed_count)} removed · {formatCount(source.changed_count)} changed · {formatCount(source.uncertainty_count)} uncertainty item(s)</p>
+              </div>
+              <span class="repeatability-tag" class:repeatable={source.status === "complete"} class:inconsistent={source.status === "partial"}>{source.status.toUpperCase()}</span>
+            </article>
+          {/each}
+        </div>
+        <p class="micro muted">Source report IDs and finding IDs are references, not embedded evidence. The viewer does not open or load any additional files automatically.</p>
+      </section>
+      <footer class="report-footer"><p>Repeatability describes patterns in the supplied reports only. Partial collection, sampling, environment differences and run variability can affect what appears.</p><button class="quiet-button" type="button" onclick={resetReport}>Close analysis</button></footer>
     {/if}
   </main>
   <footer class="global-footer"><span>DRIFTGLASS / EXPERIMENTAL</span><span>LOCAL-FIRST · NO TELEMETRY UPLOAD</span></footer>

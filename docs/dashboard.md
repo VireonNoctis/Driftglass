@@ -23,3 +23,10 @@ The report viewer can draw a partial process relationship view from evidence rec
 The dashboard shows the collection-source declarations and actual input record counts copied into newer report-v1 comparison reports. Rows distinguish a source declared active, declared unavailable, inactive/failed sources, conflicting declarations, and categories not declared. Each run's source list, dropped-event count, and errors can be expanded. Older report-v1 files without this optional snapshot remain readable and show an explicit unavailable state instead of an inferred matrix.
 
 The event counts represent records in the input JSONL presented to the comparator. A zero count does not mean no activity occurred. A declared active source does not prove comprehensive collection.
+
+
+## Repeat-analysis viewer
+
+The same read-only page can open an exported repeat-analysis-v1 JSON file. It validates the cohort shape, source report IDs/statuses, partial-report list, pattern-to-report references, recurrence labels, and summary counts before displaying the result. It shows recurring and not-consistently-observed patterns separately and preserves source report/finding IDs for manual lookup in the original comparison files.
+
+The browser performs defensive structural checks; the Python exporter and repeat command remain authoritative for full JSON Schema validation and the content-derived analysis ID. Source references are not embedded evidence, and the viewer does not load other files automatically. A recurring label means the normalized pattern was present in every supplied report; it is not a maliciousness or safety verdict. Partial runs, sampling and differences in actual environment conditions can affect repeatability.
