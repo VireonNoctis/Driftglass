@@ -210,6 +210,7 @@ def test_html_report_includes_escaped_per_run_coverage_and_input_counts():
 def test_html_report_keeps_older_v1_reports_without_coverage_viewable():
     report = make_report()
     report.pop("coverage")
-    report["report_id"] = __import__("hashlib").sha256(canonical_json(report).encode("utf-8")).hexdigest()
+    core = {key: value for key, value in report.items() if key != "report_id"}
+    report["report_id"] = __import__("hashlib").sha256(canonical_json(core).encode("utf-8")).hexdigest()
     html_report = render_html_report(report, REPORT_SCHEMA)
     assert "does not include a per-run coverage snapshot" in html_report
