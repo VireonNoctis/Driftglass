@@ -12,13 +12,13 @@ function validAnalysis() {
   ];
   return {
     schema_version: 1,
-    analysis_id: hash("k"),
+    analysis_id: hash("4"),
     cohort: {
       application_name: "Synthetic App",
       baseline_version: "1.0",
       candidate_version: "2.0",
-      baseline_artifact_sha256: hash("l"),
-      candidate_artifact_sha256: hash("m"),
+      baseline_artifact_sha256: hash("5"),
+      candidate_artifact_sha256: hash("6"),
       comparison_profile_sha256: null
     },
     report_count: 3,
@@ -36,11 +36,11 @@ function validAnalysis() {
         repeatability: "recurring",
         report_refs: reports.map((source, index) => ({
           report_id: source.report_id,
-          finding_ids: [hash(["e", "f", "g"][index])]
+          finding_ids: [hash(["e", "f", "0"][index])]
         }))
       },
       {
-        fingerprint: hash("h"),
+        fingerprint: hash("8"),
         rule_id: "DG-COMPARE-002",
         change_type: "changed",
         category: "process",
@@ -50,7 +50,7 @@ function validAnalysis() {
         repeatability: "not_consistently_observed",
         report_refs: reports.slice(0, 2).map((source, index) => ({
           report_id: source.report_id,
-          finding_ids: [hash(["i", "j"][index])]
+          finding_ids: [hash(["9", "0"][index])]
         }))
       }
     ],
@@ -90,7 +90,7 @@ test("rejects a recurring label when not every input report is referenced", () =
 
 test("rejects references to reports outside the analysis", () => {
   const value = validAnalysis();
-  value.patterns[0].report_refs[0].report_id = hash("z");
+  value.patterns[0].report_refs[0].report_id = hash("1");
   const result = validateRepeatAnalysisV1(value);
   assert.equal(result.ok, false);
   assert.match(result.message, /outside this analysis/);
