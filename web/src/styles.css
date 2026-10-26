@@ -367,3 +367,45 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; color: #c4c9d2; background
   .process-tree-row { gap: 6px; }
   .process-tree-heading .count { margin-left: 0; }
 }
+
+
+.coverage-explainer {
+  max-width: 900px; margin: -4px 0 18px; color: var(--muted);
+  font-size: .82rem; line-height: 1.7;
+}
+.coverage-table-wrap {
+  max-width: 100%; overflow-x: auto; border: 1px solid var(--line);
+  border-radius: 18px; background: rgba(255,255,255,.025);
+}
+.coverage-table { width: 100%; border-collapse: collapse; min-width: 680px; }
+.coverage-table th, .coverage-table td {
+  padding: 13px 14px; border-bottom: 1px solid var(--soft); text-align: left; vertical-align: top;
+}
+.coverage-table thead th {
+  color: var(--muted); font: .66rem var(--mono); letter-spacing: .045em;
+  background: rgba(255,255,255,.03);
+}
+.coverage-table tbody tr:last-child th, .coverage-table tbody tr:last-child td { border-bottom: 0; }
+.coverage-table tbody th { font-weight: 500; }
+.coverage-state {
+  display: inline-block; padding: 4px 7px; border: 1px solid var(--line);
+  border-radius: 999px; font-size: .7rem; line-height: 1.4; white-space: normal;
+}
+.coverage-positive { color: #e0e7ee; border-color: rgba(224,231,238,.38); background: rgba(224,231,238,.06); }
+.coverage-warning { color: var(--warning); border-color: rgba(223,197,139,.4); background: rgba(223,197,139,.045); }
+.coverage-source-names { margin: 7px 0 0; color: var(--muted); font-size: .72rem; line-height: 1.55; overflow-wrap: anywhere; }
+.coverage-counts { min-width: 110px; font: .76rem var(--mono); font-variant-numeric: tabular-nums; }
+.coverage-counts span { display: inline-block; margin: 0 6px 4px 0; }
+.coverage-run-details { display: grid; gap: 8px; margin-top: 12px; }
+.coverage-run-details details { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; background: rgba(255,255,255,.025); }
+.coverage-run-details summary { line-height: 1.5; }
+.coverage-detail-body { padding: 9px 2px 0; color: var(--muted); font-size: .8rem; line-height: 1.65; overflow-wrap: anywhere; }
+.coverage-detail-body h4 { color: var(--text); font-size: .8rem; font-weight: 600; margin: 14px 0 6px; }
+.coverage-detail-body p { margin: 7px 0; }
+.coverage-detail-body ul { margin: 6px 0 10px; padding-left: 20px; }
+.coverage-detail-body li { margin: 5px 0; }
+@media (max-width:560px) {
+  .coverage-table { min-width: 640px; }
+  .coverage-table th, .coverage-table td { padding: 10px 11px; }
+  .coverage-state { max-width: 165px; }
+}

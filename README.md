@@ -483,6 +483,7 @@ Progress should be measured by verified capabilities and tests, not the number o
 - [x] Add local SQLite report, run, and finding storage.
 - [x] Export structured JSON and standalone HTML.
 - [x] Include collection coverage, rule versions, and environment differences in reports.
+- [x] Preserve per-run source declarations, unavailable categories, dropped counts, collection errors, and input record counts in report JSON/HTML and the dashboard.
 - [x] Add explicit path, network-address/host, and process-name redaction for exported report copies.
 - [x] Add explicit, confirmation-gated SQLite report deletion and orphan-run cleanup.
 
