@@ -27,7 +27,16 @@ This prints versioned JSON describing the implemented Linux procfs observer, its
 python -m driftglass report validate ./comparison.json
 ~~~
 
-Report validation checks the v1 schema, cross-field evidence/run relationships, comparison-profile digest, and content-derived report ID. A valid content hash detects changes relative to the report contents; it is not a digital signature and does not prove that the original capture was complete. Imported comparison JSON is limited to 64 MiB per file. Run manifests are limited to 4 MiB and comparison rule profiles to 1 MiB.
+Report validation checks the v1 schema, cross-field evidence/run relationships, comparison-profile digest, and content-derived report ID. A valid content hash detects changes relative to the report contents; it is not a digital signature and does not prove that the original capture was complete.
+
+### Detached report integrity manifest
+
+~~~bash
+python -m driftglass report attest ./comparison.json --manifest-output ./comparison.integrity.json
+python -m driftglass report verify ./comparison.json --manifest ./comparison.integrity.json
+~~~
+
+The sidecar records the exact report-file SHA-256, byte size and validated report ID. Keep the sidecar separately if it is used as a reference. It is not signed: anyone able to replace both report and sidecar can recompute the hash, so it detects changes relative to the saved sidecar but does not authenticate the author or prove collection completeness. Imported comparison JSON is limited to 64 MiB per file. Run manifests are limited to 4 MiB and comparison rule profiles to 1 MiB.
 
 ~~~bash
 python -m driftglass events validate ./run-events.jsonl

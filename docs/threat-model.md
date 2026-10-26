@@ -29,7 +29,7 @@ Driftglass is a local-first prototype for comparing observations from two applic
 - **Sensitive report disclosure:** paths, process names and network metadata may be private. Local-first defaults and opt-in export redaction help; users must inspect redacted outputs before sharing.
 - **Environment contamination:** a candidate application could access host resources if the operator runs it outside isolation. The observer itself is not a sandbox.
 - **False attribution:** external network behavior, runtime noise or environment differences may explain an observed change. Findings are review leads, not maliciousness verdicts.
-- **Tampering:** a local actor can edit JSONL, reports or SQLite data. Content-derived IDs detect some accidental changes when revalidated; they are not signatures, secure timestamps or tamper-proof storage.
+- **Tampering:** a local actor can edit JSONL, reports or SQLite data. Content-derived IDs detect some accidental changes when revalidated. A detached SHA-256 sidecar detects report changes relative to the saved manifest, but neither file is signed and both can be recomputed by an actor able to replace them.
 
 ## Explicit non-goals
 
