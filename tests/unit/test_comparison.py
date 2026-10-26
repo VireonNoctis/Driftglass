@@ -91,6 +91,68 @@ def test_equivalent_observations_ignore_timestamps_pids_and_source_refs(tmp_path
     assert report["summary"]["baseline_behaviour_event_count"] == 1
 
 
+def noisy_variant(original, event_id, minute, pid, *, address=None):
+    resource = dict(original["resource"])
+    if address is not None:
+        resource["address"] = address
+    return {
+        **original,
+        "event_id": event_id,
+        "timestamp": f"2026-10-25T10:{minute:02d}:00Z",
+        "source": {"collector": "synthetic/2", "event_ref": f"source-{event_id}"},
+        "process": {**original["process"], "pid": pid, "parent_pid": 7},
+        "resource": resource,
+    }
+
+
+def test_noisy_equivalent_runs_do_not_create_findings_when_event_order_changes(tmp_path):
+    base, candidate = pair()
+    baseline_events = [
+        event("base-a", resource={**event()["resource"], "identifier": "socket-a", "address": "198.51.100.10"}),
+        event("base-b", resource={**event()["resource"], "identifier": "socket-b", "address": "198.51.100.11"}),
+        event("base-c", resource={**event()["resource"], "identifier": "socket-c", "address": "198.51.100.12"}),
+    ]
+    candidate_events = [
+        noisy_variant(baseline_events[2], "candidate-c", 3, 903),
+        noisy_variant(baseline_events[0], "candidate-a", 1, 901),
+        noisy_variant(baseline_events[1], "candidate-b", 2, 902),
+    ]
+
+    report = compare(tmp_path, base, candidate, baseline_events, candidate_events)
+
+    assert report["findings"] == []
+    assert report["summary"]["added_count"] == 0
+    assert report["summary"]["removed_count"] == 0
+    assert report["summary"]["changed_count"] == 0
+    assert report["status"] == "complete"
+
+
+def test_real_destination_change_survives_noise_in_other_observations(tmp_path):
+    base, candidate = pair()
+    baseline_events = [
+        event("base-a", resource={**event()["resource"], "identifier": "socket-a", "address": "198.51.100.10"}),
+        event("base-b", resource={**event()["resource"], "identifier": "socket-b", "address": "198.51.100.11"}),
+        event("base-c", resource={**event()["resource"], "identifier": "socket-c", "address": "198.51.100.12"}),
+    ]
+    candidate_events = [
+        noisy_variant(baseline_events[2], "candidate-c", 3, 903),
+        noisy_variant(baseline_events[0], "candidate-a", 1, 901, address="203.0.113.77"),
+        noisy_variant(baseline_events[1], "candidate-b", 2, 902),
+    ]
+
+    report = compare(tmp_path, base, candidate, baseline_events, candidate_events)
+
+    assert len(report["findings"]) == 1
+    finding = report["findings"][0]
+    assert finding["change_type"] == "changed"
+    assert finding["baseline_evidence"][0]["event_id"] == "base-a"
+    assert finding["candidate_evidence"][0]["event_id"] == "candidate-a"
+    assert finding["candidate_evidence"][0]["observed"]["resource"]["address"] == "203.0.113.77"
+    assert report["summary"]["added_count"] == 0
+    assert report["summary"]["removed_count"] == 0
+    assert report["summary"]["changed_count"] == 1
+
+
 def test_changed_network_destination_is_linked_to_both_inputs(tmp_path):
     base, candidate = pair()
     left = event()
