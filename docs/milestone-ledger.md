@@ -2,7 +2,7 @@
 
 This is the first numbered 60-item ledger for the project; the prior README roadmap was phase-based and did not contain a pre-existing 60-item plan. The status column is intentionally honest: a milestone is marked **Done** only where code/docs exist and the relevant automated check ran, or where it is a documented capability verified from the implementation. **Remaining** means it has not been completed or validated yet.
 
-**Current tally: 50 done, 10 remaining.** This does not mean 49 milestones were completed in the latest session. Items 1–36 are existing capabilities in the repository; items 37–49 record the comparison fix and the work completed across the latest commits. The remaining platform and real-workload milestones require implementation or experiments, not more checkboxes.
+**Current tally: 52 done, 8 remaining.** This does not mean 49 milestones were completed in the latest session. Items 1–36 are existing capabilities in the repository; items 37–49 record the comparison fix and the work completed across the latest commits. The remaining platform and real-workload milestones require implementation or experiments, not more checkboxes.
 
 | # | Milestone | Status | Evidence / acceptance |
 |---:|---|---|---|
@@ -64,8 +64,8 @@ This is the first numbered 60-item ledger for the project; the prior README road
 | 56 | Implement and validate a native Windows observer | Remaining | No Windows collector exists |
 | 57 | Implement or formally defer a native macOS observer based on platform research | Remaining | No macOS collector exists |
 | 58 | Add a reproducible paired-run test harness that does not silently launch unknown targets | Remaining | Capture is one-run/manual; repeat analysis does not schedule runs |
-| 59 | Add a cryptographic export manifest or signature with documented trust semantics | Remaining | Deterministic content IDs are not signatures or tamper-proof evidence |
-| 60 | Define size/retention limits and recovery expectations for local SQLite history | Remaining | Explicit deletion exists; no global DB-size or retention policy is implemented |
+| 59 | Add a detached SHA-256 export integrity manifest and verifier with honest trust semantics | Done | `report attest`/`report verify`, versioned schema and tamper tests; explicitly not a signature or author authentication |
+| 60 | Bound SQLite history by report count and aggregate report JSON, and document retention/recovery limits | Done | Save rejects over 1,000 reports or 256 MiB aggregate report JSON transactionally; documentation explains SQLite file overhead and explicit deletion |
 
 ## CI and evidence
 
