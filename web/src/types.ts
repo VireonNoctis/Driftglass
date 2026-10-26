@@ -1,6 +1,13 @@
 export type ChangeType = "added" | "removed" | "changed";
 export type FindingCategory = "process" | "network" | "file" | "system";
 
+export interface ProcessIdentity {
+  pid: number;
+  parent_pid: number;
+  executable: string;
+  start_time_ticks?: number;
+}
+
 export interface Evidence {
   run_id: string;
   event_id: string;
@@ -11,9 +18,10 @@ export interface Evidence {
     category: string;
     action: string;
     process_executable: string | null;
+    process_identity?: ProcessIdentity;
     resource: Record<string, unknown> | null;
     outcome: string | null;
-    attributes: Record<string, string | number | boolean | null>;
+    attributes: Record<string, unknown>;
   };
 }
 

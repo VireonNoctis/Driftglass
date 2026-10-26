@@ -41,7 +41,11 @@ def _details(event: dict[str, Any]) -> dict[str, Any]:
         "process_executable": _process_name(event),
         "resource": event.get("resource"),
         "outcome": event.get("outcome"),
-        "attributes": event.get("attributes", {}),
+        "attributes": {
+            key: value
+            for key, value in event.get("attributes", {}).items()
+            if key != "process_start_time_ticks"
+        },
     }
 
 
@@ -56,13 +60,35 @@ def _event_order(event: dict[str, Any]) -> tuple[str, str, str]:
 
 
 def _evidence(run_id: str, event: dict[str, Any]) -> dict[str, Any]:
+    observed = _details(event)
+    process = event.get("process")
+    if isinstance(process, dict):
+        pid = process.get("pid")
+        parent_pid = process.get("parent_pid")
+        executable = process.get("executable")
+        if (
+            type(pid) is int and pid >= 0
+            and type(parent_pid) is int and parent_pid >= 0
+            and isinstance(executable, str)
+        ):
+            identity: dict[str, Any] = {
+                "pid": pid,
+                "parent_pid": parent_pid,
+                "executable": executable,
+            }
+            attributes = event.get("attributes")
+            start_time_ticks = attributes.get("process_start_time_ticks") if isinstance(attributes, dict) else None
+            if type(start_time_ticks) is int and start_time_ticks >= 0:
+                identity["start_time_ticks"] = start_time_ticks
+            observed["process_identity"] = identity
+
     return {
         "run_id": run_id,
         "event_id": event["event_id"],
         "collector": event["source"]["collector"],
         "source_event_ref": event["source"]["event_ref"],
         "timestamp": event["timestamp"],
-        "observed": _details(event),
+        "observed": observed,
     }
 
 

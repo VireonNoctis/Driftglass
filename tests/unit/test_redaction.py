@@ -71,6 +71,7 @@ def event(event_id, action):
             "protocol": "tcp",
         },
         "attributes": {
+            "process_start_time_ticks": 1000,
             "config_path": "/home/alice/private/config.json",
             "destination_host": "api.internal.example",
             "state": "ESTABLISHED",
@@ -106,6 +107,7 @@ def test_redacts_paths_network_and_process_names_without_mutating_source():
     assert "api.internal.example" not in rendered
     assert "192.0.2.2" not in rendered
     assert "synthetic-runner" not in rendered
+    assert "[REDACTED_PROCESS_001]" in rendered
     assert "[REDACTED_PATH_001]" in rendered
     assert "[REDACTED_HOST_001]" in rendered
     assert "[REDACTED_PROCESS_001]" in rendered

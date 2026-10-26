@@ -80,7 +80,7 @@ def _collect_paths(
 ) -> None:
     if isinstance(value, dict):
         kind = value.get("kind") if isinstance(value.get("kind"), str) else resource_kind
-        inside_process = process_context or key.lower() == "process"
+        inside_process = process_context or key.lower() in {"process", "process_identity"}
         for child_key, child in value.items():
             _collect_paths(
                 child,
@@ -139,7 +139,7 @@ def _collect_process_names(
     process_context: bool = False,
 ) -> None:
     if isinstance(value, dict):
-        inside_process = process_context or key.lower() == "process"
+        inside_process = process_context or key.lower() in {"process", "process_identity"}
         for child_key, child in value.items():
             is_executable = child_key.lower() == "process_executable" or (
                 inside_process and child_key.lower() == "executable"
@@ -199,7 +199,7 @@ def _redact_value(
 ) -> Any:
     if isinstance(value, dict):
         kind = value.get("kind") if isinstance(value.get("kind"), str) else resource_kind
-        inside_process = process_context or key.lower() == "process"
+        inside_process = process_context or key.lower() in {"process", "process_identity"}
         return {
             child_key: _redact_value(
                 child,

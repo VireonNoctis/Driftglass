@@ -26,6 +26,15 @@ function isRun(value) {
     ["running", "completed", "incomplete", "failed"].includes(value.capture_status);
 }
 /** @param {unknown} value @returns {boolean} */
+function isProcessIdentity(value) {
+  return isRecord(value) &&
+    isCount(value.pid) &&
+    isCount(value.parent_pid) &&
+    typeof value.executable === "string" &&
+    value.executable.length <= 4096 &&
+    (value.start_time_ticks === undefined || isCount(value.start_time_ticks));
+}
+/** @param {unknown} value @returns {boolean} */
 function isEvidence(value) {
   return isRecord(value) &&
     isText(value.run_id) && isText(value.event_id) &&
@@ -35,7 +44,8 @@ function isEvidence(value) {
     isText(value.observed.category) && isText(value.observed.action) &&
     isNullableText(value.observed.process_executable) &&
     (value.observed.resource === null || isRecord(value.observed.resource)) &&
-    isNullableText(value.observed.outcome) && isRecord(value.observed.attributes);
+    isNullableText(value.observed.outcome) && isRecord(value.observed.attributes) &&
+    (value.observed.process_identity === undefined || isProcessIdentity(value.observed.process_identity));
 }
 /** @param {unknown} value @returns {boolean} */
 function isFinding(value) {
