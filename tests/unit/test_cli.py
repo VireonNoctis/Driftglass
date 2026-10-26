@@ -492,7 +492,7 @@ def test_report_validate_rejects_a_tampered_content_hash(tmp_path, capsys):
     capsys.readouterr()
 
     report = json.loads(report_path.read_text(encoding="utf-8"))
-    report["summary"]["added_count"] += 1
+    report["baseline"]["version"] = "tampered-version"
     write_json(report_path, report)
 
     result = main([
