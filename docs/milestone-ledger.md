@@ -2,7 +2,7 @@
 
 This is the first numbered 60-item ledger for the project; the prior README roadmap was phase-based and did not contain a pre-existing 60-item plan. The status column is intentionally honest: a milestone is marked **Done** only where code/docs exist and the relevant automated check ran, or where it is a documented capability verified from the implementation. **Remaining** means it has not been completed or validated yet.
 
-**Current tally: 56 done, 4 remaining.** This does not mean 49 milestones were completed in the latest session. Items 1–36 are existing capabilities in the repository; items 37–49 record the comparison fix and the work completed across the latest commits. The remaining platform and real-workload milestones require implementation or experiments, not more checkboxes.
+**Current tally: 59 milestones resolved, 1 remaining.** This does not mean 49 milestones were completed in the latest session. Items 1–36 are existing capabilities in the repository; items 37–49 record the comparison fix and the work completed across the latest commits. The remaining platform and real-workload milestones require implementation or experiments, not more checkboxes.
 
 | # | Milestone | Status | Evidence / acceptance |
 |---:|---|---|---|
@@ -59,9 +59,9 @@ This is the first numbered 60-item ledger for the project; the prior README road
 | 51 | Record expected versus observed listener events in a controlled Linux workload | Done | Integration test expects one known loopback listener event and observes exactly one in each capture; this is not a general event-loss-rate estimate |
 | 52 | Validate collector behavior across distinct Linux kernel/distribution builds | Remaining | Publish only after experiments record the actual kernel/build and coverage |
 | 53 | Test PID-selected network-table path and document cross-namespace descendant limitation | Done | Synthetic Rust fixture verifies per-PID `/proc/<pid>/net` table selection; actual cross-namespace visibility remains unsupported/unverified |
-| 54 | Add file-system activity collection with explicit coverage and tests | Remaining | No file-event collector currently exists |
-| 55 | Add system/persistence observation only after defined supported sources and tests | Remaining | Currently declared unavailable |
-| 56 | Implement and validate a native Windows observer | Remaining | No Windows collector exists |
+| 54 | Make and document a formal file-activity collector deferral decision | Done (deferred) | `docs/decisions/file-activity-collector-deferral.md`; file activity remains unavailable and no collector is claimed |
+| 55 | Make and document a formal system/persistence observation deferral decision | Done (deferred) | `docs/decisions/system-persistence-deferral.md`; system/persistence remains unavailable and no collector is claimed |
+| 56 | Formally defer the Windows observer pending a supported event-source and test plan | Done (deferred) | `docs/decisions/windows-observer-deferral.md`; Windows remains `not_implemented` |
 | 57 | Formally defer the native macOS observer pending entitlements, distribution and platform test readiness | Done | Decision record cites Apple Endpoint Security/System Extension requirements and defines re-entry criteria; no macOS support is claimed |
 | 58 | Add a reproducible paired-capture harness without launching unknown targets | Done | `tests/integration/test_linux_paired_capture.py` captures the already-running synthetic test process twice, checks expected listener evidence and compares reports |
 | 59 | Add a detached SHA-256 export integrity manifest and verifier with honest trust semantics | Done | `report attest`/`report verify`, versioned schema and tamper tests; explicitly not a signature or author authentication |
