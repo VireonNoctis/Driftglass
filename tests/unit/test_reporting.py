@@ -104,6 +104,40 @@ def test_report_status_matches_declared_uncertainties(status, uncertainties, exp
         validate_report(report, REPORT_SCHEMA)
 
 
+def test_report_summary_counts_match_findings():
+    report = make_report()
+    report["summary"]["added_count"] += 1
+
+    with pytest.raises(ReportExportError, match="summary.added_count does not match"):
+        validate_report(report, REPORT_SCHEMA)
+
+
+def test_evidence_run_id_must_match_its_report_side():
+    report = make_report(executable="candidate-app")
+    candidate_evidence = next(
+        finding["candidate_evidence"][0]
+        for finding in report["findings"]
+        if finding["candidate_evidence"]
+    )
+    candidate_evidence["run_id"] = report["baseline"]["run_id"]
+
+    with pytest.raises(ReportExportError, match="candidate_evidence references an unexpected run_id"):
+        validate_report(report, REPORT_SCHEMA)
+
+
+def test_evidence_category_must_match_finding_category():
+    report = make_report(executable="candidate-app")
+    candidate_evidence = next(
+        finding["candidate_evidence"][0]
+        for finding in report["findings"]
+        if finding["candidate_evidence"]
+    )
+    candidate_evidence["observed"]["category"] = "process"
+
+    with pytest.raises(ReportExportError, match="candidate_evidence category does not match"):
+        validate_report(report, REPORT_SCHEMA)
+
+
 def test_report_id_is_checked_before_rendering():
     value = make_report()
     value["report_id"] = "0" * 64

@@ -43,4 +43,4 @@ python -m driftglass history show --database ./driftglass-history.db --report-id
 python -m driftglass history export --database ./driftglass-history.db --report-id REPORT_ID --format html --output ./saved-report.html
 ~~~
 
-The CLI currently consumes supplied manifests and JSONL files. Capture orchestration, automatic isolation management, and automatic collection are not implemented. A separate experimental read-only report viewer is proposed in [PR #5](https://github.com/VireonNoctis/Driftglass/pull/5); it does not start collectors or provide capture controls.
+The CLI currently consumes supplied manifests and JSONL files. Capture orchestration, automatic isolation management, automatic collection, and the dashboard are not implemented.
