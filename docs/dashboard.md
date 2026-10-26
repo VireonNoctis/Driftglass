@@ -1,6 +1,6 @@
 # Experimental local report viewer
 
-The Svelte viewer under web/ displays a report v1 JSON file that a user explicitly chooses or drops into the page. It provides run summaries, context differences, finding search and filters, source-evidence details, and declared uncertainty.
+The Svelte viewer under web/ displays a report v1 JSON file that a user explicitly chooses or drops into the page. It provides run summaries, context differences, finding search and filters, a chronological timeline of evidence referenced by findings, source-evidence details, and declared uncertainty. The timeline is not the full event stream; unchanged events and standalone coverage records may not appear.
 
 ## Validation boundary
 

@@ -490,7 +490,8 @@ Progress should be measured by verified capabilities and tests, not the number o
 
 - [x] Add the experimental Svelte + TypeScript report viewer.
 - [x] Add searchable/filterable findings, evidence inspection, and baseline/candidate summaries.
-- [ ] Add dedicated process-tree and event-timeline views.
+- [x] Add a chronological timeline of evidence linked from findings, with scope limitations shown.
+- [ ] Add a process-tree view after report evidence carries validated PID/parent identity metadata.
 - [ ] Add repeat-run analysis and configurable rule profiles.
 - [ ] Validate the local API's access controls and document data flow.
 
