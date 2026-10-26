@@ -355,6 +355,36 @@ def _match_events(
     return sorted(findings, key=lambda item: (item["change_type"], item["category"], item["finding_id"]))
 
 
+def _coverage_summary(
+    manifest: dict[str, Any], events: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Copy declared source coverage and count records actually supplied to comparison."""
+    coverage = manifest["coverage"]
+    categories = ("process", "network", "file", "system", "coverage")
+    recorded_counts = {category: 0 for category in categories}
+    for event in events:
+        category = event["category"]
+        if category in recorded_counts:
+            recorded_counts[category] += 1
+
+    sources = [
+        {
+            "name": source["name"],
+            "state": source["state"],
+            "categories": sorted(source["categories"]),
+        }
+        for source in coverage["event_sources"]
+    ]
+    sources.sort(key=lambda source: (source["name"], source["state"], tuple(source["categories"])))
+    return {
+        "event_sources": sources,
+        "unavailable_categories": sorted(set(coverage["unavailable_categories"])),
+        "dropped_events": coverage["dropped_events"],
+        "errors": list(coverage["errors"]),
+        "recorded_event_counts": recorded_counts,
+    }
+
+
 def compare_loaded_runs(
     baseline_manifest: dict[str, Any],
     candidate_manifest: dict[str, Any],
@@ -405,6 +435,10 @@ def compare_loaded_runs(
             "capture_status": candidate_manifest["capture"]["status"],
         },
         "environment_differences": differences,
+        "coverage": {
+            "baseline": _coverage_summary(baseline_manifest, baseline_events),
+            "candidate": _coverage_summary(candidate_manifest, candidate_events),
+        },
         "findings": findings,
         "uncertainties": uncertainties,
         "summary": {

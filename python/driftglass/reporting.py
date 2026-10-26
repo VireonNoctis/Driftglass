@@ -179,6 +179,47 @@ def _render_evidence(title: str, evidence: list[dict[str, Any]]) -> str:
     return "".join(rendered)
 
 
+def _render_coverage(coverage: dict[str, Any] | None) -> str:
+    if coverage is None:
+        return (
+            "<p class='empty'>This older report does not include a per-run coverage snapshot. "
+            "Its uncertainty items remain available below.</p>"
+        )
+
+    sections: list[str] = []
+    for role, label in (("baseline", "Baseline"), ("candidate", "Candidate")):
+        run = coverage[role]
+        source_rows = "".join(
+            "<tr><th>" + html.escape(source["name"], quote=True) + "</th><td>"
+            + html.escape(source["state"], quote=True) + "</td><td>"
+            + html.escape(", ".join(source["categories"]) or "No categories declared", quote=True)
+            + "</td></tr>"
+            for source in run["event_sources"]
+        )
+        if not source_rows:
+            source_rows = "<tr><td colspan='3'>No event sources were declared.</td></tr>"
+        count_rows = "".join(
+            "<tr><th>" + html.escape(category, quote=True) + "</th><td>"
+            + str(count) + "</td></tr>"
+            for category, count in run["recorded_event_counts"].items()
+        )
+        unavailable = ", ".join(run["unavailable_categories"]) or "None declared"
+        errors = "".join("<li>" + html.escape(message, quote=True) + "</li>" for message in run["errors"])
+        if not errors:
+            errors = "<li>No collection errors declared in the manifest.</li>"
+        sections.append(
+            f"<h3>{label}</h3>"
+            "<p>Declared unavailable categories: " + html.escape(unavailable, quote=True) + "</p>"
+            f"<p>Dropped-event count reported by collector: {run['dropped_events']}</p>"
+            "<table><thead><tr><th>Event source</th><th>Declared state</th><th>Categories</th></tr></thead>"
+            f"<tbody>{source_rows}</tbody></table>"
+            "<table><thead><tr><th>Category in supplied event stream</th><th>Input records</th></tr></thead>"
+            f"<tbody>{count_rows}</tbody></table>"
+            "<h4>Declared collection errors</h4><ul>" + errors + "</ul>"
+        )
+    return "".join(sections)
+
+
 def render_html_report(report: dict[str, Any], report_schema_path: str | Path) -> str:
     """Render a validated report as standalone HTML with no remote resources or scripts."""
     validate_report(report, report_schema_path)
@@ -238,6 +279,7 @@ def render_html_report(report: dict[str, Any], report_schema_path: str | Path) -
 
     baseline = report["baseline"]
     candidate = report["candidate"]
+    coverage_html = _render_coverage(report.get("coverage"))
     status = report["status"]
     title = report["application_name"]
     return f"""<!doctype html>
@@ -282,6 +324,9 @@ li {{ margin: .6rem 0; }}
 </tbody></table>
 <h2>Summary</h2>
 <table><tbody>{summary_rows}</tbody></table>
+<h2>Declared collection coverage</h2>
+<p>Source states and input record counts are separate. Zero input records do not prove that no activity occurred. Older report-v1 files may not include this coverage snapshot.</p>
+{coverage_html}
 <h2>Run context differences</h2>
 <table><thead><tr><th>Field</th><th>Baseline</th><th>Candidate</th></tr></thead><tbody>{context_rows}</tbody></table>
 <h2>Findings</h2>
