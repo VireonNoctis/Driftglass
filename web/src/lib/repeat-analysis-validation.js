@@ -57,7 +57,7 @@ function isPattern(value) {
     Array.isArray(value.report_refs) && value.report_refs.length > 0 &&
     value.report_refs.every(isPatternRef);
 }
-/** @param {unknown} value @returns {value is RepeatAnalysisV1["summary"]} */
+/** @param {unknown} value @returns {value is import("../types").RepeatAnalysisV1["summary"]} */
 function isSummary(value) {
   return isRecord(value) && isCount(value.recurring_pattern_count) &&
     isCount(value.not_consistently_observed_pattern_count) &&
