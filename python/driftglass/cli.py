@@ -13,6 +13,7 @@ from .capture import CaptureError, capture_run
 from .comparison import ComparisonError, compare_runs
 from .events import EventValidationError, load_jsonl
 from .manifests import ManifestValidationError, load_manifest
+from .redaction import redact_report
 from .reporting import ReportExportError, export_html_report, export_json_report
 from .storage import StorageError, get_report, list_reports, save_report
 
@@ -93,10 +94,52 @@ def _validate_manifest(args: argparse.Namespace) -> int:
     return 0
 
 
+
+def _redaction_requested(args: argparse.Namespace) -> bool:
+    return any(
+        getattr(args, name, False)
+        for name in ("redact_paths", "redact_network", "redact_process_names")
+    )
+
+
+def _redacted_export(report: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]:
+    if not _redaction_requested(args):
+        return report
+    return redact_report(
+        report,
+        args.report_schema,
+        paths=args.redact_paths,
+        network=args.redact_network,
+        process_names=args.redact_process_names,
+    )
+
+
+def _add_redaction_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--redact-paths",
+        action="store_true",
+        help="redact absolute paths in this export; the stored report is unchanged",
+    )
+    parser.add_argument(
+        "--redact-network",
+        action="store_true",
+        help="redact network addresses/hosts in this export; the stored report is unchanged",
+    )
+    parser.add_argument(
+        "--redact-process-names",
+        action="store_true",
+        help="redact process executable names in this export; the stored report is unchanged",
+    )
+
+
 def _compare(args: argparse.Namespace) -> int:
     outputs_requested = bool(args.json_output or args.html_output or args.history_db)
     if args.overwrite and not (args.json_output or args.html_output):
         raise CliError("--overwrite requires --json-output or --html-output")
+    if _redaction_requested(args) and not (args.json_output or args.html_output):
+        raise CliError(
+            "redaction flags require --json-output or --html-output; local history is kept unredacted"
+        )
 
     _reject_path_collisions(
         [
@@ -124,23 +167,37 @@ def _compare(args: argparse.Namespace) -> int:
         args.event_schema,
     )
 
+    exported_report = _redacted_export(report, args)
     if args.json_output:
-        export_json_report(report, args.report_schema, args.json_output, overwrite=args.overwrite)
+        export_json_report(exported_report, args.report_schema, args.json_output, overwrite=args.overwrite)
     if args.html_output:
-        export_html_report(report, args.report_schema, args.html_output, overwrite=args.overwrite)
+        export_html_report(exported_report, args.report_schema, args.html_output, overwrite=args.overwrite)
     if args.history_db:
+        # Local history retains the validated source report, never the redacted export copy.
         save_report(args.history_db, report, args.report_schema)
 
     if not outputs_requested:
         print(json.dumps(report, sort_keys=True, indent=2, ensure_ascii=False))
     else:
-        print(
-            f"report_id={report['report_id']} status={report['status']} "
-            f"added={report['summary']['added_count']} "
-            f"removed={report['summary']['removed_count']} "
-            f"changed={report['summary']['changed_count']} "
-            f"uncertainties={report['summary']['uncertainty_count']}"
-        )
+        if _redaction_requested(args):
+            print(
+                f"source_report_id={report['report_id']} "
+                f"exported_report_id={exported_report['report_id']} "
+                f"redaction=applied status={exported_report['status']} "
+                f"added={exported_report['summary']['added_count']} "
+                f"removed={exported_report['summary']['removed_count']} "
+                f"changed={exported_report['summary']['changed_count']} "
+                f"uncertainties={exported_report['summary']['uncertainty_count']} "
+                f"local_history={'unredacted' if args.history_db else 'not requested'}"
+            )
+        else:
+            print(
+                f"report_id={report['report_id']} status={report['status']} "
+                f"added={report['summary']['added_count']} "
+                f"removed={report['summary']['removed_count']} "
+                f"changed={report['summary']['changed_count']} "
+                f"uncertainties={report['summary']['uncertainty_count']}"
+            )
     return 0
 
 
@@ -175,11 +232,18 @@ def _history_export(args: argparse.Namespace) -> int:
     report = get_report(args.database, args.report_id, args.report_schema)
     if report is None:
         raise CliError(f"report not found in local history: {args.report_id}")
+    exported_report = _redacted_export(report, args)
     if args.format == "json":
-        export_json_report(report, args.report_schema, args.output, overwrite=args.overwrite)
+        export_json_report(exported_report, args.report_schema, args.output, overwrite=args.overwrite)
     else:
-        export_html_report(report, args.report_schema, args.output, overwrite=args.overwrite)
-    print(f"exported report {args.report_id} to {args.output}")
+        export_html_report(exported_report, args.report_schema, args.output, overwrite=args.overwrite)
+    if _redaction_requested(args):
+        print(
+            f"exported redacted report {exported_report['report_id']} "
+            f"(source report {args.report_id}; history unchanged) to {args.output}"
+        )
+    else:
+        print(f"exported report {args.report_id} to {args.output}")
     return 0
 
 
@@ -273,6 +337,7 @@ def build_parser() -> argparse.ArgumentParser:
     compare_parser.add_argument("--json-output", help="write a structured JSON report")
     compare_parser.add_argument("--html-output", help="write a standalone HTML report")
     compare_parser.add_argument("--history-db", help="save report to this local SQLite database")
+    _add_redaction_arguments(compare_parser)
     compare_parser.add_argument("--overwrite", action="store_true", help="allow replacing selected output files")
     compare_parser.set_defaults(handler=_compare)
 
@@ -297,6 +362,7 @@ def build_parser() -> argparse.ArgumentParser:
     history_export.add_argument("--output", required=True)
     _add_schema_argument(history_export, "report_schema", REPORT_SCHEMA)
     history_export.add_argument("--overwrite", action="store_true", help="allow replacing the output file")
+    _add_redaction_arguments(history_export)
     history_export.set_defaults(handler=_history_export)
     return parser
 

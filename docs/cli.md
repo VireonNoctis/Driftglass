@@ -67,6 +67,19 @@ python -m driftglass compare \
 
 When no output or history option is passed, the complete report JSON is printed to stdout. Exported files refuse to overwrite existing files unless the explicit overwrite option is supplied. A history database is local and may contain sensitive process and network metadata.
 
+
+### Redact an export before sharing
+
+The compare and history export commands accept these opt-in flags:
+
+- --redact-paths
+- --redact-network
+- --redact-process-names
+
+Use only the categories you need. Redaction returns a separate report copy, replaces repeated values with consistent tokens, and recalculates the finding/report IDs. If a report is also saved to SQLite during compare, history retains the unredacted source. Redaction flags require a JSON or HTML file export.
+
+The report v1 JSON schema has no redaction-provenance field. The CLI reports the redacted export ID and source report ID; keep that output and label the exported file clearly. Redaction is best-effort, so inspect the result for remaining sensitive data before sharing.
+
 ## Browse local history
 
 ~~~bash

@@ -3,6 +3,7 @@ import sqlite3
 from pathlib import Path
 
 from driftglass.cli import main
+from driftglass.reporting import validate_report
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -227,3 +228,64 @@ def test_invalid_input_returns_nonzero_and_writes_error_to_stderr(tmp_path, caps
     output = capsys.readouterr()
     assert result == 2
     assert "could not read event file" in output.err
+
+
+
+def test_redacted_export_is_schema_valid_and_history_keeps_original(tmp_path, capsys):
+    base_manifest, candidate_manifest, base_events, candidate_events = captured_inputs(tmp_path)
+    json_output = tmp_path / "comparison-redacted.json"
+    database = tmp_path / "history.db"
+
+    result = main([
+        "compare",
+        "--baseline-manifest", str(base_manifest),
+        "--candidate-manifest", str(candidate_manifest),
+        "--baseline-events", str(base_events),
+        "--candidate-events", str(candidate_events),
+        "--manifest-schema", str(MANIFEST_SCHEMA),
+        "--event-schema", str(EVENT_SCHEMA),
+        "--report-schema", str(REPORT_SCHEMA),
+        "--json-output", str(json_output),
+        "--history-db", str(database),
+        "--redact-network",
+    ])
+
+    assert result == 0
+    output = capsys.readouterr().out
+    exported = json.loads(json_output.read_text(encoding="utf-8"))
+    exported_text = json.dumps(exported)
+    validate_report(exported, REPORT_SCHEMA)
+    assert "198.51.100.10" not in exported_text
+    assert "192.0.2.2" not in exported_text
+    assert "[REDACTED_HOST_" in exported_text
+    assert "source_report_id=" in output
+    assert "exported_report_id=" in output
+    assert exported["report_id"] != output.split("source_report_id=", 1)[1].split()[0]
+
+    connection = sqlite3.connect(database)
+    stored_json = connection.execute("SELECT report_json FROM reports LIMIT 1").fetchone()[0]
+    connection.close()
+    assert "198.51.100.10" in stored_json
+    assert json.loads(stored_json)["report_id"] == output.split("source_report_id=", 1)[1].split()[0]
+
+
+def test_redaction_requires_file_export_and_does_not_create_history(tmp_path, capsys):
+    base_manifest, candidate_manifest, base_events, candidate_events = captured_inputs(tmp_path)
+    database = tmp_path / "history.db"
+
+    result = main([
+        "compare",
+        "--baseline-manifest", str(base_manifest),
+        "--candidate-manifest", str(candidate_manifest),
+        "--baseline-events", str(base_events),
+        "--candidate-events", str(candidate_events),
+        "--manifest-schema", str(MANIFEST_SCHEMA),
+        "--event-schema", str(EVENT_SCHEMA),
+        "--report-schema", str(REPORT_SCHEMA),
+        "--history-db", str(database),
+        "--redact-network",
+    ])
+
+    assert result == 2
+    assert "redaction flags require" in capsys.readouterr().err
+    assert not database.exists()
