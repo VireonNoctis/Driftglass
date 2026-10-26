@@ -31,6 +31,7 @@ jobs:
               "/share/driftglass/schemas/manifests/run-manifest-v1.schema.json",
               "/share/driftglass/schemas/reports/report-v1.schema.json",
               "/share/driftglass/schemas/reports/repeat-analysis-v1.schema.json",
+              "/share/driftglass/schemas/reports/export-manifest-v1.schema.json",
               "/share/driftglass/schemas/rules/rule-profile-v1.schema.json",
               "/share/driftglass/schemas/capabilities/capabilities-v1.schema.json",
           )

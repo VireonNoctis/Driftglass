@@ -24,7 +24,7 @@ where = ["python"]
 [tool.setuptools.data-files]
 "share/driftglass/schemas/events" = ["schemas/events/event-v1.schema.json"]
 "share/driftglass/schemas/manifests" = ["schemas/manifests/run-manifest-v1.schema.json"]
-"share/driftglass/schemas/reports" = ["schemas/reports/report-v1.schema.json", "schemas/reports/repeat-analysis-v1.schema.json"]
+"share/driftglass/schemas/reports" = ["schemas/reports/report-v1.schema.json", "schemas/reports/repeat-analysis-v1.schema.json", "schemas/reports/export-manifest-v1.schema.json"]
 "share/driftglass/schemas/rules" = ["schemas/rules/rule-profile-v1.schema.json"]
 "share/driftglass/schemas/capabilities" = ["schemas/capabilities/capabilities-v1.schema.json"]
 
