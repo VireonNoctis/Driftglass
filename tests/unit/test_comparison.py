@@ -321,6 +321,10 @@ def test_report_preserves_declared_coverage_and_counts_received_records(tmp_path
     base["coverage"]["unavailable_categories"] = ["persistence"]
     base["coverage"]["errors"] = ["synthetic permission note"]
     candidate["coverage"]["event_sources"][0]["state"] = "inactive"
+    candidate["coverage"]["unavailable_categories"] = sorted(
+        set(candidate["coverage"]["unavailable_categories"])
+        | set(candidate["coverage"]["event_sources"][0]["categories"])
+    )
     candidate["coverage"]["dropped_events"] = 2
     candidate["coverage"]["errors"] = ["synthetic observer read error"]
 

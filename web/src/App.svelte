@@ -15,7 +15,7 @@
   let dragActive = $state(false);
   let loading = $state(false);
   let evidenceView = $state<"findings" | "timeline" | "process-tree">("findings");
-  let fileInput: HTMLInputElement;
+  let fileInput = $state<HTMLInputElement | undefined>(undefined);
 
   let timelineItems = $derived.by(() => buildEvidenceTimeline(visibleFindings));
   let processTree = $derived.by(() => buildProcessTree(timelineItems));
@@ -143,7 +143,7 @@
         <p class="eyebrow">LOAD EVIDENCE REPORT</p>
         <h2>Select a report to inspect</h2>
         <p class="muted">Choose a Driftglass JSON export. It stays in this browser tab; this viewer does not upload or persist it.</p>
-        <button class="primary-button" type="button" disabled={loading} onclick={() => fileInput.click()}>{loading ? "Reading report…" : "Choose JSON report"}</button>
+        <button class="primary-button" type="button" disabled={loading} onclick={() => fileInput?.click()}>{loading ? "Reading report…" : "Choose JSON report"}</button>
         <input bind:this={fileInput} class="visually-hidden" type="file" accept=".json,application/json" disabled={loading} onchange={handleInputChange} />
         {#if loading}
           <p class="loading-message" role="status" aria-live="polite">Reading and validating the selected report…</p>

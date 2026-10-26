@@ -1,11 +1,15 @@
 /** @typedef {import("../types").ReportCoverage} ReportCoverage */
 /** @typedef {import("../types").RunCoverage} RunCoverage */
+/** @typedef {import("../types").CoverageCategory} CoverageCategory */
+/** @typedef {import("../types").CoverageEventCategory} CoverageEventCategory */
+/** @typedef {import("../types").EventSourceState} EventSourceState */
 
+/** @type {CoverageCategory[]} */
 const CATEGORIES = ["process", "network", "file", "system", "persistence"];
 
 /**
  * @param {RunCoverage} coverage
- * @param {string} category
+ * @param {CoverageCategory} category
  */
 function categoryDeclaration(coverage, category) {
   const sources = coverage.event_sources.filter(source => source.categories.includes(category));
@@ -19,14 +23,18 @@ function categoryDeclaration(coverage, category) {
   else if (active.length > 0) status = "Active source declared";
   else if (sources.length === 0) status = "Not declared";
   else {
+    /** @type {EventSourceState[]} */
     const states = [...new Set(sources.map(source => source.state))];
+    /** @type {Record<EventSourceState, string>} */
+    const stateLabels = {
+      active: "Active source",
+      inactive: "Inactive source",
+      failed: "Source failed",
+      unavailable: "Source unavailable",
+      not_configured: "Not configured"
+    };
     status = states.length === 1
-      ? ({
-          inactive: "Inactive source",
-          failed: "Source failed",
-          unavailable: "Source unavailable",
-          not_configured: "Not configured"
-        }[states[0]] ?? "Unknown source state")
+      ? stateLabels[states[0]] ?? "Unknown source state"
       : "Mixed source states";
   }
 
@@ -36,9 +44,9 @@ function categoryDeclaration(coverage, category) {
     active_source_count: active.length,
     other_source_count: other.length,
     unavailable_declared: unavailable,
-    record_count: Object.hasOwn(coverage.recorded_event_counts, category)
-      ? coverage.recorded_event_counts[category]
-      : null
+    record_count: category === "persistence"
+      ? null
+      : coverage.recorded_event_counts[category]
   };
 }
 
