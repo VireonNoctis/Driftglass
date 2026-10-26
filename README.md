@@ -33,6 +33,7 @@ It is intended for security researchers, privacy-conscious users, maintainers, a
 - [Developer CLI](docs/cli.md)
 - [Experimental local report viewer](docs/dashboard.md)
 - [Experimental Linux observer](docs/linux-observer.md)
+- [Platform capability matrix](docs/platform-capabilities.md)
 - [Research notes](docs/research-notes.md)
 - [Mitigation strategy](docs/mitigation-strategy.md)
 - [Architecture research](docs/architecture-research.md)
@@ -504,7 +505,7 @@ Progress should be measured by verified capabilities and tests, not the number o
 ### Phase 5 — Broader, verified coverage
 
 - [ ] Expand platform adapters based on tested event support.
-- [ ] Publish per-platform capability matrices and limitations.
+- [x] Publish an explicit collector capability matrix and limitations for implemented and not-yet-implemented platforms.
 - [ ] Improve regression testing, packaging, and reproducible builds.
 - [ ] Consider optional advanced event correlation only after basic evidence handling is reliable.
 

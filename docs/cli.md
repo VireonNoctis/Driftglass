@@ -13,6 +13,14 @@ python -m driftglass --help
 
 Default schema paths resolve from a source checkout or from the packaged schema data in a wheel installation. Schema path options can be overridden when validating or comparing inputs.
 
+## Inspect collector capabilities
+
+~~~bash
+python -m driftglass capabilities
+~~~
+
+This prints versioned JSON describing the implemented Linux procfs observer, its narrow process/TCP metadata scope, unavailable categories, and platforms without a collector. It reports implementation status, not the capabilities or health of a specific running process; real-world Linux coverage remains unverified.
+
 ## Validate input files
 
 ~~~bash

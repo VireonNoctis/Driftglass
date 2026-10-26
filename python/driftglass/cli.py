@@ -10,6 +10,7 @@ import sysconfig
 from typing import Sequence
 
 from .capture import CaptureError, capture_run
+from .capabilities import capabilities_report
 from .comparison import ComparisonError, compare_runs
 from .events import EventValidationError, load_jsonl
 from .manifests import ManifestValidationError, load_manifest
@@ -86,6 +87,11 @@ def _add_schema_argument(parser: argparse.ArgumentParser, name: str, default: Pa
         default=str(default),
         help=f"path to the {name.replace('_', ' ')} file (default: repository schema)",
     )
+
+
+def _show_capabilities(args: argparse.Namespace) -> int:
+    print(json.dumps(capabilities_report(), sort_keys=True, indent=2, ensure_ascii=False))
+    return 0
 
 
 def _validate_events(args: argparse.Namespace) -> int:
@@ -354,6 +360,12 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     commands = parser.add_subparsers(dest="command", required=True)
+
+    capabilities_parser = commands.add_parser(
+        "capabilities",
+        help="show the implemented observer scope and known platform gaps",
+    )
+    capabilities_parser.set_defaults(handler=_show_capabilities)
 
     events_parser = commands.add_parser("events", help="validate captured JSONL events")
     events_commands = events_parser.add_subparsers(dest="events_command", required=True)

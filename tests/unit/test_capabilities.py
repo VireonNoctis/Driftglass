@@ -1,0 +1,65 @@
+import json
+from pathlib import Path
+
+from driftglass.capabilities import capabilities_report
+from driftglass.cli import main
+
+ROOT = Path(__file__).resolve().parents[2]
+CAPABILITIES_DOC = ROOT / "docs" / "platform-capabilities.md"
+
+
+def test_capability_summary_matches_the_implemented_observer_scope():
+    report = capabilities_report()
+    collector = report["collector"]
+
+    assert report["schema_version"] == 1
+    assert collector["implementation_status"] == "experimental"
+    assert collector["platform"] == "Linux"
+    assert collector["mechanism"] == "procfs polling"
+    assert collector["implemented_categories"] == ["process", "network"]
+    assert collector["unavailable_categories"] == ["file", "system", "persistence"]
+    assert report["platforms"] == [
+        {
+            "platform": "Linux",
+            "collector_status": "experimental",
+            "validation_status": "automated synthetic tests; real-world coverage unverified",
+        },
+        {
+            "platform": "Windows",
+            "collector_status": "not_implemented",
+            "validation_status": "no native collector or platform coverage tests",
+        },
+        {
+            "platform": "macOS",
+            "collector_status": "not_implemented",
+            "validation_status": "no native collector or platform coverage tests",
+        },
+        {
+            "platform": "Other",
+            "collector_status": "not_implemented",
+            "validation_status": "no native collector or platform coverage tests",
+        },
+    ]
+
+
+def test_capabilities_cli_emits_machine_readable_status(capsys):
+    result = main(["capabilities"])
+    output = capsys.readouterr()
+
+    assert result == 0
+    payload = json.loads(output.out)
+    assert payload == capabilities_report()
+    assert output.err == ""
+
+
+def test_capability_matrix_documents_unavailable_categories_and_limits():
+    report = capabilities_report()
+    document = CAPABILITIES_DOC.read_text(encoding="utf-8").lower()
+
+    for category in report["collector"]["implemented_categories"]:
+        assert f"`{category}`".lower() in document
+    for category in report["collector"]["unavailable_categories"]:
+        assert f"`{category}`".lower() in document
+    assert "real-world coverage across linux builds is unverified" in document
+    assert "windows" in document and "not implemented" in document
+    assert "macos" in document and "not implemented" in document
