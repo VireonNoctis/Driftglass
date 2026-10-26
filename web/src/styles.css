@@ -331,3 +331,39 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; color: #c4c9d2; background
   .timeline-entry { padding: 12px; }
   .timeline-topline { align-items: start; flex-direction: column; }
 }
+
+
+.process-tree-groups { display: grid; gap: 16px; }
+.process-tree-group {
+  min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 20px;
+  background: linear-gradient(145deg, rgba(255,255,255,.055), rgba(255,255,255,.02));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+}
+.process-tree-heading {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 9px 12px;
+  padding: 14px 16px; border-bottom: 1px solid var(--line); background: rgba(255,255,255,.025);
+}
+.process-tree-heading code { min-width: 0; overflow-wrap: anywhere; }
+.process-tree-heading .count { margin-left: auto; }
+.process-tree-list { list-style: none; display: grid; gap: 4px; margin: 0; padding: 12px 10px; }
+.process-tree-row {
+  display: flex; align-items: flex-start; gap: 10px; min-width: 0;
+  padding-top: 12px; padding-bottom: 12px; padding-right: 12px;
+  border-left: 1px solid var(--line); border-radius: 8px;
+  background: rgba(255,255,255,.018);
+}
+.tree-guide { flex: 0 0 16px; color: #adb6c4; font: .9rem var(--mono); text-align: center; line-height: 1.5; }
+.process-tree-body { min-width: 0; flex: 1; }
+.process-tree-main { display: flex; align-items: baseline; flex-wrap: wrap; gap: 7px 12px; }
+.process-tree-main strong { min-width: 0; overflow-wrap: anywhere; font-size: .9rem; font-weight: 620; }
+.process-tree-main code { color: #aeb5c1; font-size: .68rem; }
+.process-tree-meta { color: var(--muted); font: .68rem var(--mono); line-height: 1.6; margin: 7px 0 0; overflow-wrap: anywhere; }
+.process-tree-warning { color: var(--warning); font-size: .76rem; line-height: 1.6; margin: 8px 0 0; }
+.process-tree-findings { color: #c1c7d1; font-size: .78rem; line-height: 1.6; margin: 8px 0 0; overflow-wrap: anywhere; }
+@media (max-width:560px) {
+  .evidence-view-switch { flex-wrap: wrap; }
+  .evidence-view-switch button { flex: 1 1 30%; padding-inline: 8px; }
+  .process-tree-list { padding-inline: 6px; }
+  .process-tree-row { gap: 6px; }
+  .process-tree-heading .count { margin-left: 0; }
+}

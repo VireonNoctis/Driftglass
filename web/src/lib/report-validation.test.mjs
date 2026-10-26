@@ -76,3 +76,29 @@ test("rejects report status that contradicts declared uncertainty", () => {
   report.summary.uncertainty_count = 0;
   assert.match(validateReportV1(report).message, /status does not match/);
 });
+
+
+
+test("accepts optional process identity with a valid Linux start-time tick", () => {
+  const report = validReport();
+  report.findings[0].candidate_evidence[0].observed.process_identity = {
+    pid: 123,
+    parent_pid: 1,
+    executable: "synthetic-app",
+    start_time_ticks: 4567
+  };
+  assert.equal(validateReportV1(report).ok, true);
+});
+
+test("rejects malformed process identity in report evidence", () => {
+  const report = validReport();
+  report.findings[0].candidate_evidence[0].observed.process_identity = {
+    pid: -1,
+    parent_pid: 1,
+    executable: "synthetic-app",
+    start_time_ticks: 4567
+  };
+  const result = validateReportV1(report);
+  assert.equal(result.ok, false);
+  assert.match(result.message, /findings are malformed/);
+});

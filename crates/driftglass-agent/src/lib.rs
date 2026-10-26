@@ -86,6 +86,8 @@ pub struct ProcessContext {
     pid: u32,
     parent_pid: u32,
     executable: String,
+    #[serde(skip)]
+    start_time_ticks: Option<u64>,
 }
 
 #[derive(Debug, Serialize)]
@@ -107,6 +109,7 @@ impl From<&ProcessInfo> for ProcessContext {
             pid: process.pid,
             parent_pid: process.parent_pid,
             executable: process.name.clone(),
+            start_time_ticks: Some(process.start_time_ticks),
         }
     }
 }
@@ -131,8 +134,17 @@ pub fn event_record(
     process: Option<ProcessContext>,
     resource: Option<ResourceContext>,
     collection_quality: &str,
-    attributes: BTreeMap<String, Value>,
+    mut attributes: BTreeMap<String, Value>,
 ) -> Result<EventRecord, String> {
+    if let Some(process) = process.as_ref() {
+        if let Some(start_time_ticks) = process.start_time_ticks {
+            attributes.insert(
+                "process_start_time_ticks".to_owned(),
+                Value::from(start_time_ticks),
+            );
+        }
+    }
+
     let now = OffsetDateTime::now_utc();
     let timestamp = now
         .format(&Rfc3339)
@@ -534,4 +546,32 @@ mod tests {
         assert_eq!(parsed.state, "ESTABLISHED");
         assert_eq!(parsed.inode, 12345);
     }
+
+    #[test]
+    fn serializes_process_identity_start_ticks_as_metadata_not_a_process_field() {
+        let process = ProcessInfo {
+            pid: 123,
+            parent_pid: 1,
+            name: "synthetic-child".to_owned(),
+            start_time_ticks: 4567,
+        };
+        let record = event_record(
+            2,
+            "process",
+            "process_observed",
+            "proc:123".to_owned(),
+            Some(ProcessContext::from(&process)),
+            None,
+            "complete",
+            BTreeMap::new(),
+        )
+        .expect("event record");
+
+        let value = serde_json::to_value(record).expect("serializable");
+        assert_eq!(value["process"]["pid"], 123);
+        assert_eq!(value["process"]["parent_pid"], 1);
+        assert!(value["process"].get("start_time_ticks").is_none());
+        assert_eq!(value["attributes"]["process_start_time_ticks"], 4567);
+    }
+
 }

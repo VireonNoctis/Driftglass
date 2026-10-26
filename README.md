@@ -10,7 +10,7 @@ Rather than asking only whether an application has a permission, Driftglass aims
 
 It is intended for security researchers, privacy-conscious users, maintainers, and developers who want to investigate application updates before trusting them.
 
-> **Project status:** Early prototype. Versioned event-record v1 and run-manifest v1 contracts, Python validators, and an experimental Linux `/proc` polling observer are implemented. Deterministic comparison, evidence-linked JSON/standalone HTML reporting, local SQLite history with explicit report deletion, the developer CLI, a read-only Svelte report viewer, and opt-in export redaction are implemented. An experimental capture command can invoke the observer for a user-supplied, already-running Linux PID and write a validated run manifest; it does not launch the target or manage a VM. Real-world observer coverage across Linux builds remains unverified.
+> **Project status:** Early prototype. Versioned event-record v1 and run-manifest v1 contracts, Python validators, and an experimental Linux `/proc` polling observer are implemented. Deterministic comparison, evidence-linked JSON/standalone HTML reporting, local SQLite history with explicit report deletion, the developer CLI, a read-only Svelte report viewer with a findings-linked timeline and partial process relationship view, and opt-in export redaction are implemented. An experimental capture command can invoke the observer for a user-supplied, already-running Linux PID and write a validated run manifest; it does not launch the target or manage a VM. Real-world observer coverage across Linux builds remains unverified.
 
 ---
 
@@ -491,7 +491,7 @@ Progress should be measured by verified capabilities and tests, not the number o
 - [x] Add the experimental Svelte + TypeScript report viewer.
 - [x] Add searchable/filterable findings, evidence inspection, and baseline/candidate summaries.
 - [x] Add a chronological timeline of evidence linked from findings, with scope limitations shown.
-- [ ] Add a process-tree view after report evidence carries validated PID/parent identity metadata.
+- [x] Add a partial process relationship view backed by observed PID/parent and start-time identity, with missing relationships left unlinked.
 - [ ] Add repeat-run analysis and configurable rule profiles.
 - [ ] Validate the local API's access controls and document data flow.
 
@@ -519,7 +519,7 @@ python -m pip install -e ".[test]"
 python -m pytest
 ```
 
-The Python suite covers event/run-manifest validation, deterministic comparison, report export, SQLite history, CLI behaviour, synthetic capture coordination, and schema-validated redacted exports. Capture tests mock the observer; they do not prove actual OS event coverage. Cargo tests cover synthetic procfs parsing, and broad real-world Linux coverage remains unverified.
+The Python suite covers event/run-manifest validation, deterministic comparison with run-specific process metadata excluded from behaviour matching, report export, SQLite history/cleanup, CLI behaviour, synthetic capture coordination, and schema-validated redacted exports. Capture tests mock the observer; they do not prove actual OS event coverage. Cargo tests cover synthetic procfs parsing, and broad real-world Linux coverage remains unverified.
 
 ### Testing priorities
 

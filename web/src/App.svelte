@@ -1,6 +1,7 @@
 <script lang="ts">
   import { validateReportV1 } from "./lib/report-validation.js";
   import { buildEvidenceTimeline } from "./lib/evidence-timeline.js";
+  import { buildProcessTree } from "./lib/process-tree.js";
   import type { Finding, ReportV1 } from "./types";
 
   const MAX_FILE_BYTES = 20 * 1024 * 1024;
@@ -12,10 +13,11 @@
   let changeFilter = $state("all");
   let dragActive = $state(false);
   let loading = $state(false);
-  let evidenceView = $state<"findings" | "timeline">("findings");
+  let evidenceView = $state<"findings" | "timeline" | "process-tree">("findings");
   let fileInput: HTMLInputElement;
 
   let timelineItems = $derived.by(() => buildEvidenceTimeline(visibleFindings));
+  let processTree = $derived.by(() => buildProcessTree(timelineItems));
 
   let visibleFindings = $derived.by(() => {
     if (!report) return [];
@@ -204,6 +206,7 @@
         <div class="evidence-view-switch" role="group" aria-label="Evidence display">
           <button type="button" aria-pressed={evidenceView === "findings"} onclick={() => evidenceView = "findings"}>Findings</button>
           <button type="button" aria-pressed={evidenceView === "timeline"} onclick={() => evidenceView = "timeline"}>Evidence timeline <span>{formatCount(timelineItems.length)}</span></button>
+          <button type="button" aria-pressed={evidenceView === "process-tree"} onclick={() => evidenceView = "process-tree"}>Process tree <span>{formatCount(processTree.node_count)}</span></button>
         </div>
         {#if evidenceView === "timeline"}
           {#if timelineItems.length === 0}
@@ -227,6 +230,45 @@
                 </li>
               {/each}
             </ol>
+          {/if}
+        {:else if evidenceView === "process-tree"}
+          <p class="timeline-note">This partial relationship view includes only process identities referenced by the current finding filters and carrying a Linux procfs start-time tick. A parent link is drawn only when the same run contains that parent PID with an earlier start tick. It is not a complete process tree.</p>
+          {#if processTree.skipped_evidence_count > 0}
+            <p class="timeline-note">{formatCount(processTree.skipped_evidence_count)} evidence reference(s) have no validated process identity with a start-time tick and are omitted from the tree. Older reports remain viewable.</p>
+          {/if}
+          {#if processTree.groups.length === 0}
+            <div class="empty-state"><p class="eyebrow">PROCESS IDENTITY UNAVAILABLE</p><p>The visible finding evidence does not contain enough validated PID, parent PID, executable, and start-time metadata to build process relationships.</p></div>
+          {:else}
+            <div class="process-tree-groups">
+              {#each processTree.groups as group (group.run_id + ":" + group.side)}
+                <section class="process-tree-group">
+                  <div class="process-tree-heading">
+                    <span class="side-label">{group.side.toUpperCase()}</span>
+                    <code>{group.run_id}</code>
+                    <span class="count">{formatCount(group.node_count)} PROCESSES</span>
+                  </div>
+                  <ol class="process-tree-list" aria-label={group.side + " process relationships for " + group.run_id}>
+                    {#each group.rows as node (node.key)}
+                      <li class="process-tree-row" style={"padding-left: " + (12 + node.depth * 20) + "px"}>
+                        <span class="tree-guide" aria-hidden="true">{node.depth > 0 ? "↳" : "●"}</span>
+                        <div class="process-tree-body">
+                          <div class="process-tree-main"><strong>{node.executable || "Executable unavailable"}</strong><code>PID {node.pid}</code><code>PPID {node.parent_pid}</code></div>
+                          <p class="process-tree-meta">Procfs start tick {node.start_time_ticks} · {formatCount(node.event_count)} referenced event(s) · Last seen {node.last_seen}</p>
+                          {#if node.parent_status === "not-in-evidence"}
+                            <p class="process-tree-warning">Parent PID {node.parent_pid} has no earlier process identity in this run's visible finding evidence; no parent link was inferred.</p>
+                          {:else if node.parent_status === "root" && node.parent_pid !== 0 && node.parent_pid !== node.pid}
+                            <p class="process-tree-warning">No parent link was established from the evidence available.</p>
+                          {/if}
+                          {#if node.finding_summaries.length > 0}
+                            <p class="process-tree-findings">{node.finding_summaries.join(" · ")}</p>
+                          {/if}
+                        </div>
+                      </li>
+                    {/each}
+                  </ol>
+                </section>
+              {/each}
+            </div>
           {/if}
         {:else if visibleFindings.length === 0}
           <div class="empty-state"><p class="eyebrow">NO MATCHES</p><p>No findings match these filters. The report contains {report.findings.length} finding(s) total.</p><button class="quiet-button" type="button" onclick={() => { query = ""; categoryFilter = "all"; changeFilter = "all"; }}>Reset filters</button></div>

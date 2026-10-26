@@ -8,6 +8,7 @@ The comparison prototype consumes two already-captured inputs: a baseline run ma
 - The comparison identity uses event category, action, process executable name, and available resource kind, identifier, and protocol. Run-specific event IDs, timestamps, PIDs, and source references remain evidence pointers but do not determine whether behaviours match.
 - Within a matching identity, equal normalized details are multiset-matched. Remaining records are paired as changed details; excess baseline records become removed observations, and excess candidate records become added observations.
 - Normalized detail comparison includes action, process executable name, resource details, outcome, and attributes. This can identify changed destination or state metadata without requiring run-local PIDs to match.
+- `process_start_time_ticks` is excluded from behavior details because it identifies a process instance within a run, not application behavior. Evidence records keep PID, parent PID, executable, and available start ticks separately as optional `observed.process_identity` metadata.
 - Finding IDs and report IDs are SHA-256 hashes of canonical JSON payloads. No wall-clock generation timestamp is included, so equal inputs produce equal report content.
 
 These rules are a first documented baseline, not a universal semantic equivalence algorithm. Different applications can produce similar names and metadata, events may be absent due to sampling, and broad identity groups can produce changed pairings that need human review.

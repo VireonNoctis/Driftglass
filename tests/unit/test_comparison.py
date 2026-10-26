@@ -51,7 +51,7 @@ def event(event_id="evt-001", **updates):
         "collection_quality": "complete",
         "process": {"pid": 100, "parent_pid": 1, "executable": "synthetic-app"},
         "resource": {"kind": "network", "identifier": "192.0.2.2:51000", "address": "198.51.100.10", "port": 443, "protocol": "tcp"},
-        "attributes": {"socket_state": "ESTABLISHED"}
+        "attributes": {"socket_state": "ESTABLISHED", "process_start_time_ticks": 1000}
     }
     value.update(updates)
     return value
@@ -101,6 +101,7 @@ def noisy_variant(original, event_id, minute, pid, *, address=None):
         "timestamp": f"2026-10-25T10:{minute:02d}:00Z",
         "source": {"collector": "synthetic/2", "event_ref": f"source-{event_id}"},
         "process": {**original["process"], "pid": pid, "parent_pid": 7},
+        "attributes": {**original["attributes"], "process_start_time_ticks": pid * 100},
         "resource": resource,
     }
 
@@ -254,3 +255,61 @@ def test_invalid_event_input_is_reported_as_comparison_error(tmp_path):
     candidate_events_path.write_text("", encoding="utf-8")
     with pytest.raises(ComparisonError, match="invalid event stream"):
         compare_runs(base_manifest_path, candidate_manifest_path, base_events_path, candidate_events_path, MANIFEST_SCHEMA, EVENT_SCHEMA)
+
+
+
+def test_process_identity_is_linked_to_evidence_without_changing_behaviour_matching(tmp_path):
+    base, candidate = pair()
+    baseline = event(
+        "base-process",
+        category="process",
+        action="process_observed",
+        process={"pid": 100, "parent_pid": 1, "executable": "synthetic-child"},
+        attributes={"process_start_time_ticks": 1234},
+    )
+    candidate_event = event(
+        "candidate-process",
+        timestamp="2026-10-25T10:02:00Z",
+        category="process",
+        action="process_created",
+        process={"pid": 900, "parent_pid": 7, "executable": "synthetic-child"},
+        attributes={"process_start_time_ticks": 9876},
+    )
+    report = compare(tmp_path, base, candidate, [baseline], [candidate_event])
+
+    identities = [
+        evidence["observed"]["process_identity"]
+        for finding in report["findings"]
+        for evidence in finding["baseline_evidence"] + finding["candidate_evidence"]
+        if "process_identity" in evidence["observed"]
+    ]
+    assert any(item == {
+        "pid": 100, "parent_pid": 1, "executable": "synthetic-child", "start_time_ticks": 1234
+    } for item in identities)
+    assert any(item == {
+        "pid": 900, "parent_pid": 7, "executable": "synthetic-child", "start_time_ticks": 9876
+    } for item in identities)
+    assert all(
+        "process_start_time_ticks" not in evidence["observed"]["attributes"]
+        for finding in report["findings"]
+        for evidence in finding["baseline_evidence"] + finding["candidate_evidence"]
+    )
+
+
+def test_process_start_ticks_do_not_turn_equivalent_behaviour_into_a_difference(tmp_path):
+    base, candidate = pair()
+    left = event(
+        "evt-left",
+        process={"pid": 100, "parent_pid": 1, "executable": "synthetic-app"},
+        attributes={"socket_state": "ESTABLISHED", "process_start_time_ticks": 1234},
+    )
+    right = event(
+        "evt-right",
+        timestamp="2026-10-25T10:02:00Z",
+        process={"pid": 900, "parent_pid": 7, "executable": "synthetic-app"},
+        attributes={"socket_state": "ESTABLISHED", "process_start_time_ticks": 9876},
+    )
+
+    report = compare(tmp_path, base, candidate, [left], [right])
+
+    assert report["findings"] == []

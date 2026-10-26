@@ -4,87 +4,337 @@
   "description": "Deterministic, evidence-linked differences between two validated runs.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "report_id", "status", "experiment_id", "application_name", "baseline", "candidate", "environment_differences", "findings", "uncertainties", "summary"],
+  "required": [
+    "schema_version",
+    "report_id",
+    "status",
+    "experiment_id",
+    "application_name",
+    "baseline",
+    "candidate",
+    "environment_differences",
+    "findings",
+    "uncertainties",
+    "summary"
+  ],
   "properties": {
-    "schema_version": {"const": 1},
-    "report_id": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
-    "status": {"type": "string", "enum": ["complete", "partial"], "description": "Input completeness according to declared gaps; not an application safety rating."},
-    "experiment_id": {"type": "string", "minLength": 1, "maxLength": 128},
-    "application_name": {"type": "string", "minLength": 1, "maxLength": 256},
-    "baseline": {"$ref": "#/$defs/runSummary"},
-    "candidate": {"$ref": "#/$defs/runSummary"},
-    "environment_differences": {"type": "array", "items": {"$ref": "#/$defs/contextDifference"}},
-    "findings": {"type": "array", "items": {"$ref": "#/$defs/finding"}},
-    "uncertainties": {"type": "array", "items": {"$ref": "#/$defs/uncertainty"}},
+    "schema_version": {
+      "const": 1
+    },
+    "report_id": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "complete",
+        "partial"
+      ],
+      "description": "Input completeness according to declared gaps; not an application safety rating."
+    },
+    "experiment_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "application_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "baseline": {
+      "$ref": "#/$defs/runSummary"
+    },
+    "candidate": {
+      "$ref": "#/$defs/runSummary"
+    },
+    "environment_differences": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/contextDifference"
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/finding"
+      }
+    },
+    "uncertainties": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/uncertainty"
+      }
+    },
     "summary": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["baseline_event_count", "candidate_event_count", "baseline_behaviour_event_count", "candidate_behaviour_event_count", "added_count", "removed_count", "changed_count", "uncertainty_count"],
+      "required": [
+        "baseline_event_count",
+        "candidate_event_count",
+        "baseline_behaviour_event_count",
+        "candidate_behaviour_event_count",
+        "added_count",
+        "removed_count",
+        "changed_count",
+        "uncertainty_count"
+      ],
       "properties": {
-        "baseline_event_count": {"type": "integer", "minimum": 0},
-        "candidate_event_count": {"type": "integer", "minimum": 0},
-        "baseline_behaviour_event_count": {"type": "integer", "minimum": 0},
-        "candidate_behaviour_event_count": {"type": "integer", "minimum": 0},
-        "added_count": {"type": "integer", "minimum": 0},
-        "removed_count": {"type": "integer", "minimum": 0},
-        "changed_count": {"type": "integer", "minimum": 0},
-        "uncertainty_count": {"type": "integer", "minimum": 0}
+        "baseline_event_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "candidate_event_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "baseline_behaviour_event_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "candidate_behaviour_event_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "added_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "removed_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "changed_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "uncertainty_count": {
+          "type": "integer",
+          "minimum": 0
+        }
       }
     }
   },
-
   "allOf": [
     {
-      "if": {"properties": {"uncertainties": {"minItems": 1}}, "required": ["uncertainties"]},
-      "then": {"properties": {"status": {"const": "partial"}}}
+      "if": {
+        "properties": {
+          "uncertainties": {
+            "minItems": 1
+          }
+        },
+        "required": [
+          "uncertainties"
+        ]
+      },
+      "then": {
+        "properties": {
+          "status": {
+            "const": "partial"
+          }
+        }
+      }
     },
     {
-      "if": {"properties": {"uncertainties": {"maxItems": 0}}, "required": ["uncertainties"]},
-      "then": {"properties": {"status": {"const": "complete"}}}
+      "if": {
+        "properties": {
+          "uncertainties": {
+            "maxItems": 0
+          }
+        },
+        "required": [
+          "uncertainties"
+        ]
+      },
+      "then": {
+        "properties": {
+          "status": {
+            "const": "complete"
+          }
+        }
+      }
     }
   ],
   "$defs": {
     "runSummary": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["run_id", "version", "artifact_sha256", "capture_status"],
+      "required": [
+        "run_id",
+        "version",
+        "artifact_sha256",
+        "capture_status"
+      ],
       "properties": {
-        "run_id": {"type": "string", "minLength": 1, "maxLength": 128},
-        "version": {"type": "string", "minLength": 1, "maxLength": 128},
-        "artifact_sha256": {"oneOf": [{"type": "string", "pattern": "^[a-f0-9]{64}$"}, {"type": "null"}]},
-        "capture_status": {"type": "string", "enum": ["running", "completed", "incomplete", "failed"]}
+        "run_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "artifact_sha256": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "capture_status": {
+          "type": "string",
+          "enum": [
+            "running",
+            "completed",
+            "incomplete",
+            "failed"
+          ]
+        }
       }
     },
     "contextDifference": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["field", "baseline_value", "candidate_value"],
+      "required": [
+        "field",
+        "baseline_value",
+        "candidate_value"
+      ],
       "properties": {
-        "field": {"type": "string", "minLength": 1, "maxLength": 128},
-        "baseline_value": {"type": ["string", "null"]},
-        "candidate_value": {"type": ["string", "null"]}
+        "field": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "baseline_value": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "candidate_value": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
       }
     },
     "evidence": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["run_id", "event_id", "collector", "source_event_ref", "timestamp", "observed"],
+      "required": [
+        "run_id",
+        "event_id",
+        "collector",
+        "source_event_ref",
+        "timestamp",
+        "observed"
+      ],
       "properties": {
-        "run_id": {"type": "string", "minLength": 1, "maxLength": 128},
-        "event_id": {"type": "string", "minLength": 1, "maxLength": 128},
-        "collector": {"type": "string", "minLength": 1, "maxLength": 128},
-        "source_event_ref": {"type": "string", "minLength": 1, "maxLength": 256},
-        "timestamp": {"type": "string", "format": "date-time"},
+        "run_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "event_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "collector": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "source_event_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
         "observed": {
           "type": "object",
-          "required": ["category", "action", "process_executable", "resource", "outcome", "attributes"],
+          "required": [
+            "category",
+            "action",
+            "process_executable",
+            "resource",
+            "outcome",
+            "attributes"
+          ],
           "properties": {
-            "category": {"type": "string", "minLength": 1, "maxLength": 64},
-            "action": {"type": "string", "minLength": 1, "maxLength": 128},
-            "process_executable": {"type": ["string", "null"], "maxLength": 4096},
-            "resource": {"type": ["object", "null"]},
-            "outcome": {"type": ["string", "null"], "maxLength": 32},
-            "attributes": {"type": "object"}
+            "category": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "action": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "process_executable": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "maxLength": 4096
+            },
+            "resource": {
+              "type": [
+                "object",
+                "null"
+              ]
+            },
+            "outcome": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "maxLength": 32
+            },
+            "attributes": {
+              "type": "object"
+            },
+            "process_identity": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "pid",
+                "parent_pid",
+                "executable"
+              ],
+              "properties": {
+                "pid": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "parent_pid": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "executable": {
+                  "type": "string",
+                  "maxLength": 4096
+                },
+                "start_time_ticks": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "description": "Optional process identity for relationship views. start_time_ticks is Linux procfs ticks since boot and helps avoid linking a reused PID to an older process."
+            }
           }
         }
       }
@@ -92,32 +342,169 @@
     "finding": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["finding_id", "rule_id", "change_type", "category", "summary", "observation", "baseline_evidence", "candidate_evidence", "interpretation"],
+      "required": [
+        "finding_id",
+        "rule_id",
+        "change_type",
+        "category",
+        "summary",
+        "observation",
+        "baseline_evidence",
+        "candidate_evidence",
+        "interpretation"
+      ],
       "properties": {
-        "finding_id": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
-        "rule_id": {"type": "string", "enum": ["DG-COMPARE-001", "DG-COMPARE-002"]},
-        "change_type": {"type": "string", "enum": ["added", "removed", "changed"]},
-        "category": {"type": "string", "enum": ["process", "network", "file", "system"]},
-        "summary": {"type": "string", "minLength": 1, "maxLength": 1024},
-        "observation": {"type": "string", "minLength": 1, "maxLength": 2048},
-        "baseline_evidence": {"type": "array", "items": {"$ref": "#/$defs/evidence"}},
-        "candidate_evidence": {"type": "array", "items": {"$ref": "#/$defs/evidence"}},
-        "interpretation": {"type": "string", "minLength": 1, "maxLength": 2048}
+        "finding_id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "rule_id": {
+          "type": "string",
+          "enum": [
+            "DG-COMPARE-001",
+            "DG-COMPARE-002"
+          ]
+        },
+        "change_type": {
+          "type": "string",
+          "enum": [
+            "added",
+            "removed",
+            "changed"
+          ]
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "process",
+            "network",
+            "file",
+            "system"
+          ]
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "observation": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "baseline_evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        },
+        "candidate_evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        },
+        "interpretation": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        }
       },
       "allOf": [
-        {"if": {"properties": {"change_type": {"const": "added"}}, "required": ["change_type"]}, "then": {"properties": {"baseline_evidence": {"maxItems": 0}, "candidate_evidence": {"minItems": 1}}}},
-        {"if": {"properties": {"change_type": {"const": "removed"}}, "required": ["change_type"]}, "then": {"properties": {"baseline_evidence": {"minItems": 1}, "candidate_evidence": {"maxItems": 0}}}},
-        {"if": {"properties": {"change_type": {"const": "changed"}}, "required": ["change_type"]}, "then": {"properties": {"baseline_evidence": {"minItems": 1}, "candidate_evidence": {"minItems": 1}}}}
+        {
+          "if": {
+            "properties": {
+              "change_type": {
+                "const": "added"
+              }
+            },
+            "required": [
+              "change_type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "baseline_evidence": {
+                "maxItems": 0
+              },
+              "candidate_evidence": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "change_type": {
+                "const": "removed"
+              }
+            },
+            "required": [
+              "change_type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "baseline_evidence": {
+                "minItems": 1
+              },
+              "candidate_evidence": {
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "change_type": {
+                "const": "changed"
+              }
+            },
+            "required": [
+              "change_type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "baseline_evidence": {
+                "minItems": 1
+              },
+              "candidate_evidence": {
+                "minItems": 1
+              }
+            }
+          }
+        }
       ]
     },
     "uncertainty": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["code", "message", "run_id"],
+      "required": [
+        "code",
+        "message",
+        "run_id"
+      ],
       "properties": {
-        "code": {"type": "string", "minLength": 1, "maxLength": 128},
-        "message": {"type": "string", "minLength": 1, "maxLength": 2048},
-        "run_id": {"type": ["string", "null"], "maxLength": 128}
+        "code": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "run_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128
+        }
       }
     }
   }
