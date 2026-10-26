@@ -9,6 +9,7 @@ from pathlib import Path
 import sysconfig
 from typing import Sequence
 
+from .capture import CaptureError, capture_run
 from .comparison import ComparisonError, compare_runs
 from .events import EventValidationError, load_jsonl
 from .manifests import ManifestValidationError, load_manifest
@@ -182,6 +183,38 @@ def _history_export(args: argparse.Namespace) -> int:
     return 0
 
 
+def _capture(args: argparse.Namespace) -> int:
+    result = capture_run(
+        observer_path=args.observer,
+        pid=args.pid,
+        duration_seconds=args.duration_seconds,
+        interval_ms=args.interval_ms,
+        experiment_id=args.experiment_id,
+        role=args.role,
+        application_name=args.application_name,
+        application_version=args.application_version,
+        artifact_sha256=args.artifact_sha256,
+        package_id=args.package_id,
+        scenario=args.scenario,
+        profile=args.profile,
+        snapshot_id=args.snapshot_id,
+        event_output_path=args.event_output,
+        manifest_output_path=args.manifest_output,
+        event_schema_path=args.event_schema,
+        manifest_schema_path=args.manifest_schema,
+    )
+    print(
+        f"capture_status={result.manifest['capture']['status']} "
+        f"run_id={result.manifest['run_id']} role={result.manifest['role']} "
+        f"events={result.event_count} "
+        f"coverage_notes={len(result.manifest['coverage']['errors'])} "
+        f"manifest={result.manifest_path} events_file={result.event_path}"
+    )
+    for message in result.manifest["coverage"]["errors"]:
+        print(f"coverage: {message}", file=sys.stderr)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="driftglass",
@@ -205,6 +238,29 @@ def build_parser() -> argparse.ArgumentParser:
     manifest_validate.add_argument("path")
     _add_schema_argument(manifest_validate, "manifest_schema", MANIFEST_SCHEMA)
     manifest_validate.set_defaults(handler=_validate_manifest)
+
+    capture_parser = commands.add_parser(
+        "capture",
+        help="sample an already-running Linux PID and write a validated run manifest",
+    )
+    capture_parser.add_argument("--observer", required=True, help="path to the built driftglass-agent executable")
+    capture_parser.add_argument("--pid", required=True, type=int, help="PID of an application already running in the test environment")
+    capture_parser.add_argument("--duration-seconds", type=int, default=30)
+    capture_parser.add_argument("--interval-ms", type=int, default=250)
+    capture_parser.add_argument("--experiment-id", required=True)
+    capture_parser.add_argument("--role", choices=("baseline", "candidate"), required=True)
+    capture_parser.add_argument("--application-name", required=True)
+    capture_parser.add_argument("--application-version", required=True)
+    capture_parser.add_argument("--artifact-sha256", help="optional hash supplied by the user; it is not verified against the running process")
+    capture_parser.add_argument("--package-id")
+    capture_parser.add_argument("--scenario", required=True, help="describe the exact user-performed test scenario")
+    capture_parser.add_argument("--profile", default="linux-procfs-polling")
+    capture_parser.add_argument("--snapshot-id")
+    capture_parser.add_argument("--event-output", required=True, help="new JSONL output path; existing files are refused")
+    capture_parser.add_argument("--manifest-output", required=True, help="new run-manifest JSON path; existing files are refused")
+    _add_schema_argument(capture_parser, "event_schema", EVENT_SCHEMA)
+    _add_schema_argument(capture_parser, "manifest_schema", MANIFEST_SCHEMA)
+    capture_parser.set_defaults(handler=_capture)
 
     compare_parser = commands.add_parser("compare", help="compare two existing captured runs")
     compare_parser.add_argument("--baseline-manifest", required=True)
@@ -252,6 +308,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return args.handler(args)
     except (
         CliError,
+        CaptureError,
         ComparisonError,
         EventValidationError,
         ManifestValidationError,
