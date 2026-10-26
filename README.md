@@ -10,7 +10,7 @@ Rather than asking only whether an application has a permission, Driftglass aims
 
 It is intended for security researchers, privacy-conscious users, maintainers, and developers who want to investigate application updates before trusting them.
 
-> **Project status:** Early prototype. Versioned event-record v1 and run-manifest v1 contracts, plus Python validators for JSONL events and run manifests, are implemented with synthetic tests. An experimental Linux `/proc` polling observer is implemented in this PR and passes GitHub CI build/unit tests; real-world event coverage across Linux builds remains unverified. The automated run coordinator, baseline-vs-candidate comparison engine, local persistence/reporting, dashboard, and CLI remain unimplemented. OS event coverage is best-effort and has not been validated across Linux builds.
+> **Project status:** Early prototype. Versioned event-record v1 and run-manifest v1 contracts, Python validators, and an experimental Linux `/proc` polling observer are implemented. The observer passes CI build/unit tests; real-world event coverage across Linux builds remains unverified. This branch adds deterministic baseline/candidate comparison, evidence-linked JSON/standalone HTML reports, and local SQLite report history for already-captured inputs. Collection remains manual: these features do not launch applications or provide automated run coordination. The read-only dashboard and developer CLI are separate follow-on work.
 
 ---
 
@@ -26,6 +26,9 @@ It is intended for security researchers, privacy-conscious users, maintainers, a
 - [Evidence and comparison model](#evidence-and-comparison-model)
 - [Event schema](docs/event-schema.md)
 - [Run manifest](docs/run-manifest.md)
+- [Comparison method](docs/comparison-method.md)
+- [Local report export](docs/report-export.md)
+- [Local SQLite report history](docs/storage.md)
 - [Experimental Linux observer](docs/linux-observer.md)
 - [Privacy by design](#privacy-by-design)
 - [Security model and limitations](#security-model-and-limitations)
@@ -510,7 +513,7 @@ python -m pip install -e ".[test]"
 python -m pytest
 ```
 
-These checks validate synthetic event records and run manifests. They do not launch applications, compare baseline/candidate runs, or establish real collector coverage. The experimental Linux observer has separate Cargo checks and remains subject to platform-specific testing.
+The Python suite covers synthetic event records and manifests, deterministic baseline/candidate comparisons, evidence-linked JSON/HTML reports, and local SQLite history. It does not launch applications or establish broad real-world collector coverage. The experimental Linux observer has separate Cargo checks and remains subject to platform-specific testing.
 
 ### Testing priorities
 
