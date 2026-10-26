@@ -14,7 +14,7 @@ cargo build -p driftglass-agent --release
 
 Supply the PID of an already-running application inside a disposable test environment. The agent does not start, stop, elevate, block, or remediate the target. The duration defaults to 30 seconds; valid duration values are 1–3600 seconds. The sampling interval defaults to 250 ms and must be 100–10000 ms. The output path must name a new file; the agent refuses to overwrite an existing path. Omit the output option to write JSONL to standard output.
 
-The observer samples procfs process stat records to identify the target and processes whose parent chain descends from it. It samples TCP tables in the selected target's network namespace and inspects the tracked processes' file-descriptor symlinks to associate socket inodes with that process tree. Descendants in a different network namespace are not covered by the same TCP table sampling. Emitted event records use the schema in schemas/events/event-v1.schema.json.
+The observer samples procfs process stat records to identify the target and processes whose parent chain descends from it. It samples TCP tables in the selected target's network namespace and inspects the tracked processes' file-descriptor symlinks to associate socket inodes with that process tree. Descendants in a different network namespace are not covered by the same TCP table sampling. A synthetic Rust test confirms that `read_tcp_snapshot` reads the `/proc/<pid>/net` table for the requested PID. That test checks PID-specific path selection only; it does not create real network namespaces or prove visibility into descendants in another namespace. Emitted event records use the schema in schemas/events/event-v1.schema.json.
 
 ## Scope and coverage limitations
 

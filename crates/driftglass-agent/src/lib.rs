@@ -536,6 +536,43 @@ mod tests {
     }
 
     #[test]
+    fn reads_tcp_tables_from_the_requested_pid_namespace_path() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("current time")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "driftglass-netns-fixture-{}-{unique}",
+            std::process::id()
+        ));
+        let header = "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n";
+        let row_a = "  0: 0100007F:1F90 08080808:01BB 01 00000000:00000000 00:00000000 00000000 1000 0 12345\n";
+        let row_b = "  0: 0100007F:1F91 08080808:01BB 01 00000000:00000000 00:00000000 00000000 1000 0 67890\n";
+
+        for (pid, row) in [(10, row_a), (20, row_b)] {
+            let net_dir = root.join(pid.to_string()).join("net");
+            fs::create_dir_all(&net_dir).expect("create synthetic per-PID net table");
+            fs::write(net_dir.join("tcp"), format!("{header}{row}"))
+                .expect("write synthetic TCP table");
+            fs::write(net_dir.join("tcp6"), header).expect("write synthetic TCP6 table");
+        }
+
+        let first = read_tcp_snapshot(&root, 10);
+        let second = read_tcp_snapshot(&root, 20);
+        let first_ports: Vec<u16> = first.sockets.values().map(|socket| socket.local_port).collect();
+        let second_ports: Vec<u16> = second.sockets.values().map(|socket| socket.local_port).collect();
+
+        assert_eq!(first.table_errors, 0);
+        assert_eq!(second.table_errors, 0);
+        assert_eq!(first_ports, vec![8080]);
+        assert_eq!(second_ports, vec![8081]);
+
+        fs::remove_dir_all(root).expect("remove synthetic procfs fixture");
+    }
+
+    #[test]
     fn parses_tcp_metadata_row() {
         let row = "  0: 0100007F:1F90 08080808:01BB 01 00000000:00000000 00:00000000 00000000 1000 0 12345";
         let parsed = parse_tcp_row(row, false).expect("valid synthetic /proc/net/tcp row");
