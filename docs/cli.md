@@ -1,6 +1,6 @@
 # Developer CLI
 
-The CLI is a local developer interface for existing captured data. It does not launch applications, start collectors, or initiate network requests.
+The CLI is a local developer interface for existing captured data and an experimental wrapper around the Linux observer. Its capture command starts only the observer for a user-supplied PID that is already running; it does not launch or stop the target application, elevate privileges, manage a VM, or initiate network requests itself.
 
 ## Install
 
@@ -19,6 +19,38 @@ Default schema paths resolve from a source checkout or from the packaged schema 
 python -m driftglass events validate ./run-events.jsonl
 python -m driftglass manifest validate ./run-manifest.json
 ~~~
+
+
+## Capture an already-running Linux process
+
+Build the experimental observer first:
+
+~~~bash
+cargo build --release -p driftglass-agent
+~~~
+
+Then run the capture wrapper inside the intended test environment, supplying the PID of an application that is already running:
+
+~~~bash
+python -m driftglass capture \
+  --observer ./target/release/driftglass-agent \
+  --pid 1234 \
+  --duration-seconds 30 \
+  --interval-ms 250 \
+  --experiment-id example-update \
+  --role baseline \
+  --application-name ExampleApp \
+  --application-version 1.0 \
+  --scenario "Open the main window and wait for 30 seconds" \
+  --event-output ./baseline-events.jsonl \
+  --manifest-output ./baseline-manifest.json
+~~~
+
+Use the same experiment ID and equivalent scenarios for the baseline and candidate runs, changing the role, application version, PID, output paths, and other metadata as appropriate. Repeat the capture command for the candidate version. Output files must be new, their parent directories must already exist, and the command refuses to overwrite an existing file.
+
+The wrapper invokes the observer with an argument list, validates the resulting JSONL stream, and writes a schema-validated run manifest. A failed or incomplete capture writes a manifest with its status and then exits non-zero. The optional artifact hash is supplied by the user and is not verified against the running executable. The manifest records the host OS/kernel release and architecture; it does not prove that the process ran in an isolated VM.
+
+The Linux observer samples procfs; it can miss short-lived activity and only reports process and TCP metadata. File, system, and persistence activity are declared unavailable. Inspect coverage records and manifest errors before comparing runs. A completed capture is not evidence of comprehensive collection or application safety.
 
 ## Compare captured runs and optionally persist/export
 
@@ -43,4 +75,4 @@ python -m driftglass history show --database ./driftglass-history.db --report-id
 python -m driftglass history export --database ./driftglass-history.db --report-id REPORT_ID --format html --output ./saved-report.html
 ~~~
 
-The CLI currently consumes supplied manifests and JSONL files. Capture orchestration, automatic isolation management, automatic collection, and the dashboard are not implemented.
+The capture command is experimental and coordinates one bounded observer session; it does not create the test environment, launch the application, or automate baseline/candidate workflows. Automatic VM lifecycle management, target launch coordination, repeat-run analysis, and broader platform collection remain unimplemented or unverified.

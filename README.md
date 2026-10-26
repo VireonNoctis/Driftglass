@@ -10,7 +10,7 @@ Rather than asking only whether an application has a permission, Driftglass aims
 
 It is intended for security researchers, privacy-conscious users, maintainers, and developers who want to investigate application updates before trusting them.
 
-> **Project status:** Early prototype. Versioned event-record v1 and run-manifest v1 contracts, Python validators, and an experimental Linux `/proc` polling observer are implemented. Deterministic baseline/candidate comparison, evidence-linked JSON/standalone HTML reporting, and local SQLite report history are implemented for already-captured inputs. The developer CLI validates, compares, exports, and browses local reports; the read-only Svelte viewer inspects user-selected report v1 JSON files. These tools do not launch target applications or upload telemetry. Automated capture orchestration and process-tree/timeline visualization remain unimplemented, and broad real-world Linux observer coverage remains unverified.
+> **Project status:** Early prototype. Versioned event-record v1 and run-manifest v1 contracts, Python validators, and an experimental Linux `/proc` polling observer are implemented. Deterministic comparison, evidence-linked JSON/standalone HTML reporting, local SQLite history, the developer CLI, and a read-only Svelte report viewer are implemented for supplied captures/reports. An experimental capture command can invoke the observer for a user-supplied, already-running Linux PID and write a validated run manifest; it does not launch the target or manage a VM. Real-world observer coverage across Linux builds remains unverified.
 
 ---
 
@@ -26,6 +26,7 @@ It is intended for security researchers, privacy-conscious users, maintainers, a
 - [Evidence and comparison model](#evidence-and-comparison-model)
 - [Event schema](docs/event-schema.md)
 - [Run manifest](docs/run-manifest.md)
+- [Capture coordination](docs/capture.md)
 - [Comparison method](docs/comparison-method.md)
 - [Local report export](docs/report-export.md)
 - [Local SQLite report history](docs/storage.md)
@@ -466,7 +467,7 @@ Progress should be measured by verified capabilities and tests, not the number o
 
 - [x] Build an experimental Rust observer for Linux procfs; coverage remains best-effort.
 - [x] Record sampled process and TCP metadata for a selected process tree.
-- [ ] Make collection status and permission requirements explicit.
+- [x] Surface collector status, permission-related gaps, and unavailable categories in capture records/manifests.
 - [x] Add synthetic fixtures and tests for event parsing and malformed input.
 
 ### Phase 2 — Comparison engine
@@ -499,7 +500,7 @@ Progress should be measured by verified capabilities and tests, not the number o
 - [ ] Improve regression testing, packaging, and reproducible builds.
 - [ ] Consider optional advanced event correlation only after basic evidence handling is reliable.
 
-All roadmap items remain planned until implemented and verified. A release should clearly state what works, what is experimental, and what is unavailable.
+Unchecked roadmap items remain planned until implemented and verified. Checked items describe the current tested scope, not a guarantee of comprehensive collection or application safety.
 
 ---
 
@@ -516,7 +517,7 @@ python -m pip install -e ".[test]"
 python -m pytest
 ```
 
-The Python suite covers synthetic event records and manifests, deterministic baseline/candidate comparisons, evidence-linked JSON/HTML reports, and local SQLite history. It does not launch applications or establish broad real-world collector coverage. The experimental Linux observer has separate Cargo checks and remains subject to platform-specific testing.
+The Python suite covers event/run-manifest validation, deterministic comparison, report export, SQLite history, CLI behaviour, and synthetic capture coordination. Capture tests mock the observer; they do not prove actual OS event coverage. Cargo tests cover synthetic procfs parsing, and broad real-world Linux coverage remains unverified.
 
 ### Testing priorities
 
@@ -544,22 +545,36 @@ Tests should make clear whether they validate the observer, the event schema, th
 
 ---
 
-## Illustrative future workflow
+## Current CLI workflow and planned automation
 
-The command names below are **examples of the intended interface only**. They are not implemented commands and should not be expected to run.
+The CLI can capture metadata from an application that is already running, then compare the resulting baseline and candidate event streams. The capture wrapper does not launch or stop the target application, create a VM, or verify isolation.
 
-```bash
-# Conceptual examples — implementation pending
-driftglass experiment create
-driftglass capture --experiment <experiment-id> --version baseline
-driftglass capture --experiment <experiment-id> --version candidate
-driftglass compare --experiment <experiment-id>
-driftglass report export --experiment <experiment-id> --format html
-```
+~~~bash
+cargo build --release -p driftglass-agent
+python -m driftglass capture \
+  --observer ./target/release/driftglass-agent \
+  --pid 1234 \
+  --duration-seconds 30 \
+  --interval-ms 250 \
+  --experiment-id example-update \
+  --role baseline \
+  --application-name ExampleApp \
+  --application-version 1.0 \
+  --scenario "Open the main window and wait for 30 seconds" \
+  --event-output ./baseline-events.jsonl \
+  --manifest-output ./baseline-manifest.json
 
-The final CLI should help users understand exactly what will be captured before a run starts. It should show the target environment, collector status, required privileges, test duration or stop conditions, output location, and known coverage gaps. Destructive operations should not be implicit.
+python -m driftglass compare \
+  --baseline-manifest ./baseline-manifest.json \
+  --candidate-manifest ./candidate-manifest.json \
+  --baseline-events ./baseline-events.jsonl \
+  --candidate-events ./candidate-events.jsonl \
+  --json-output ./comparison.json \
+  --html-output ./comparison.html
+~~~
 
-A developer setup is now available for the Python JSONL validation prototype, but there is no supported end-to-end quick-start workflow or user-facing CLI yet. The collector, comparison engine, and platform coverage remain unimplemented.
+The same experiment ID and equivalent scenarios should be used for the candidate capture, with the role, version, PID, and output paths changed. Automatic application launch, snapshot/VM lifecycle management, paired-run scheduling, and comprehensive platform coverage remain unimplemented or unverified. See [the capture notes](docs/capture.md) and [CLI guide](docs/cli.md) for limitations.
+
 
 ---
 
