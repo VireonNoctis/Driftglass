@@ -10,6 +10,7 @@ from typing import Any
 from ._schema import canonical_json
 from .events import EventValidationError, load_jsonl
 from .manifests import ManifestValidationError, load_manifest
+from .profiles import RuleProfile, default_rule_profile
 
 COVERAGE_CATEGORIES = frozenset({"process", "network", "file", "system", "persistence"})
 
@@ -34,7 +35,7 @@ def _identity(event: dict[str, Any]) -> str:
     })
 
 
-def _details(event: dict[str, Any]) -> dict[str, Any]:
+def _details(event: dict[str, Any], profile: RuleProfile | None = None) -> dict[str, Any]:
     return {
         "category": event["category"],
         "action": event["action"],
@@ -45,18 +46,19 @@ def _details(event: dict[str, Any]) -> dict[str, Any]:
             key: value
             for key, value in event.get("attributes", {}).items()
             if key != "process_start_time_ticks"
+            and (profile is None or key not in profile.ignored_attributes)
         },
     }
 
 
-def _signature(event: dict[str, Any]) -> str:
+def _signature(event: dict[str, Any], profile: RuleProfile) -> str:
     # Run-specific IDs, timestamps, PIDs, and source references are evidence
     # pointers, not behaviour identity.
-    return canonical_json(_details(event))
+    return canonical_json(_details(event, profile))
 
 
-def _event_order(event: dict[str, Any]) -> tuple[str, str, str]:
-    return (_signature(event), event["event_id"], event["timestamp"])
+def _event_order(event: dict[str, Any], profile: RuleProfile) -> tuple[str, str, str]:
+    return (_signature(event, profile), event["event_id"], event["timestamp"])
 
 
 def _evidence(run_id: str, event: dict[str, Any]) -> dict[str, Any]:
@@ -283,29 +285,31 @@ def _match_events(
     candidate_manifest: dict[str, Any],
     baseline_events: list[dict[str, Any]],
     candidate_events: list[dict[str, Any]],
+    profile: RuleProfile,
 ) -> list[dict[str, Any]]:
     base_id = baseline_manifest["run_id"]
     candidate_id = candidate_manifest["run_id"]
     base_groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
     candidate_groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
 
+    included_categories = set(profile.included_categories)
     for event in baseline_events:
-        if event["category"] != "coverage":
+        if event["category"] in included_categories:
             base_groups[_identity(event)].append(event)
     for event in candidate_events:
-        if event["category"] != "coverage":
+        if event["category"] in included_categories:
             candidate_groups[_identity(event)].append(event)
 
     findings: list[dict[str, Any]] = []
     for identity in sorted(set(base_groups) | set(candidate_groups)):
-        before = sorted(base_groups.get(identity, []), key=_event_order)
+        before = sorted(base_groups.get(identity, []), key=lambda event: _event_order(event, profile))
         after = sorted(candidate_groups.get(identity, []), key=_event_order)
         base_details: dict[str, list[dict[str, Any]]] = defaultdict(list)
         candidate_details: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for event in before:
-            base_details[_signature(event)].append(event)
+            base_details[_signature(event, profile)].append(event)
         for event in after:
-            candidate_details[_signature(event)].append(event)
+            candidate_details[_signature(event, profile)].append(event)
 
         before_remaining: list[dict[str, Any]] = []
         after_remaining: list[dict[str, Any]] = []
@@ -323,7 +327,7 @@ def _match_events(
         for index in range(paired):
             old = before_remaining[index]
             new = after_remaining[index]
-            key = (_signature(old), _signature(new))
+            key = (_signature(old, profile), _signature(new, profile))
             group = changed.setdefault(key, {"before": [], "after": []})
             group["before"].append(old)
             group["after"].append(new)
@@ -336,7 +340,7 @@ def _match_events(
 
         removed: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for event in before_remaining[paired:]:
-            removed[_signature(event)].append(event)
+            removed[_signature(event, profile)].append(event)
         for _, items in sorted(removed.items()):
             findings.append(_finding(
                 "DG-COMPARE-001", "removed", items[0]["category"],
@@ -345,7 +349,7 @@ def _match_events(
 
         added: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for event in after_remaining[paired:]:
-            added[_signature(event)].append(event)
+            added[_signature(event, profile)].append(event)
         for _, items in sorted(added.items()):
             findings.append(_finding(
                 "DG-COMPARE-001", "added", items[0]["category"],
@@ -390,8 +394,10 @@ def compare_loaded_runs(
     candidate_manifest: dict[str, Any],
     baseline_events: list[dict[str, Any]],
     candidate_events: list[dict[str, Any]],
+    profile: RuleProfile | None = None,
 ) -> dict[str, Any]:
     """Compare already-validated runs and return a reproducible report object."""
+    selected_profile = profile or default_rule_profile()
     _validate_pair(baseline_manifest, candidate_manifest)
     baseline_id = baseline_manifest["run_id"]
     candidate_id = candidate_manifest["run_id"]
@@ -416,7 +422,10 @@ def compare_loaded_runs(
         ))
 
     uncertainties.sort(key=lambda item: (item["code"], item.get("run_id") or "", item["message"]))
-    findings = _match_events(baseline_manifest, candidate_manifest, baseline_events, candidate_events)
+    findings = _match_events(
+        baseline_manifest, candidate_manifest, baseline_events, candidate_events, selected_profile
+    )
+    included_categories = set(selected_profile.included_categories)
     core = {
         "schema_version": 1,
         "status": "partial" if uncertainties else "complete",
@@ -435,6 +444,7 @@ def compare_loaded_runs(
             "capture_status": candidate_manifest["capture"]["status"],
         },
         "environment_differences": differences,
+        "comparison_profile": selected_profile.report_metadata(),
         "coverage": {
             "baseline": _coverage_summary(baseline_manifest, baseline_events),
             "candidate": _coverage_summary(candidate_manifest, candidate_events),
@@ -444,8 +454,8 @@ def compare_loaded_runs(
         "summary": {
             "baseline_event_count": len(baseline_events),
             "candidate_event_count": len(candidate_events),
-            "baseline_behaviour_event_count": sum(event["category"] != "coverage" for event in baseline_events),
-            "candidate_behaviour_event_count": sum(event["category"] != "coverage" for event in candidate_events),
+            "baseline_behaviour_event_count": sum(event["category"] in included_categories for event in baseline_events),
+            "candidate_behaviour_event_count": sum(event["category"] in included_categories for event in candidate_events),
             "added_count": sum(item["change_type"] == "added" for item in findings),
             "removed_count": sum(item["change_type"] == "removed" for item in findings),
             "changed_count": sum(item["change_type"] == "changed" for item in findings),
@@ -463,6 +473,7 @@ def compare_runs(
     candidate_events_path: str | Path,
     manifest_schema_path: str | Path,
     event_schema_path: str | Path,
+    profile: RuleProfile | None = None,
 ) -> dict[str, Any]:
     """Validate the two run manifests and event streams, then compare them."""
     try:
@@ -475,4 +486,4 @@ def compare_runs(
         candidate_events = load_jsonl(candidate_events_path, event_schema_path)
     except EventValidationError as exc:
         raise ComparisonError(f"invalid event stream: {exc}") from exc
-    return compare_loaded_runs(base, candidate, base_events, candidate_events)
+    return compare_loaded_runs(base, candidate, base_events, candidate_events, profile)
