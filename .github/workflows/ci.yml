@@ -78,6 +78,12 @@ jobs:
       - name: Test Rust workspace when present
         if: ${{ hashFiles('Cargo.toml') != '' }}
         run: cargo test --locked --workspace
+      - name: Build observer for controlled paired-capture smoke test
+        if: ${{ hashFiles('Cargo.toml') != '' }}
+        run: cargo build --locked -p driftglass-agent
+      - name: Run controlled paired-capture integration test
+        if: ${{ hashFiles('Cargo.toml') != '' }}
+        run: python -m pytest -q tests/integration/test_linux_paired_capture.py
 
   web:
     runs-on: ubuntu-latest
