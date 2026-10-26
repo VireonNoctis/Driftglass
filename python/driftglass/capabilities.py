@@ -50,7 +50,7 @@ def capabilities_report() -> dict[str, object]:
             {
                 "platform": "Linux",
                 "collector_status": "experimental",
-                "validation_status": "automated synthetic tests; real-world coverage unverified",
+                "validation_status": "synthetic tests and one live loopback smoke test; broader coverage unverified",
             },
             {
                 "platform": "Windows",

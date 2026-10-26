@@ -2,7 +2,7 @@
 
 This is the first numbered 60-item ledger for the project; the prior README roadmap was phase-based and did not contain a pre-existing 60-item plan. The status column is intentionally honest: a milestone is marked **Done** only where code/docs exist and the relevant automated check ran, or where it is a documented capability verified from the implementation. **Remaining** means it has not been completed or validated yet.
 
-**Current tally: 49 done, 11 remaining.** This does not mean 49 milestones were completed in the latest session. Items 1–36 are existing capabilities in the repository; items 37–49 record the comparison fix and the work completed across the latest commits. The remaining platform and real-workload milestones require implementation or experiments, not more checkboxes.
+**Current tally: 50 done, 10 remaining.** This does not mean 49 milestones were completed in the latest session. Items 1–36 are existing capabilities in the repository; items 37–49 record the comparison fix and the work completed across the latest commits. The remaining platform and real-workload milestones require implementation or experiments, not more checkboxes.
 
 | # | Milestone | Status | Evidence / acceptance |
 |---:|---|---|---|
@@ -55,8 +55,8 @@ This is the first numbered 60-item ledger for the project; the prior README road
 | 47 | Bound run-manifest and rule-profile file inputs | Done | 4 MiB manifest, 1 MiB profile; limit tests |
 | 48 | Add `driftglass report validate` for schema, evidence relationships and content hash | Done | CLI validation success/tamper tests |
 | 49 | Mark socket events partial when PID ownership is ambiguous | Done | `5f4c8ae`; Rust quality regression test |
-| 50 | Measure event loss against a benign controlled Linux workload with expected events | Remaining | Needs an isolated Linux integration harness and recorded expected/actual observations |
-| 51 | Test procfs and socket ownership behaviour under restricted permissions | Remaining | Needs permission-matrix integration runs; synthetic tests are not enough |
+| 50 | Smoke-test live Linux procfs process and loopback TCP listener visibility | Done | Rust test uses a loopback-only listener and checks process metadata, TCP table entry and socket-owner attribution; does not measure event loss |
+| 51 | Measure event loss against a benign controlled Linux workload with expected events | Remaining | Needs an isolated workload harness and recorded expected/actual observations; the loopback smoke test does not measure loss |
 | 52 | Validate collector behavior across distinct Linux kernel/distribution builds | Remaining | Publish only after experiments record the actual kernel/build and coverage |
 | 53 | Measure network-namespace visibility and document/test unsupported cases | Remaining | Current observer's namespace coverage is limited; more specific tests are needed |
 | 54 | Add file-system activity collection with explicit coverage and tests | Remaining | No file-event collector currently exists |
@@ -69,6 +69,6 @@ This is the first numbered 60-item ledger for the project; the prior README road
 
 ## CI and evidence
 
-The latest source change should be considered complete only when the corresponding GitHub Actions run finishes successfully. CI runs Python unit tests, wheel/schema packaging and smoke checks, locked Rust workspace tests, and web tests/type checks/build. These checks do not replace controlled real-world observer measurements required by milestones 50–53.
+The latest source change should be considered complete only when the corresponding GitHub Actions run finishes successfully. CI runs Python unit tests, wheel/schema packaging and smoke checks, locked Rust workspace tests, and web tests/type checks/build. These checks do not replace controlled real-world observer measurements required by milestones 51–53.
 
 Do not change any **Remaining** item to **Done** solely because a type, directory, schema, or placeholder was added. Require implementation and the acceptance evidence described above.

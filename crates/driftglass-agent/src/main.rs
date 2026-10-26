@@ -668,6 +668,36 @@ mod tests {
         assert_eq!(totals.ambiguous_socket_owner_observations, 1);
     }
 
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn live_procfs_observes_this_process_and_its_loopback_tcp_listener() {
+        use std::net::TcpListener;
+
+        let listener = TcpListener::bind(("127.0.0.1", 0)).expect("bind loopback-only listener");
+        let local_port = listener.local_addr().expect("listener address").port();
+        let pid = std::process::id();
+        let proc_root = PathBuf::from("/proc");
+
+        let process_scan = read_process_snapshot(&proc_root).expect("read live procfs process table");
+        let process = process_scan.processes.get(&pid).expect("test process is visible in procfs");
+        assert_eq!(process.pid, pid);
+
+        let scope = process_scope(&process_scan.processes, pid);
+        let owners = read_socket_owners(&proc_root, &scope_pids(&scope));
+        let network = read_tcp_snapshot(&proc_root, pid);
+        let socket = network
+            .sockets
+            .values()
+            .find(|socket| socket.local_port == local_port && socket.state == "LISTEN")
+            .expect("loopback listener is visible in the live TCP table");
+        assert_eq!(owners.inode_to_pid.get(&socket.inode), Some(&pid));
+
+        let owned = owned_sockets(&network.sockets, &owners, &scope);
+        assert!(owned.values().any(|item| {
+            item.socket.local_port == local_port && item.owner.pid == pid
+        }));
+    }
+
     #[test]
     fn parses_scoped_capture_arguments() {
         let values = [

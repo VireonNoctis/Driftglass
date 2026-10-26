@@ -28,4 +28,6 @@ The Rust observer itself does not produce a run manifest. The experimental Pytho
 - It emits records only for the selected process and observed descendants, but samples process stat metadata and TCP tables from procfs to perform that filter. Run it in a disposable VM; these sources can reveal sensitive local system information.
 - Procfs visibility and socket-to-PID ownership differ with user privileges, container configuration, kernel settings, and distribution. No cross-kernel coverage claim is made.
 
+The Rust test suite includes one live Linux smoke test that binds a loopback-only TCP listener, then checks that procfs process metadata, the TCP table and socket-to-PID association all expose it in the CI environment. It does not measure event loss or validate other kernel/distribution/permission configurations.
+
 The first-sample actions record what was already present at the first sample. They do not claim that the process or connection started during capture. A capture-finished record means the sampling interval ended; partial collection quality signals known gaps, not a negative result.

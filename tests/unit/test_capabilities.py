@@ -26,7 +26,7 @@ def test_capability_summary_matches_the_implemented_observer_scope():
         {
             "platform": "Linux",
             "collector_status": "experimental",
-            "validation_status": "automated synthetic tests; real-world coverage unverified",
+            "validation_status": "synthetic tests and one live loopback smoke test; broader coverage unverified",
         },
         {
             "platform": "Windows",
