@@ -255,3 +255,24 @@ def test_delete_report_rejects_malformed_id_before_opening_database(tmp_path):
     with pytest.raises(StorageError, match="64-character lowercase SHA-256"):
         delete_report(db, "not-a-report-id")
     assert not db.exists()
+
+
+
+def test_history_enforces_report_count_and_payload_budget_atomically(tmp_path, monkeypatch):
+    import driftglass.storage as storage
+
+    db = tmp_path / "history.db"
+    first = make_report(base_run="first-base", candidate_run="first-candidate")
+    second = make_report(base_run="second-base", candidate_run="second-candidate")
+    save_report(db, first, REPORT_SCHEMA)
+
+    monkeypatch.setattr(storage, "MAX_HISTORY_REPORTS", 1)
+    with pytest.raises(StorageError, match="local history is full"):
+        save_report(db, second, REPORT_SCHEMA)
+    assert [item["report_id"] for item in list_reports(db)] == [first["report_id"]]
+
+    monkeypatch.setattr(storage, "MAX_HISTORY_REPORTS", 1000)
+    monkeypatch.setattr(storage, "MAX_HISTORY_REPORT_PAYLOAD_BYTES", 1)
+    with pytest.raises(StorageError, match="report-payload budget"):
+        save_report(db, second, REPORT_SCHEMA)
+    assert [item["report_id"] for item in list_reports(db)] == [first["report_id"]]

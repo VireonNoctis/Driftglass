@@ -13,6 +13,8 @@ from ._schema import canonical_json, finite_json_float, reject_json_constant, un
 from .reporting import ReportExportError, validate_report
 
 DATABASE_SCHEMA_VERSION = 1
+MAX_HISTORY_REPORTS = 1000
+MAX_HISTORY_REPORT_PAYLOAD_BYTES = 256 * 1024 * 1024
 _REQUIRED_TABLES = {"reports", "runs", "report_runs", "findings"}
 _REQUIRED_COLUMNS = {
     "reports": {
@@ -201,6 +203,9 @@ def save_report(
         raise StorageError(f"invalid report: {exc}") from exc
 
     report_json = json.dumps(report, sort_keys=True, indent=2, ensure_ascii=False)
+    report_json_bytes = len(report_json.encode("utf-8"))
+    if report_json_bytes > MAX_HISTORY_REPORT_PAYLOAD_BYTES:
+        raise StorageError("report exceeds the local history report-payload budget")
     app_name = report["application_name"]
     run_summaries = (("baseline", report["baseline"]), ("candidate", report["candidate"]))
     connection = _open_database(database_path)
@@ -216,6 +221,21 @@ def save_report(
                 raise StorageError("report_id already exists with different content")
             connection.commit()
             return report["report_id"]
+
+        stored_report_count = connection.execute("SELECT count(*) FROM reports").fetchone()[0]
+        if stored_report_count >= MAX_HISTORY_REPORTS:
+            raise StorageError(
+                f"local history is full ({MAX_HISTORY_REPORTS} reports); "
+                "delete selected reports before saving more"
+            )
+        stored_payload_bytes = connection.execute(
+            "SELECT COALESCE(sum(length(CAST(report_json AS BLOB))), 0) FROM reports"
+        ).fetchone()[0]
+        if stored_payload_bytes + report_json_bytes > MAX_HISTORY_REPORT_PAYLOAD_BYTES:
+            raise StorageError(
+                "local history report-payload budget would be exceeded; "
+                "delete selected reports before saving more"
+            )
 
         for _, summary in run_summaries:
             connection.execute(
