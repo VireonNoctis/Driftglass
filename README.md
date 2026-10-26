@@ -10,7 +10,7 @@ Rather than asking only whether an application has a permission, Driftglass aims
 
 It is intended for security researchers, privacy-conscious users, maintainers, and developers who want to investigate application updates before trusting them.
 
-> **Project status:** Early prototype. Versioned event-record v1 and run-manifest v1 contracts, Python validators, and an experimental Linux `/proc` polling observer are implemented. The observer passes CI build/unit tests; real-world event coverage across Linux builds remains unverified. This branch adds deterministic baseline/candidate comparison, evidence-linked JSON/standalone HTML reports, and local SQLite report history for already-captured inputs. Collection remains manual: these features do not launch applications or provide automated run coordination. The read-only dashboard and developer CLI are separate follow-on work.
+> **Project status:** Early prototype. Versioned event-record v1 and run-manifest v1 contracts, Python validators, and an experimental Linux `/proc` polling observer are implemented. Deterministic baseline/candidate comparison, evidence-linked JSON/standalone HTML reporting, and local SQLite report history are implemented for already-captured inputs. The developer CLI validates, compares, exports, and browses local reports; the read-only Svelte viewer inspects user-selected report v1 JSON files. These tools do not launch target applications or upload telemetry. Automated capture orchestration and process-tree/timeline visualization remain unimplemented, and broad real-world Linux observer coverage remains unverified.
 
 ---
 
@@ -29,6 +29,8 @@ It is intended for security researchers, privacy-conscious users, maintainers, a
 - [Comparison method](docs/comparison-method.md)
 - [Local report export](docs/report-export.md)
 - [Local SQLite report history](docs/storage.md)
+- [Developer CLI](docs/cli.md)
+- [Experimental local report viewer](docs/dashboard.md)
 - [Experimental Linux observer](docs/linux-observer.md)
 - [Privacy by design](#privacy-by-design)
 - [Security model and limitations](#security-model-and-limitations)
@@ -456,36 +458,37 @@ Progress should be measured by verified capabilities and tests, not the number o
 ### Phase 0 — Design and contracts
 
 - [ ] Write the architecture, threat model, privacy model, and supported-platform policy.
-- [ ] Define versioned run-manifest, event, and report schemas.
+- [x] Define versioned run-manifest, event, and report schemas (v1).
 - [ ] Specify the experiment lifecycle and the meaning of incomplete or dropped telemetry.
 - [ ] Decide how isolation is managed and what the tool must never do automatically.
 
 ### Phase 1 — Small, testable collector
 
-- [ ] Build a minimal Rust observer for one selected platform.
-- [ ] Record a small set of process and network metadata events.
+- [x] Build an experimental Rust observer for Linux procfs; coverage remains best-effort.
+- [x] Record sampled process and TCP metadata for a selected process tree.
 - [ ] Make collection status and permission requirements explicit.
-- [ ] Add benign test fixtures and tests for missing, malformed, and duplicated events.
+- [x] Add synthetic fixtures and tests for event parsing and malformed input.
 
 ### Phase 2 — Comparison engine
 
-- [ ] Build Python run-manifest validation and event normalization.
-- [ ] Implement deterministic baseline/candidate matching.
-- [ ] Report added, removed, changed, and uncertain observations.
-- [ ] Link every finding to its evidence and rule explanation.
+- [x] Validate run manifests/events and compare normalized baseline/candidate records.
+- [x] Implement deterministic baseline/candidate matching.
+- [x] Report added, removed, changed, and uncertain observations.
+- [x] Link findings to source-referenced evidence and rule explanations.
 - [ ] Test noisy and equivalent runs to measure false positives.
 
 ### Phase 3 — Local reports and persistence
 
-- [ ] Add SQLite run and finding storage.
-- [ ] Export structured JSON and human-readable HTML.
-- [ ] Include collection coverage, rule versions, and environment differences in reports.
+- [x] Add local SQLite report, run, and finding storage.
+- [x] Export structured JSON and standalone HTML.
+- [x] Include collection coverage, rule versions, and environment differences in reports.
 - [ ] Add redaction and local cleanup controls before sharing becomes a common workflow.
 
 ### Phase 4 — Dashboard and repeatability
 
-- [ ] Add the Svelte + TypeScript interface.
-- [ ] Add searchable evidence, process-tree views, filters, and side-by-side comparison.
+- [x] Add the experimental Svelte + TypeScript report viewer.
+- [x] Add searchable/filterable findings, evidence inspection, and baseline/candidate summaries.
+- [ ] Add dedicated process-tree and event-timeline views.
 - [ ] Add repeat-run analysis and configurable rule profiles.
 - [ ] Validate the local API's access controls and document data flow.
 
