@@ -70,6 +70,56 @@ export interface ComparisonProfileSummary {
   ignored_attributes: string[];
 }
 
+export interface RepeatAnalysisCohort {
+  application_name: string;
+  baseline_version: string;
+  candidate_version: string;
+  baseline_artifact_sha256: string | null;
+  candidate_artifact_sha256: string | null;
+  comparison_profile_sha256: string | null;
+}
+
+export interface RepeatSourceReport {
+  report_id: string;
+  status: "complete" | "partial";
+  added_count: number;
+  removed_count: number;
+  changed_count: number;
+  uncertainty_count: number;
+}
+
+export interface RepeatPatternReportRef {
+  report_id: string;
+  finding_ids: string[];
+}
+
+export interface RepeatPattern {
+  fingerprint: string;
+  rule_id: "DG-COMPARE-001" | "DG-COMPARE-002";
+  change_type: ChangeType;
+  category: FindingCategory;
+  summary: string;
+  observation: string;
+  occurrence_count: number;
+  repeatability: "recurring" | "not_consistently_observed";
+  report_refs: RepeatPatternReportRef[];
+}
+
+export interface RepeatAnalysisV1 {
+  schema_version: 1;
+  analysis_id: string;
+  cohort: RepeatAnalysisCohort;
+  report_count: number;
+  reports: RepeatSourceReport[];
+  partial_report_ids: string[];
+  patterns: RepeatPattern[];
+  summary: {
+    recurring_pattern_count: number;
+    not_consistently_observed_pattern_count: number;
+    partial_report_count: number;
+  };
+}
+
 export interface ReportV1 {
   schema_version: 1;
   report_id: string;
