@@ -1,6 +1,6 @@
 # Driftglass report viewer
 
-An experimental, read-only Svelte viewer for one JSON report exported by Driftglass. It displays run summaries, context differences, searchable findings, evidence references, and declared uncertainties.
+An experimental, read-only Svelte viewer for one JSON report exported by Driftglass. It displays run summaries, context differences, searchable findings, a chronological timeline of evidence referenced by findings, source evidence, and declared uncertainties. The timeline is not the complete raw event stream; it cannot show events absent from the report.
 
 ## Development
 

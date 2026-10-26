@@ -1,5 +1,6 @@
 <script lang="ts">
   import { validateReportV1 } from "./lib/report-validation.js";
+  import { buildEvidenceTimeline } from "./lib/evidence-timeline.js";
   import type { Finding, ReportV1 } from "./types";
 
   const MAX_FILE_BYTES = 20 * 1024 * 1024;
@@ -11,7 +12,10 @@
   let changeFilter = $state("all");
   let dragActive = $state(false);
   let loading = $state(false);
+  let evidenceView = $state<"findings" | "timeline">("findings");
   let fileInput: HTMLInputElement;
+
+  let timelineItems = $derived.by(() => buildEvidenceTimeline(visibleFindings));
 
   let visibleFindings = $derived.by(() => {
     if (!report) return [];
@@ -50,6 +54,7 @@
         return;
       }
       report = result.report;
+      evidenceView = "findings";
       fileName = file.name;
       query = "";
       categoryFilter = "all";
@@ -75,8 +80,21 @@
   }
   function resetReport() {
     report = null; fileName = ""; errorMessage = ""; query = "";
-    categoryFilter = "all"; changeFilter = "all";
+    categoryFilter = "all"; changeFilter = "all"; evidenceView = "findings";
   }
+
+  function resourceLabel(resource: Record<string, unknown> | null): string {
+    if (!resource) return "No resource metadata";
+    const parts = [
+      typeof resource.kind === "string" ? resource.kind : "",
+      typeof resource.identifier === "string" ? resource.identifier : "",
+      typeof resource.address === "string" ? resource.address : "",
+      typeof resource.port === "number" ? "port " + resource.port : "",
+      typeof resource.protocol === "string" ? resource.protocol : "",
+    ];
+    return parts.filter(Boolean).join(" · ") || "Resource metadata present";
+  }
+
   function formatCount(value: number) { return new Intl.NumberFormat("en").format(value); }
   function shortId(value: string) { return value.slice(0, 12); }
   function evidenceFor(finding: Finding) {
@@ -183,7 +201,34 @@
           <label><span class="micro">CATEGORY</span><select bind:value={categoryFilter}><option value="all">All categories</option><option value="process">Process</option><option value="network">Network</option><option value="file">File</option><option value="system">System</option></select></label>
           <label><span class="micro">CHANGE</span><select bind:value={changeFilter}><option value="all">All changes</option><option value="added">Added</option><option value="removed">Removed</option><option value="changed">Changed</option></select></label>
         </div>
-        {#if visibleFindings.length === 0}
+        <div class="evidence-view-switch" role="group" aria-label="Evidence display">
+          <button type="button" aria-pressed={evidenceView === "findings"} onclick={() => evidenceView = "findings"}>Findings</button>
+          <button type="button" aria-pressed={evidenceView === "timeline"} onclick={() => evidenceView = "timeline"}>Evidence timeline <span>{formatCount(timelineItems.length)}</span></button>
+        </div>
+        {#if evidenceView === "timeline"}
+          {#if timelineItems.length === 0}
+            <div class="empty-state"><p class="eyebrow">NO FINDING EVIDENCE</p><p>No evidence referenced by the current finding filters is available for the timeline.</p></div>
+          {:else}
+            <p class="timeline-note">This timeline contains only events referenced by findings in this report—not the complete raw event stream. Unchanged events and standalone coverage records may not appear.</p>
+            <ol class="evidence-timeline" aria-label="Finding evidence timeline">
+              {#each timelineItems as item (item.evidence.run_id + ":" + item.evidence.event_id)}
+                <li class="timeline-event">
+                  <span class="timeline-point" aria-hidden="true"></span>
+                  <article class="timeline-entry">
+                    <div class="timeline-topline"><span class="side-label">{item.side.toUpperCase()}</span><code>{item.evidence.timestamp}</code><code>{item.evidence.event_id}</code></div>
+                    <p class="timeline-action"><strong>{item.evidence.observed.action}</strong> · {item.evidence.observed.category}</p>
+                    <div class="timeline-meta">
+                      <span>{item.evidence.observed.process_executable ?? "Process metadata unavailable"}</span>
+                      <span>{resourceLabel(item.evidence.observed.resource)}</span>
+                    </div>
+                    <p class="timeline-finding">{item.finding.summary}</p>
+                    <details><summary>Inspect observed fields</summary><pre>{JSON.stringify(item.evidence.observed, null, 2)}</pre></details>
+                  </article>
+                </li>
+              {/each}
+            </ol>
+          {/if}
+        {:else if visibleFindings.length === 0}
           <div class="empty-state"><p class="eyebrow">NO MATCHES</p><p>No findings match these filters. The report contains {report.findings.length} finding(s) total.</p><button class="quiet-button" type="button" onclick={() => { query = ""; categoryFilter = "all"; changeFilter = "all"; }}>Reset filters</button></div>
         {:else}
           <div class="finding-list">
