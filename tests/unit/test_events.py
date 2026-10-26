@@ -148,3 +148,31 @@ def test_rejects_overflowed_float_literals(tmp_path):
 
     with pytest.raises(EventValidationError, match="non-finite numeric values are not valid JSON"):
         load_jsonl(path, SCHEMA)
+
+
+
+def test_rejects_event_stream_over_total_byte_limit(tmp_path, monkeypatch):
+    path = tmp_path / "events.jsonl"
+    write_records(path, [event()])
+    monkeypatch.setattr("driftglass.events.MAX_EVENT_STREAM_BYTES", path.stat().st_size - 1)
+
+    with pytest.raises(EventValidationError, match="stream limit"):
+        load_jsonl(path, SCHEMA)
+
+
+def test_rejects_single_record_over_line_limit_before_json_parsing(tmp_path, monkeypatch):
+    path = tmp_path / "events.jsonl"
+    write_records(path, [event()])
+    monkeypatch.setattr("driftglass.events.MAX_EVENT_LINE_BYTES", 32)
+
+    with pytest.raises(EventValidationError, match="record exceeds the 32-byte line limit"):
+        load_jsonl(path, SCHEMA)
+
+
+def test_rejects_event_count_over_limit(tmp_path, monkeypatch):
+    path = tmp_path / "events.jsonl"
+    write_records(path, [event(), event(event_id="evt-002")])
+    monkeypatch.setattr("driftglass.events.MAX_EVENT_RECORDS", 1)
+
+    with pytest.raises(EventValidationError, match="exceeds the 1-record limit"):
+        load_jsonl(path, SCHEMA)

@@ -17,7 +17,7 @@ Driftglass is a local-first prototype for comparing observations from two applic
 |---|---|---|
 | Application being inspected | May behave unexpectedly or be hostile. | Driftglass does not launch or elevate it; run it in a disposable VM managed by the operator. |
 | Procfs observations | May be incomplete because of polling, permissions, namespace differences or process races. | Coverage records, incomplete status, event quality and manifest warnings are retained. |
-| Imported JSON/JSONL | May be malformed, oversized or contain misleading fields. | Strict versioned schema validation and non-zero errors for invalid inputs. |
+| Imported JSON/JSONL | May be malformed, very large or contain misleading fields. | Strict schema validation, a 64 MiB stream limit, 1 MiB line limit, 250,000-record limit and non-zero errors for invalid inputs. |
 | Imported report in browser | Is untrusted input, including HTML-like text. | Structural validation and text rendering; no report-supplied HTML execution is intended. |
 | Local history and exported files | May reveal sensitive metadata and can be modified by a local user. | Owner-only file creation where supported, validated report writes and parameterized SQLite queries; local history is not cryptographically immutable. |
 | Host/kernel/observer | May be misconfigured or compromised. | No reliable defense against a compromised underlying host is claimed. |
@@ -25,7 +25,7 @@ Driftglass is a local-first prototype for comparing observations from two applic
 ## Main risks and limits
 
 - **Missed or misattributed activity:** sampling can miss short-lived processes and sockets; access errors or ambiguous ownership reduce confidence. Reports must not turn lack of observation into proof of absence.
-- **Hostile or malformed input:** malformed event/report structures may trigger errors or misleading display. Schemas and parser tests reduce this risk, but do not prove all inputs safe.
+- **Hostile or malformed input:** malformed event/report structures may trigger errors or misleading display. JSONL limits and schema/parser tests reduce resource-exhaustion exposure for event streams, but do not prove all inputs safe or place a universal limit on every report/history operation.
 - **Sensitive report disclosure:** paths, process names and network metadata may be private. Local-first defaults and opt-in export redaction help; users must inspect redacted outputs before sharing.
 - **Environment contamination:** a candidate application could access host resources if the operator runs it outside isolation. The observer itself is not a sandbox.
 - **False attribution:** external network behavior, runtime noise or environment differences may explain an observed change. Findings are review leads, not maliciousness verdicts.
@@ -39,6 +39,6 @@ Driftglass does not provide a containment boundary, automatically block/delete/r
 
 - Controlled, real Linux workloads with expected event sets and measured misses.
 - Testing under restricted procfs permissions and namespace configurations.
-- Adversarial report/JSONL fuzzing and bounded resource-consumption checks.
+- Adversarial report/JSONL fuzzing, separate report/history size bounds, and controlled real-workload coverage measurements.
 - Independent review of HTML export escaping and browser rendering paths.
 - Dependency and release-artifact integrity review.

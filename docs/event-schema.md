@@ -21,7 +21,7 @@ Paths, hostnames, addresses, executable names, and command lines may be sensitiv
 
 ## Failure semantics
 
-The Python reader fails with a line-specific validation error on malformed JSON, blank lines, invalid records, duplicate event IDs, unreadable files, or unreadable/invalid schemas. It also rejects an empty event file: without a run manifest and coverage information, an empty stream cannot distinguish a quiet run from a failed or inactive collector. This is intentionally conservative, not a claim that every valid experiment must observe application activity.
+The Python reader fails with a line-specific validation error on malformed JSON, blank lines, invalid records, duplicate event IDs, unreadable files, or unreadable/invalid schemas. It also enforces a 64 MiB total stream limit, a 1 MiB per-line limit, and a 250,000-record limit. These are parser resource bounds, not event-loss guarantees; valid larger captures must be split into smaller, independently validated streams before they can be compared. It also rejects an empty event file: without a run manifest and coverage information, an empty stream cannot distinguish a quiet run from a failed or inactive collector. This is intentionally conservative, not a claim that every valid experiment must observe application activity.
 
 A valid event stream alone does not establish complete collection coverage. The future run manifest must report enabled event sources, permissions, errors, dropped events, and unsupported categories separately. An observation categorized as **coverage** is available for explicit collector status events, but this contract does not itself implement a collector or a run manifest.
 

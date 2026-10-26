@@ -6,7 +6,7 @@ Validation must establish what the tool captures, what it misses, and whether ea
 
 | Layer | Required cases | Pass condition |
 |---|---|---|
-| Schema | Missing fields, unknown version, invalid enum, oversized payload | Clear and deterministic rejection |
+| Schema | Missing fields, unknown version, invalid enum, over-limit event stream/line/count | Clear and deterministic rejection |
 | Observer | Missing permissions, short-lived process, inaccessible PID, polling error | Gaps and errors are visible |
 | Normalization | Equivalent platform events, unknown fields, repeated events | Stable output without invented values |
 | Comparison | Added, removed, modified, reordered and duplicate events; volatile local TCP source ports; ambiguous events | Correct finding type and evidence link; equivalent synthetic runs have no findings for covered noise |
@@ -20,7 +20,7 @@ Validation must establish what the tool captures, what it misses, and whether ea
 
 Maintain fixtures for no meaningful change; new connection metadata; a file operation change; process start/exit ordering; a denied observer; environment mismatch; invalid JSONL between valid records; an unknown future event type; HTML-like hostile strings; and an export that must redact sensitive fields.
 
-Fixtures should contain no real personal data. Include equivalent network observations with changed local ephemeral ports and a paired case where the remote destination really changes. Changes to comparison rules must explain any changed expected result. Synthetic fixture results are not a production false-positive-rate estimate.
+Fixtures should contain no real personal data. Test event stream/line/count limits, and include equivalent network observations with changed local ephemeral ports and a paired case where the remote destination really changes. Changes to comparison rules must explain any changed expected result. Synthetic fixture results are not a production false-positive-rate estimate.
 
 ## Acceptance gates
 

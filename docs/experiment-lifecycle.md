@@ -14,7 +14,7 @@ Choose a consistent experiment ID, application name/version, scenario, capture p
 
 Build the Rust observer and invoke `python -m driftglass capture` with the PID of a process already running inside the lab. Capture is bounded by duration and interval. Driftglass starts the observer only; it does not launch or stop the target, elevate privileges, make VM snapshots, or automatically repeat the scenario.
 
-Outputs are new JSONL and manifest files. Existing output paths are refused. The wrapper validates observer output and the v1 manifest contract. It exits non-zero when the observer cannot complete its capture contract; where possible it writes a failed/incomplete manifest to preserve the failure.
+Outputs are new JSONL and manifest files. Existing output paths are refused. The Python JSONL validator accepts at most 64 MiB per stream, 1 MiB per line, and 250,000 records; larger captures need splitting before validation/comparison. The wrapper validates observer output and the v1 manifest contract. It exits non-zero when the observer cannot complete its capture contract; where possible it writes a failed/incomplete manifest to preserve the failure.
 
 ## 4. Interpret status and coverage correctly
 

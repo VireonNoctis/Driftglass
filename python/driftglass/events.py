@@ -18,16 +18,20 @@ from ._schema import (
 )
 
 
+MAX_EVENT_STREAM_BYTES = 64 * 1024 * 1024
+MAX_EVENT_LINE_BYTES = 1024 * 1024
+MAX_EVENT_RECORDS = 250_000
+
+
 class EventValidationError(ValueError):
     """Raised when an event stream or its schema is invalid."""
 
 
 def load_jsonl(event_path: str | Path, schema_path: str | Path) -> list[dict[str, Any]]:
-    """Load a non-empty JSONL event stream and validate each record.
+    """Load a non-empty, size-bounded JSONL event stream and validate each record.
 
-    Blank lines, malformed JSON, invalid records, duplicate event IDs, and empty
-    files are rejected. The schema's collection_quality field describes an
-    individual record; run-level collection coverage must be tracked separately.
+    Blank lines, malformed JSON, invalid records, duplicate event IDs, over-limit
+    streams, and empty files are rejected. Run-level coverage is tracked separately.
     """
     path = Path(event_path)
     try:
@@ -39,8 +43,35 @@ def load_jsonl(event_path: str | Path, schema_path: str | Path) -> list[dict[str
     seen_ids: dict[str, int] = {}
 
     try:
+        if path.stat().st_size > MAX_EVENT_STREAM_BYTES:
+            raise EventValidationError(
+                f"event file exceeds the {MAX_EVENT_STREAM_BYTES}-byte stream limit"
+            )
+
         with path.open("r", encoding="utf-8") as stream:
-            for line_number, line in enumerate(stream, start=1):
+            line_number = 0
+            total_bytes = 0
+            while True:
+                # Bound each read before decoding JSON so one huge line does not
+                # get loaded into memory in full.
+                line = stream.readline(MAX_EVENT_LINE_BYTES + 1)
+                if not line:
+                    break
+                line_number += 1
+                line_bytes = len(line.encode("utf-8"))
+                if line_bytes > MAX_EVENT_LINE_BYTES:
+                    raise EventValidationError(
+                        f"{path}:{line_number}: record exceeds the {MAX_EVENT_LINE_BYTES}-byte line limit"
+                    )
+                total_bytes += line_bytes
+                if total_bytes > MAX_EVENT_STREAM_BYTES:
+                    raise EventValidationError(
+                        f"{path}: event stream exceeds the {MAX_EVENT_STREAM_BYTES}-byte size limit"
+                    )
+                if line_number > MAX_EVENT_RECORDS:
+                    raise EventValidationError(
+                        f"{path}: event stream exceeds the {MAX_EVENT_RECORDS}-record limit"
+                    )
                 if not line.strip():
                     raise EventValidationError(
                         f"{path}:{line_number}: blank lines are not valid JSONL records"
