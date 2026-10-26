@@ -84,8 +84,18 @@ def load_rule_profile(
                 object_pairs_hook=unique_json_object,
             )
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
+        if isinstance(exc, json.JSONDecodeError):
+            reason = f"malformed JSON at line {exc.lineno}, column {exc.colno}"
+        elif isinstance(exc, ValueError) and str(exc) in {
+            "duplicate JSON object keys are not valid",
+            "non-finite numeric constants are not valid JSON",
+            "non-finite numeric values are not valid JSON",
+        }:
+            reason = str(exc)
+        else:
+            reason = type(exc).__name__
         raise RuleProfileError(
-            f"could not read rule profile '{path}' ({type(exc).__name__})"
+            f"could not read rule profile '{path}' ({reason})"
         ) from exc
 
     try:
