@@ -159,6 +159,16 @@
           <p class="eyebrow">LOADED REPORT / {fileName}</p>
           <h2>{report.application_name}</h2>
           <p class="muted">Experiment <code>{report.experiment_id}</code> · Report <code>{shortId(report.report_id)}</code></p>
+          {#if report.comparison_profile}
+            <div class="profile-strip">
+              <span class="eyebrow">COMPARISON PROFILE</span>
+              <strong>{report.comparison_profile.profile_id}</strong>
+              <code>SHA-256 {shortId(report.comparison_profile.sha256)}</code>
+              <p>Included: {report.comparison_profile.included_categories.join(", ")} · Ignored for matching: {report.comparison_profile.ignored_attributes.join(", ") || "none"}</p>
+            </div>
+          {:else}
+            <p class="micro muted">Comparison profile was not recorded in this older report.</p>
+          {/if}
         </div>
         <div class="heading-actions"><span class:partial={report.status === "partial"} class="status">{report.status.toUpperCase()}</span><button class="quiet-button" type="button" onclick={resetReport}>Close report</button></div>
       </section>

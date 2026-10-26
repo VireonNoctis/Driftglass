@@ -100,4 +100,4 @@ python -m driftglass history show --database ./driftglass-history.db --report-id
 python -m driftglass history export --database ./driftglass-history.db --report-id REPORT_ID --format html --output ./saved-report.html
 ~~~
 
-The capture command is experimental and coordinates one bounded observer session; it does not create the test environment, launch the application, or automate baseline/candidate workflows. Automatic VM lifecycle management, target launch coordination, repeat-run analysis, and broader platform collection remain unimplemented or unverified.
+The capture command is experimental and coordinates one bounded observer session; it does not create the test environment, launch the application, or automate baseline/candidate workflows. Automatic VM lifecycle management, target launch coordination, and broader platform collection remain unimplemented or unverified. The repeat command summarizes previously generated reports only; it does not schedule captures or automate test runs.

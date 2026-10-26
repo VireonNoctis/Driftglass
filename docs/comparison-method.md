@@ -26,3 +26,16 @@ A report status of complete means only that the validated input manifests and re
 Every finding names a deterministic rule ID, change type, observation, cautious interpretation, and source-linked evidence from the baseline and/or candidate. Added and removed mean a record was present in one input but not matched in the other; removed does not prove the behaviour ceased. Changed means records with the same matching identity had different normalized details. No severity score or maliciousness verdict is inferred.
 
 The report v1 contract lives in the schemas/reports/report-v1.schema.json file. The implementation remains experimental until its tests and review pass on the feature branch.
+
+
+## Versioned comparison profiles
+
+Every newly generated report records comparison_profile metadata containing the profile ID, normalized category selection, ignored attribute names, and a digest of the complete v1 profile configuration. The built-in default-v1 profile compares all supported behaviour categories and ignores no custom attributes. User profiles are strict JSON validated by schemas/rules/rule-profile-v1.schema.json.
+
+A profile can exclude event categories from finding generation or omit selected attribute keys from normalized matching signatures. These settings do not suppress coverage uncertainties. Ignored attribute values remain present in the evidence payload attached to a finding; the setting changes matching, not evidence collection or privacy redaction. Review the profile digest and evidence before interpreting a finding.
+
+## Repeat-run analysis
+
+Repeat analysis consumes two or more previously exported comparison reports. It requires the same application, baseline/candidate versions and hashes, and comparison-profile digest. A stable pattern fingerprint uses rule, change type, category, and normalized observed evidence; process identity and run-specific start ticks are excluded. Patterns observed in every source report are labelled recurring. Others are labelled not consistently observed, not “false positive.”
+
+The repeat-analysis-v1 output records source report IDs, source finding IDs, cohort information, pattern counts, and partial-report IDs. Partial or differing-coverage source reports remain visible; a pattern missing from a report can be caused by collection gaps or run variability. The aggregate is a review aid, not a safety verdict.

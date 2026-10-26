@@ -14,6 +14,13 @@ from .comparison import ComparisonError, compare_runs
 from .events import EventValidationError, load_jsonl
 from .manifests import ManifestValidationError, load_manifest
 from .redaction import redact_report
+from .profiles import RuleProfileError, load_rule_profile
+from .repeatability import (
+    RepeatAnalysisError,
+    analyze_repeat_reports,
+    export_repeat_analysis,
+    load_report_file,
+)
 from .reporting import ReportExportError, export_html_report, export_json_report
 from .storage import StorageError, delete_report, get_report, list_reports, save_report
 
@@ -27,6 +34,8 @@ def _default_schema_root() -> Path:
         Path("events/event-v1.schema.json"),
         Path("manifests/run-manifest-v1.schema.json"),
         Path("reports/report-v1.schema.json"),
+        Path("reports/repeat-analysis-v1.schema.json"),
+        Path("rules/rule-profile-v1.schema.json"),
     )
     for candidate in candidates:
         if all((candidate / relative).is_file() for relative in required):
@@ -38,6 +47,8 @@ SCHEMA_ROOT = _default_schema_root()
 EVENT_SCHEMA = SCHEMA_ROOT / "events" / "event-v1.schema.json"
 MANIFEST_SCHEMA = SCHEMA_ROOT / "manifests" / "run-manifest-v1.schema.json"
 REPORT_SCHEMA = SCHEMA_ROOT / "reports" / "report-v1.schema.json"
+REPEAT_ANALYSIS_SCHEMA = SCHEMA_ROOT / "reports" / "repeat-analysis-v1.schema.json"
+RULE_PROFILE_SCHEMA = SCHEMA_ROOT / "rules" / "rule-profile-v1.schema.json"
 
 
 class CliError(ValueError):
@@ -155,9 +166,12 @@ def _compare(args: argparse.Namespace) -> int:
             ("manifest schema", args.manifest_schema),
             ("event schema", args.event_schema),
             ("report schema", args.report_schema),
+            ("rule profile", args.rule_profile),
+            ("rule profile schema", str(RULE_PROFILE_SCHEMA)),
         ],
     )
 
+    profile = load_rule_profile(args.rule_profile, RULE_PROFILE_SCHEMA) if args.rule_profile else None
     report = compare_runs(
         args.baseline_manifest,
         args.candidate_manifest,
@@ -165,6 +179,7 @@ def _compare(args: argparse.Namespace) -> int:
         args.candidate_events,
         args.manifest_schema,
         args.event_schema,
+        profile,
     )
 
     exported_report = _redacted_export(report, args)
@@ -246,6 +261,44 @@ def _history_export(args: argparse.Namespace) -> int:
         print(f"exported report {args.report_id} to {args.output}")
     return 0
 
+
+
+
+def _repeat(args: argparse.Namespace) -> int:
+    if args.overwrite and not args.json_output:
+        raise CliError("--overwrite requires --json-output")
+    if len(args.reports) < 2:
+        raise RepeatAnalysisError("repeat analysis requires at least two comparison reports")
+    if len(args.reports) > 500:
+        raise RepeatAnalysisError("repeat analysis accepts at most 500 reports")
+    _reject_path_collisions(
+        [("repeat-analysis output", args.json_output)],
+        [
+            *[(f"comparison report input {path}", path) for path in args.reports],
+            ("report schema", args.report_schema),
+            ("repeat-analysis schema", args.analysis_schema),
+        ],
+    )
+    reports = [load_report_file(path, args.report_schema) for path in args.reports]
+    analysis = analyze_repeat_reports(reports)
+    if args.json_output:
+        export_repeat_analysis(
+            analysis,
+            args.analysis_schema,
+            args.json_output,
+            overwrite=args.overwrite,
+        )
+        print(
+            f"analysis_id={analysis['analysis_id']} reports={analysis['report_count']} "
+            f"patterns={len(analysis['patterns'])} "
+            f"recurring={analysis['summary']['recurring_pattern_count']} "
+            f"not_consistently_observed={analysis['summary']['not_consistently_observed_pattern_count']} "
+            f"partial_reports={analysis['summary']['partial_report_count']} "
+            f"output={args.json_output}"
+        )
+    else:
+        print(json.dumps(analysis, sort_keys=True, indent=2, ensure_ascii=False))
+    return 0
 
 
 def _history_delete(args: argparse.Namespace) -> int:
@@ -350,9 +403,24 @@ def build_parser() -> argparse.ArgumentParser:
     compare_parser.add_argument("--json-output", help="write a structured JSON report")
     compare_parser.add_argument("--html-output", help="write a standalone HTML report")
     compare_parser.add_argument("--history-db", help="save report to this local SQLite database")
+    compare_parser.add_argument(
+        "--rule-profile",
+        help="optional versioned JSON profile to select event categories and ignored attributes",
+    )
     _add_redaction_arguments(compare_parser)
     compare_parser.add_argument("--overwrite", action="store_true", help="allow replacing selected output files")
     compare_parser.set_defaults(handler=_compare)
+
+    repeat_parser = commands.add_parser(
+        "repeat",
+        help="analyse repeated comparison reports for recurring and not-consistently-observed patterns",
+    )
+    repeat_parser.add_argument("--reports", nargs="+", required=True, help="two or more existing comparison JSON reports")
+    repeat_parser.add_argument("--json-output", help="write a schema-validated repeat-analysis JSON file; stdout when omitted")
+    _add_schema_argument(repeat_parser, "report_schema", REPORT_SCHEMA)
+    _add_schema_argument(repeat_parser, "analysis_schema", REPEAT_ANALYSIS_SCHEMA)
+    repeat_parser.add_argument("--overwrite", action="store_true", help="allow replacing the output file")
+    repeat_parser.set_defaults(handler=_repeat)
 
     history_parser = commands.add_parser("history", help="browse locally stored reports")
     history_commands = history_parser.add_subparsers(dest="history_command", required=True)
@@ -400,6 +468,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return args.handler(args)
     except (
         CliError,
+        RepeatAnalysisError,
+        RuleProfileError,
         CaptureError,
         ComparisonError,
         EventValidationError,

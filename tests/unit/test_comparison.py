@@ -4,13 +4,15 @@ from pathlib import Path
 import pytest
 from jsonschema import Draft202012Validator, FormatChecker
 
-from driftglass.comparison import ComparisonError, compare_runs
+from driftglass.comparison import ComparisonError, compare_loaded_runs, compare_runs
+from driftglass.profiles import default_rule_profile, load_rule_profile
 
 
 ROOT = Path(__file__).resolve().parents[2]
 EVENT_SCHEMA = ROOT / "schemas" / "events" / "event-v1.schema.json"
 MANIFEST_SCHEMA = ROOT / "schemas" / "manifests" / "run-manifest-v1.schema.json"
 REPORT_SCHEMA = ROOT / "schemas" / "reports" / "report-v1.schema.json"
+PROFILE_SCHEMA = ROOT / "schemas" / "rules" / "rule-profile-v1.schema.json"
 
 
 def manifest(role, run_id, version, artifact_hash, **updates):
@@ -357,3 +359,71 @@ def test_coverage_source_order_is_normalized_for_deterministic_report_ids(tmp_pa
     second = compare(tmp_path, base, candidate, [event()], [event("candidate-event")])
     assert first["coverage"] == second["coverage"]
     assert first["report_id"] == second["report_id"]
+
+
+
+def test_custom_profile_filters_categories_and_ignores_named_attributes(tmp_path):
+    profile_file = tmp_path / "network-profile.json"
+    profile_file.write_text(
+        json.dumps({
+            "schema_version": 1,
+            "profile_id": "network-only",
+            "included_categories": ["network"],
+            "ignored_attributes": ["volatile_state"],
+        }),
+        encoding="utf-8",
+    )
+    profile = load_rule_profile(profile_file, PROFILE_SCHEMA)
+    base, candidate = pair()
+    before = event("before", attributes={
+        "socket_state": "ESTABLISHED",
+        "volatile_state": "old",
+        "connection_tag": "before",
+        "process_start_time_ticks": 1000,
+    })
+    after = event(
+        "after",
+        timestamp="2026-10-25T10:03:00Z",
+        process={"pid": 900, "parent_pid": 7, "executable": "synthetic-app"},
+        attributes={
+            "socket_state": "ESTABLISHED",
+            "volatile_state": "new",
+            "connection_tag": "after",
+            "process_start_time_ticks": 9000,
+        },
+    )
+    process_only_candidate = event(
+        "process-event",
+        category="process",
+        action="process_created",
+        resource=None,
+    )
+
+    report = compare_loaded_runs(
+        base, candidate, [before], [after, process_only_candidate], profile
+    )
+
+    assert [finding["change_type"] for finding in report["findings"]] == ["changed"]
+    assert report["summary"]["candidate_event_count"] == 2
+    assert report["summary"]["candidate_behaviour_event_count"] == 1
+    assert report["comparison_profile"] == profile.report_metadata()
+    finding = report["findings"][0]
+    baseline_attributes = finding["baseline_evidence"][0]["observed"]["attributes"]
+    candidate_attributes = finding["candidate_evidence"][0]["observed"]["attributes"]
+    assert baseline_attributes["volatile_state"] == "old"
+    assert candidate_attributes["volatile_state"] == "new"
+    assert "process_created" not in " ".join(item["observed"]["action"] for item in finding["candidate_evidence"])
+
+
+def test_default_profile_keeps_the_original_matching_behavior():
+    base, candidate = pair()
+    left = event("profile-before", attributes={"socket_state": "ESTABLISHED"})
+    right = event(
+        "profile-after",
+        timestamp="2026-10-25T10:03:00Z",
+        attributes={"socket_state": "CLOSE_WAIT"},
+    )
+    report = compare_loaded_runs(base, candidate, [left], [right])
+
+    assert any(finding["change_type"] == "changed" for finding in report["findings"])
+    assert report["comparison_profile"] == default_rule_profile().report_metadata()

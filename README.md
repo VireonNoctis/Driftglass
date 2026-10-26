@@ -497,7 +497,7 @@ Progress should be measured by verified capabilities and tests, not the number o
 - [x] Add searchable/filterable findings, evidence inspection, and baseline/candidate summaries.
 - [x] Add a chronological timeline of evidence linked from findings, with scope limitations shown.
 - [x] Add a partial process relationship view backed by observed PID/parent and start-time identity, with missing relationships left unlinked.
-- [ ] Add repeat-run analysis and configurable rule profiles.
+- [x] Add repeat-run analysis and configurable rule profiles with profile fingerprints and explicit recurrence uncertainty.
 - [ ] Validate the local API's access controls and document data flow.
 
 ### Phase 5 — Broader, verified coverage

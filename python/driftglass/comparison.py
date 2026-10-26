@@ -303,7 +303,7 @@ def _match_events(
     findings: list[dict[str, Any]] = []
     for identity in sorted(set(base_groups) | set(candidate_groups)):
         before = sorted(base_groups.get(identity, []), key=lambda event: _event_order(event, profile))
-        after = sorted(candidate_groups.get(identity, []), key=_event_order)
+        after = sorted(candidate_groups.get(identity, []), key=lambda event: _event_order(event, profile))
         base_details: dict[str, list[dict[str, Any]]] = defaultdict(list)
         candidate_details: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for event in before:
@@ -320,8 +320,8 @@ def _match_events(
             before_remaining.extend(base_items[common:])
             after_remaining.extend(candidate_items[common:])
 
-        before_remaining.sort(key=_event_order)
-        after_remaining.sort(key=_event_order)
+        before_remaining.sort(key=lambda event: _event_order(event, profile))
+        after_remaining.sort(key=lambda event: _event_order(event, profile))
         paired = min(len(before_remaining), len(after_remaining))
         changed: dict[tuple[str, str], dict[str, list[dict[str, Any]]]] = {}
         for index in range(paired):

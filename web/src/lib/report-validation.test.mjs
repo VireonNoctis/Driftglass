@@ -144,3 +144,33 @@ test("rejects malformed per-run coverage counts instead of showing a guessed mat
 test("continues to accept older report-v1 fixtures without coverage", () => {
   assert.equal(validateReportV1(validReport()).ok, true);
 });
+
+
+
+test("accepts optional comparison profile metadata", () => {
+  const report = validReport();
+  report.comparison_profile = {
+    profile_id: "network-review",
+    sha256: "a".repeat(64),
+    included_categories: ["network"],
+    ignored_attributes: ["socket_state"]
+  };
+  assert.equal(validateReportV1(report).ok, true);
+});
+
+test("rejects malformed comparison profile metadata", () => {
+  const report = validReport();
+  report.comparison_profile = {
+    profile_id: "network review",
+    sha256: "not-a-digest",
+    included_categories: ["network", "network"],
+    ignored_attributes: []
+  };
+  const result = validateReportV1(report);
+  assert.equal(result.ok, false);
+  assert.match(result.message, /comparison-profile metadata is malformed/);
+});
+
+test("continues to accept legacy reports without comparison profile metadata", () => {
+  assert.equal(validateReportV1(validReport()).ok, true);
+});

@@ -1,0 +1,266 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://driftglass.local/schemas/reports/repeat-analysis-v1.schema.json",
+  "title": "Driftglass repeat-run analysis v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "analysis_id",
+    "cohort",
+    "report_count",
+    "reports",
+    "partial_report_ids",
+    "patterns",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "analysis_id": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "cohort": {
+      "$ref": "#/$defs/cohort"
+    },
+    "report_count": {
+      "type": "integer",
+      "minimum": 2
+    },
+    "reports": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "$ref": "#/$defs/sourceReport"
+      }
+    },
+    "partial_report_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+      }
+    },
+    "patterns": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/pattern"
+      }
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    }
+  },
+  "$defs": {
+    "cohort": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "application_name",
+        "baseline_version",
+        "candidate_version",
+        "baseline_artifact_sha256",
+        "candidate_artifact_sha256",
+        "comparison_profile_sha256"
+      ],
+      "properties": {
+        "application_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "baseline_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "candidate_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "baseline_artifact_sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "candidate_artifact_sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "comparison_profile_sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "sourceReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "report_id",
+        "status",
+        "added_count",
+        "removed_count",
+        "changed_count",
+        "uncertainty_count"
+      ],
+      "properties": {
+        "report_id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "complete",
+            "partial"
+          ]
+        },
+        "added_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "removed_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "changed_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "uncertainty_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "patternRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "report_id",
+        "finding_ids"
+      ],
+      "properties": {
+        "report_id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "finding_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        }
+      }
+    },
+    "pattern": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fingerprint",
+        "rule_id",
+        "change_type",
+        "category",
+        "summary",
+        "observation",
+        "occurrence_count",
+        "repeatability",
+        "report_refs"
+      ],
+      "properties": {
+        "fingerprint": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "rule_id": {
+          "type": "string",
+          "enum": [
+            "DG-COMPARE-001",
+            "DG-COMPARE-002"
+          ]
+        },
+        "change_type": {
+          "type": "string",
+          "enum": [
+            "added",
+            "removed",
+            "changed"
+          ]
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "process",
+            "network",
+            "file",
+            "system"
+          ]
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "observation": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "occurrence_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "repeatability": {
+          "type": "string",
+          "enum": [
+            "recurring",
+            "not_consistently_observed"
+          ]
+        },
+        "report_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/patternRef"
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recurring_pattern_count",
+        "not_consistently_observed_pattern_count",
+        "partial_report_count"
+      ],
+      "properties": {
+        "recurring_pattern_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "not_consistently_observed_pattern_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "partial_report_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

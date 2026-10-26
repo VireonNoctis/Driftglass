@@ -214,3 +214,22 @@ def test_html_report_keeps_older_v1_reports_without_coverage_viewable():
     report["report_id"] = __import__("hashlib").sha256(canonical_json(core).encode("utf-8")).hexdigest()
     html_report = render_html_report(report, REPORT_SCHEMA)
     assert "does not include a per-run coverage snapshot" in html_report
+
+
+
+def test_report_rejects_mismatched_comparison_profile_digest():
+    report = make_report()
+    report["comparison_profile"]["sha256"] = "0" * 64
+
+    with pytest.raises(ReportExportError, match="comparison_profile.sha256"):
+        validate_report(report, REPORT_SCHEMA)
+
+
+def test_html_report_displays_the_applied_comparison_profile():
+    report = make_report()
+    html_report = render_html_report(report, REPORT_SCHEMA)
+
+    assert "Comparison profile" in html_report
+    assert "default-v1" in html_report
+    assert report["comparison_profile"]["sha256"] in html_report
+    assert "Included categories" in html_report

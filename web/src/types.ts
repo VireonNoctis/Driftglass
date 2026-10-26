@@ -63,6 +63,13 @@ export interface ReportCoverage {
   baseline: RunCoverage;
   candidate: RunCoverage;
 }
+export interface ComparisonProfileSummary {
+  profile_id: string;
+  sha256: string;
+  included_categories: FindingCategory[];
+  ignored_attributes: string[];
+}
+
 export interface ReportV1 {
   schema_version: 1;
   report_id: string;
@@ -72,6 +79,7 @@ export interface ReportV1 {
   baseline: RunSummary;
   candidate: RunSummary;
   coverage?: ReportCoverage;
+  comparison_profile?: ComparisonProfileSummary;
   environment_differences: Array<{
     field: string;
     baseline_value: string | null;

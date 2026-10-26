@@ -30,6 +30,8 @@ jobs:
               "/share/driftglass/schemas/events/event-v1.schema.json",
               "/share/driftglass/schemas/manifests/run-manifest-v1.schema.json",
               "/share/driftglass/schemas/reports/report-v1.schema.json",
+              "/share/driftglass/schemas/reports/repeat-analysis-v1.schema.json",
+              "/share/driftglass/schemas/rules/rule-profile-v1.schema.json",
           )
           missing = [suffix for suffix in required if not any(name.endswith(suffix) for name in names)]
           if missing:

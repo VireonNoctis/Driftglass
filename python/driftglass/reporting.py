@@ -45,6 +45,25 @@ def _validate_report_relationships(report: dict[str, Any]) -> None:
             "summary.candidate_behaviour_event_count exceeds candidate_event_count"
         )
 
+    profile = report.get("comparison_profile")
+    if profile is not None:
+        profile_core = {
+            "schema_version": 1,
+            "profile_id": profile["profile_id"],
+            "included_categories": profile["included_categories"],
+            "ignored_attributes": profile["ignored_attributes"],
+        }
+        if (
+            profile["included_categories"] != sorted(profile["included_categories"])
+            or profile["ignored_attributes"] != sorted(profile["ignored_attributes"])
+        ):
+            raise ReportExportError("comparison_profile lists must be normalized in sorted order")
+        expected_profile_sha256 = hashlib.sha256(
+            canonical_json(profile_core).encode("utf-8")
+        ).hexdigest()
+        if profile["sha256"] != expected_profile_sha256:
+            raise ReportExportError("comparison_profile.sha256 does not match its configuration")
+
     for finding in findings:
         for evidence_key, expected_run_id in (
             ("baseline_evidence", baseline_run_id),
@@ -94,7 +113,7 @@ def validate_report(report: dict[str, Any], schema_path: str | Path) -> None:
         raise ReportExportError("report_id does not match the report content")
 
 
-def _write_output(output_path: str | Path, content: str, overwrite: bool) -> Path:
+def write_text_output(output_path: str | Path, content: str, overwrite: bool) -> Path:
     path = Path(output_path)
     if not path.parent.is_dir():
         raise ReportExportError(f"output directory does not exist: '{path.parent}'")
@@ -161,7 +180,7 @@ def export_json_report(
     """
     validate_report(report, report_schema_path)
     content = json.dumps(report, sort_keys=True, indent=2, ensure_ascii=False) + "\n"
-    return _write_output(output_path, content, overwrite)
+    return write_text_output(output_path, content, overwrite)
 
 
 def _render_evidence(title: str, evidence: list[dict[str, Any]]) -> str:
@@ -218,6 +237,19 @@ def _render_coverage(coverage: dict[str, Any] | None) -> str:
             "<h4>Declared collection errors</h4><ul>" + errors + "</ul>"
         )
     return "".join(sections)
+
+
+def _render_comparison_profile(profile: dict[str, Any] | None) -> str:
+    if profile is None:
+        return "<p class='empty'>This older report does not include comparison-profile metadata.</p>"
+    categories = html.escape(", ".join(profile["included_categories"]), quote=True)
+    ignored = html.escape(", ".join(profile["ignored_attributes"]) or "None", quote=True)
+    return (
+        "<p><strong>Profile:</strong> " + html.escape(profile["profile_id"], quote=True) + "</p>"
+        "<p><strong>Profile SHA-256:</strong> <code>" + html.escape(profile["sha256"], quote=True) + "</code></p>"
+        "<p><strong>Included categories:</strong> " + categories + "</p>"
+        "<p><strong>Ignored attributes for matching:</strong> " + ignored + "</p>"
+    )
 
 
 def render_html_report(report: dict[str, Any], report_schema_path: str | Path) -> str:
@@ -280,6 +312,7 @@ def render_html_report(report: dict[str, Any], report_schema_path: str | Path) -
     baseline = report["baseline"]
     candidate = report["candidate"]
     coverage_html = _render_coverage(report.get("coverage"))
+    profile_html = _render_comparison_profile(report.get("comparison_profile"))
     status = report["status"]
     title = report["application_name"]
     return f"""<!doctype html>
@@ -324,6 +357,8 @@ li {{ margin: .6rem 0; }}
 </tbody></table>
 <h2>Summary</h2>
 <table><tbody>{summary_rows}</tbody></table>
+<h2>Comparison profile</h2>
+{profile_html}
 <h2>Declared collection coverage</h2>
 <p>Source states and input record counts are separate. Zero input records do not prove that no activity occurred. Older report-v1 files may not include this coverage snapshot.</p>
 {coverage_html}
@@ -348,4 +383,4 @@ def export_html_report(
 ) -> Path:
     """Validate and export a standalone HTML report with no external assets."""
     content = render_html_report(report, report_schema_path)
-    return _write_output(output_path, content, overwrite)
+    return write_text_output(output_path, content, overwrite)
