@@ -9,6 +9,7 @@ from driftglass.repeatability import (
     RepeatAnalysisError,
     analyze_repeat_reports,
     export_repeat_analysis,
+    load_report_file,
     validate_repeat_analysis,
 )
 
@@ -148,3 +149,13 @@ def test_repeat_analysis_export_validates_and_refuses_overwrite(tmp_path):
     damaged["analysis_id"] = "0" * 64
     with pytest.raises(RepeatAnalysisError, match="analysis_id"):
         validate_repeat_analysis(damaged, REPEAT_SCHEMA)
+
+
+
+def test_report_loader_rejects_oversized_json_before_parsing(tmp_path, monkeypatch):
+    path = tmp_path / "oversized-report.json"
+    path.write_text('{"schema_version":1}', encoding="utf-8")
+    monkeypatch.setattr("driftglass.repeatability.MAX_REPORT_FILE_BYTES", 8)
+
+    with pytest.raises(RepeatAnalysisError, match="exceeds the 8-byte file limit"):
+        load_report_file(path, ROOT / "schemas" / "reports" / "report-v1.schema.json")

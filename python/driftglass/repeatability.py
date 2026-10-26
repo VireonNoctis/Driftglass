@@ -20,6 +20,9 @@ from ._schema import (
 from .reporting import ReportExportError, validate_report, write_text_output
 
 
+MAX_REPORT_FILE_BYTES = 64 * 1024 * 1024
+
+
 class RepeatAnalysisError(ValueError):
     """Raised when reports cannot be safely grouped or analysed."""
 
@@ -31,13 +34,20 @@ def load_report_file(
     """Load strict JSON and validate the source report before aggregation."""
     path = Path(report_path).expanduser()
     try:
-        with path.open("r", encoding="utf-8") as stream:
-            report = json.load(
-                stream,
-                parse_constant=reject_json_constant,
-                parse_float=finite_json_float,
-                object_pairs_hook=unique_json_object,
+        with path.open("rb") as stream:
+            raw = stream.read(MAX_REPORT_FILE_BYTES + 1)
+        if len(raw) > MAX_REPORT_FILE_BYTES:
+            raise RepeatAnalysisError(
+                f"comparison report exceeds the {MAX_REPORT_FILE_BYTES}-byte file limit"
             )
+        report = json.loads(
+            raw.decode("utf-8"),
+            parse_constant=reject_json_constant,
+            parse_float=finite_json_float,
+            object_pairs_hook=unique_json_object,
+        )
+    except RepeatAnalysisError:
+        raise
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
         raise RepeatAnalysisError(
             f"could not read comparison report '{path}' ({type(exc).__name__})"
