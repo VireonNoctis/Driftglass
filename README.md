@@ -10,7 +10,7 @@ Rather than asking only whether an application has a permission, Driftglass aims
 
 It is intended for security researchers, privacy-conscious users, maintainers, and developers who want to investigate application updates before trusting them.
 
-> **Project status:** Early prototype. Versioned event-record v1 and run-manifest v1 contracts, Python validators, and an experimental Linux `/proc` polling observer are implemented. Deterministic comparison, evidence-linked JSON/standalone HTML reporting, local SQLite history with explicit report deletion, the developer CLI, a read-only Svelte report viewer with a findings-linked timeline and partial process relationship view, and opt-in export redaction are implemented. An experimental capture command can invoke the observer for a user-supplied, already-running Linux PID and write a validated run manifest; it does not launch the target or manage a VM. Real-world observer coverage across Linux builds remains unverified.
+> **Project status:** Early prototype. Versioned event-record v1, run-manifest v1, and repeat-analysis v1 contracts, plus strict comparison-profile v1 validation, are implemented. The Python CLI compares validated captures, applies canonical rule profiles, exports evidence-linked JSON/HTML reports with per-run coverage snapshots, stores local SQLite history, and aggregates repeat-run patterns. The read-only Svelte viewer supports report evidence, a findings-linked timeline, a partial process relationship view, and opt-in export redaction. Capture remains an experimental Linux `/proc` polling wrapper for an already-running PID; it does not launch the target or manage a VM. Real-world observer coverage across Linux builds remains unverified.
 
 ---
 
@@ -524,7 +524,7 @@ python -m pip install -e ".[test]"
 python -m pytest
 ```
 
-The Python suite covers event/run-manifest validation, deterministic comparison with run-specific process metadata excluded from behaviour matching, report export, SQLite history/cleanup, CLI behaviour, synthetic capture coordination, and schema-validated redacted exports. Capture tests mock the observer; they do not prove actual OS event coverage. Cargo tests cover synthetic procfs parsing, and broad real-world Linux coverage remains unverified.
+The Python suite covers event/run-manifest validation, deterministic comparison and versioned profiles, repeat-run aggregation, report export, SQLite history/cleanup, CLI behaviour, synthetic capture coordination, and schema-validated redacted exports. Capture tests mock the observer; they do not prove actual OS event coverage. Cargo tests cover synthetic procfs parsing, and broad real-world Linux coverage remains unverified.
 
 ### Testing priorities
 
