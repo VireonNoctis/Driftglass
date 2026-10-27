@@ -256,7 +256,7 @@ test("rejects a coverage uncertainty linked to the wrong run", () => {
   const report = validReport();
   report.coverage = {
     baseline: validCoverageSnapshot({ errors: ["Synthetic collector error"] }),
-    candidate: validCoverageSnapshot()
+    candidate: validCoverageSnapshot({}, 2)
   };
   report.status = "partial";
   report.uncertainties = [{
@@ -274,7 +274,7 @@ test("accepts a coverage gap when its uncertainty references the same run", () =
   const report = validReport();
   report.coverage = {
     baseline: validCoverageSnapshot({ dropped_events: 1 }),
-    candidate: validCoverageSnapshot()
+    candidate: validCoverageSnapshot({}, 2)
   };
   report.status = "partial";
   report.uncertainties = [{
