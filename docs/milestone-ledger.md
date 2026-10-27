@@ -1,10 +1,10 @@
-# Driftglass 165-milestone execution ledger
+# Driftglass 166-milestone execution ledger
 
 This is the first expansion from the prior 60-item ledger to 160 numbered milestones; the original README roadmap was phase-based rather than a pre-existing 160-item plan. **Done** means the specific implementation, regression check, or documented decision in that row exists and its evidence is recorded. **Done (deferred)** closes a planning decision only; it does not mean the underlying capability exists. The original milestones and the new 61–160 slice both include validation items for features already present in the repository. They are not a claim that all 160 capabilities were newly implemented in this session.
 
 This ledger includes three later implementation checks—strict RFC 3339 browser timestamp acceptance, the repeat-analysis source-count schema ceiling, and an aggregate byte budget for repeat input—plus an explicit deferral decision for local API security. Implementation checks are based on passing CI for the relevant code and tests. Many earlier rows make existing test coverage more granular; they must not be read as newly shipped features.
 
-**Current tally: 165/165 milestones resolved: 156 implementation/validation milestones and 9 explicit deferral decisions; 0 remaining.** A deferral resolves the planning decision, not the underlying capability or security validation; deferred work remains unimplemented or unverified where applicable.
+**Current tally: 165/166 milestones resolved: 156 implementation/validation milestones and 9 explicit deferral decisions; 1 follow-on check pending CI.** A deferral resolves the planning decision, not the underlying capability or security validation; deferred work remains unimplemented or unverified where applicable.
 
 | # | Milestone | Status | Evidence / acceptance |
 |---:|---|---|---|
@@ -183,6 +183,8 @@ The new slice contains 96 implementation/validation acceptance items and four de
 | 164 | Formally defer local API access-control validation until an API exists | Done (deferred) | `docs/decisions/local-api-security-deferral.md`; architecture and dashboard documents confirm the current product is file-based and has no local HTTP API |
 
 | 165 | Require incomplete/failed capture status to remain visible as run-linked report uncertainty | Done | Report schema, Python report validator, browser validator, and cross-boundary regression tests; CI run 161 passed |
+
+| 166 | Require report coverage snapshots to match their run-linked uncertainty codes | Pending CI | Python authoritative validator, browser validator, synthetic matching/missing/wrong-run cases, and report-export documentation |
 
 ## CI and evidence
 
