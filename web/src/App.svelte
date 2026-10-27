@@ -63,12 +63,17 @@
         errorMessage = "Choose a JSON report exported by Driftglass.";
         return;
       }
-      const bytes = await file.arrayBuffer();
       let source: string;
       try {
-        source = decodeJsonInputUtf8(bytes);
+        const bytes = await file.arrayBuffer();
+        try {
+          source = decodeJsonInputUtf8(bytes);
+        } catch {
+          errorMessage = "The selected file is not valid UTF-8 JSON.";
+          return;
+        }
       } catch {
-        errorMessage = "The selected file is not valid UTF-8 JSON.";
+        errorMessage = "The selected file could not be read.";
         return;
       }
       const sourceError = validateJsonInputSource(source);
