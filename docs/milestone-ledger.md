@@ -177,7 +177,7 @@ The new slice contains 96 implementation/validation acceptance items and four de
 | 160 | Formally defer namespace-aware socket attribution pending controlled validation | Done (deferred) | docs/decisions/network-namespace-attribution-deferral.md; no broader visibility claim |
 
 | 161 | Accept RFC 3339 lowercase `t`/`z` timestamp designators in browser evidence | Pending CI | Browser validator and lower-case/mixed-case timestamp regression tests |
-| 162 | Enforce the 500-source-report repeat-analysis ceiling in JSON Schema as well as code | Pending CI | `schemas/reports/repeat-analysis-v1.schema.json`; Python/browser limits already exist |
+| 162 | Enforce the 500-source-report repeat-analysis ceiling in JSON Schema as well as code | Pending CI | `schemas/reports/repeat-analysis-v1.schema.json`; `test_repeat_schema_caps_source_reports_at_500`; Python/browser limits already exist |
 | 163 | Bound the aggregate bytes of repeat-analysis source reports | Pending CI | 64 MiB per-file limit plus 256 MiB aggregate loader cap; CLI regression test and documented limits |
 
 ## CI and evidence
