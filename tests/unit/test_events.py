@@ -176,3 +176,31 @@ def test_rejects_event_count_over_limit(tmp_path, monkeypatch):
 
     with pytest.raises(EventValidationError, match="exceeds the 1-record limit"):
         load_jsonl(path, SCHEMA)
+
+def test_loads_crlf_jsonl_records_with_raw_byte_accounting(tmp_path):
+    path = tmp_path / "events.jsonl"
+    records = [event(), event(event_id="evt-002", action="connection_established")]
+    path.write_bytes(b"".join(json.dumps(record).encode("utf-8") + b"\r\n" for record in records))
+
+    result = load_jsonl(path, SCHEMA)
+
+    assert [record["event_id"] for record in result] == ["evt-001", "evt-002"]
+
+
+def test_enforces_line_limits_against_raw_crlf_bytes(tmp_path, monkeypatch):
+    path = tmp_path / "events.jsonl"
+    raw_line = json.dumps(event()).encode("utf-8") + b"\r\n"
+    path.write_bytes(raw_line)
+    monkeypatch.setattr("driftglass.events.MAX_EVENT_LINE_BYTES", len(raw_line) - 1)
+
+    with pytest.raises(EventValidationError, match="record exceeds the .*byte line limit"):
+        load_jsonl(path, SCHEMA)
+
+
+def test_rejects_malformed_utf8_with_line_number(tmp_path):
+    path = tmp_path / "events.jsonl"
+    raw_line = json.dumps(event()).encode("utf-8").replace(b'"network"', b'"\xffetwork"', 1)
+    path.write_bytes(raw_line + b"\n")
+
+    with pytest.raises(EventValidationError, match=r":1: record contains invalid UTF-8"):
+        load_jsonl(path, SCHEMA)
