@@ -267,3 +267,15 @@ test("accepts RFC 3339 timestamps with UTC and explicit offsets", () => {
     assert.equal(validateReportV1(report).ok, true, timestamp);
   }
 });
+
+test("accepts RFC 3339 timestamps with lowercase T and Z designators", () => {
+  for (const timestamp of [
+    "2026-01-01t00:00:00z",
+    "2026-01-01T00:00:00z",
+    "2026-01-01t08:30:00.123+08:00"
+  ]) {
+    const report = validReport();
+    report.findings[0].candidate_evidence[0].timestamp = timestamp;
+    assert.equal(validateReportV1(report).ok, true, timestamp);
+  }
+});
