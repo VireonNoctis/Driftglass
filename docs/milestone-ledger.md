@@ -1,8 +1,10 @@
-# Driftglass 60-milestone execution ledger
+# Driftglass 160-milestone execution ledger
 
-This is the first numbered 60-item ledger for the project; the prior README roadmap was phase-based and did not contain a pre-existing 60-item plan. The status column is intentionally honest: **Done** means the feature, test or documentation decision described in that row exists and its acceptance evidence is recorded. **Done (deferred)** closes a planning decision only; it does not mean the underlying collector exists. The ledger covers existing repository capabilities as well as work completed during this session; it is not a claim that all 60 were implemented in this session.
+This is the first expansion from the prior 60-item ledger to 160 numbered milestones; the original README roadmap was phase-based rather than a pre-existing 160-item plan. **Done** means the specific implementation, regression check, or documented decision in that row exists and its evidence is recorded. **Done (deferred)** closes a planning decision only; it does not mean the underlying capability exists. The original milestones and the new 61–160 slice both include validation items for features already present in the repository. They are not a claim that all 160 capabilities were newly implemented in this session.
 
-**Current tally: 60/60 milestones resolved: 56 implementation/validation milestones and 4 explicit deferral decisions; 0 remaining.** The four deferred capabilities remain unavailable/not implemented. A resolved roadmap decision is not a platform-support claim.
+This session added browser-side report relationship validation with regression tests and four explicit deferral decisions. Many rows in the new slice make existing test coverage more granular; they must not be read as 100 newly shipped features.
+
+**Current tally: 160/160 milestones resolved: 152 implementation/validation milestones and 8 explicit deferral decisions; 0 remaining.** The eight deferred capabilities remain unavailable or unimplemented. A resolved roadmap decision is not a platform-support claim.
 
 | # | Milestone | Status | Evidence / acceptance |
 |---:|---|---|---|
@@ -66,6 +68,113 @@ This is the first numbered 60-item ledger for the project; the prior README road
 | 58 | Add a reproducible paired-capture harness without launching unknown targets | Done | `tests/integration/test_linux_paired_capture.py` captures the already-running synthetic test process twice, checks expected listener evidence and compares reports |
 | 59 | Add a detached SHA-256 export integrity manifest and verifier with honest trust semantics | Done | `report attest`/`report verify`, versioned schema and tamper tests; explicitly not a signature or author authentication |
 | 60 | Bound SQLite history by report count and aggregate report JSON, and document retention/recovery limits | Done | Save rejects over 1,000 reports or 256 MiB aggregate report JSON transactionally; documentation explains SQLite file overhead and explicit deletion |
+
+## Milestones 61–160
+
+The new slice contains 96 implementation/validation acceptance items and four deferral decisions. Existing tests count as evidence only for the narrow behavior named in each row; CI success is not a claim of comprehensive collector coverage.
+
+| # | Milestone | Status | Evidence / acceptance |
+|---:|---|---|---|
+| 61 | Reject identical baseline and candidate run IDs | Done | Browser regression test in web/src/lib/report-validation.test.mjs |
+| 62 | Require baseline evidence to reference the baseline run | Done | Evidence-side run relationship validation and regression test |
+| 63 | Require candidate evidence to reference the candidate run | Done | Evidence-side run relationship validation and regression test |
+| 64 | Require evidence category to match its finding category | Done | Browser report validator and contradictory-category regression test |
+| 65 | Reject duplicate finding IDs within a report | Done | Browser report validator and duplicate-ID regression test |
+| 66 | Reject uncertainty references to unknown runs | Done | Browser report validator and unknown-run regression test |
+| 67 | Reject duplicate names in the coverage source list | Done | Browser coverage validator and regression test |
+| 68 | Require failed or inactive sources to declare coverage gaps | Done | Browser coverage validator mirrors manifest invariant; regression test |
+| 69 | Preserve compatibility with report-v1 files lacking optional coverage | Done | Legacy-report regression test in web/src/lib/report-validation.test.mjs |
+| 70 | Validate optional process identity and start-time metadata | Done | Browser report validation tests for valid and malformed process identities |
+| 71 | Validate comparison-profile metadata and digest shape | Done | Browser report validation tests for valid, malformed and absent profile metadata |
+| 72 | Check report summary counts against its finding list | Done | Browser report-validation regression test |
+| 73 | Require uncertainty count to match uncertainty records | Done | Browser report-validation regression test |
+| 74 | Require report complete/partial status to agree with uncertainty declaration | Done | Browser report-validation regression test |
+| 75 | Reject unsupported report schema versions before viewer rendering | Done | Browser report-validation regression test |
+| 76 | Preserve source evidence references on accepted report records | Done | Report-validation fixture checks event ID and source reference |
+| 77 | Require repeat analysis to contain at least two reports | Done | tests/unit/test_repeatability.py |
+| 78 | Reject duplicate report IDs in repeat-analysis inputs | Done | Repeat-analysis regression tests |
+| 79 | Reject repeat reports from incompatible version cohorts | Done | Repeat-analysis version-cohort regression test |
+| 80 | Include baseline and candidate artifact hashes in cohort matching | Done | Repeat-analysis cohort construction and compatibility regression tests |
+| 81 | Include comparison-profile fingerprint in cohort matching | Done | Repeat-analysis profile cohort logic and profile tests |
+| 82 | Make repeat-analysis independent of input ordering | Done | Repeat-analysis determinism regression test |
+| 83 | Label a pattern recurring only when present in every source report | Done | Repeat-analysis recurrence regression test |
+| 84 | Preserve incomplete or partial report status in repeat analysis | Done | Repeat-analysis partial-report accounting tests |
+| 85 | Link aggregate pattern occurrences to original report and finding IDs | Done | Repeat-analysis source-reference tests |
+| 86 | Reject corrupted repeat-analysis content IDs | Done | Repeat-analysis export and validation tests |
+| 87 | Redact paths using stable replacement tokens in exported copies | Done | tests/unit/test_redaction.py |
+| 88 | Redact network hosts and addresses when explicitly requested | Done | Redaction regression tests |
+| 89 | Redact process names when explicitly requested | Done | Redaction regression tests |
+| 90 | Reuse the same token for repeated sensitive values | Done | Redaction consistency regression test |
+| 91 | Keep unselected redaction categories unchanged | Done | Selective-redaction regression test |
+| 92 | Ensure redaction does not mutate the source report | Done | Source immutability regression test |
+| 93 | Reject an empty redaction selection | Done | Redaction validation regression test |
+| 94 | Recalculate redacted report and finding IDs | Done | Redaction implementation plus schema-valid export test |
+| 95 | Keep local history unredacted when exporting a redacted copy | Done | CLI redacted-export integration test |
+| 96 | Require file export when redaction is requested | Done | CLI rejects redaction without supported file output |
+| 97 | Validate JSON export before writing the report | Done | tests/unit/test_reporting.py |
+| 98 | Refuse JSON export overwrite by default | Done | JSON output path regression test |
+| 99 | Allow overwrite only through the explicit flag | Done | Explicit-overwrite regression test |
+| 100 | Escape untrusted event text in standalone HTML | Done | HTML injection regression test |
+| 101 | Keep standalone HTML independent of remote assets | Done | HTML export test checks for remote references |
+| 102 | Escape collection coverage notes in HTML output | Done | HTML coverage rendering and escaped-note regression test |
+| 103 | Render a useful coverage note for older reports without a coverage snapshot | Done | Legacy HTML report regression test |
+| 104 | Validate report content-derived ID before rendering/export | Done | Report-ID validation regression test |
+| 105 | Refuse to silently create a missing report-output directory | Done | Missing-output-directory regression test |
+| 106 | Remove a partially written new report after a write failure | Done | Synthetic fsync-failure regression test |
+| 107 | Persist reports and searchable finding indexes in SQLite | Done | tests/unit/test_storage.py |
+| 108 | Make saving an identical report idempotent | Done | Storage idempotency regression test |
+| 109 | Reject run-ID collisions with conflicting metadata atomically | Done | Storage transaction regression test |
+| 110 | Reject invalid report IDs before database creation | Done | Storage report-ID validation regression test |
+| 111 | Reject unknown SQLite schema versions | Done | Versioned database compatibility regression test |
+| 112 | Reject incomplete versioned SQLite schemas | Done | Required-table/column validation regression test |
+| 113 | Reject unversioned databases that already contain tables | Done | Storage non-destructive-open regression test |
+| 114 | Reject duplicate JSON keys in stored report payloads | Done | Stored-payload parsing regression test |
+| 115 | Reject non-finite or overflowed numeric values in stored payloads | Done | Stored-payload numeric validation regression test |
+| 116 | Reject report JSON stored under the wrong history key | Done | Stored report ID consistency regression test |
+| 117 | Refuse to create a missing SQLite parent directory | Done | Storage path regression test |
+| 118 | Delete report indexes and unreferenced run rows transactionally | Done | History deletion transaction tests |
+| 119 | Preserve run metadata still referenced by another report | Done | Shared-run deletion regression test |
+| 120 | Enforce logical report-count and aggregate JSON-payload history limits | Done | Storage history-budget regression test; not a physical DB-file cap |
+| 121 | Invoke only the configured observer with an argument vector | Done | tests/unit/test_capture.py verifies the wrapper does not launch the target |
+| 122 | Reject invalid PID values before launching the observer | Done | Capture PID validation regression test |
+| 123 | Reject output-path collisions before starting capture | Done | Capture path-collision regression test |
+| 124 | Validate successful capture event stream and generated manifest | Done | Capture happy-path regression test |
+| 125 | Keep declared collector gaps visible on otherwise completed capture | Done | Capture coverage regression test |
+| 126 | Return failure status for a non-zero observer exit | Done | Failed-observer regression test |
+| 127 | Treat missing capture-finished boundary as incomplete | Done | Missing-boundary regression test |
+| 128 | Let explicit incomplete events override a zero process exit | Done | Capture-incomplete event regression test |
+| 129 | Mark timeouts with partial telemetry as incomplete | Done | Capture timeout regression test |
+| 130 | Reject malformed observer JSONL and preserve failure state | Done | Capture malformed-stream regression test |
+| 131 | Include a useful line location for malformed event JSON | Done | tests/unit/test_events.py malformed-line diagnostic test |
+| 132 | Reject duplicate JSON object keys at the event boundary | Done | Event parsing duplicate-key regression test |
+| 133 | Reject non-standard and non-finite event numeric values | Done | Event parsing numeric validation tests |
+| 134 | Reject blank event-stream lines rather than skipping records | Done | Event stream blank-line regression test |
+| 135 | Reject duplicate event IDs within a stream | Done | Event ID uniqueness regression test |
+| 136 | Reject empty event streams as insufficient evidence | Done | Empty-stream rejection regression test |
+| 137 | Bound total event-stream bytes before unbounded ingestion | Done | 64 MiB stream limit test |
+| 138 | Bound per-record JSONL line size | Done | 1 MiB line limit test |
+| 139 | Bound event record count | Done | 250,000-record cap test |
+| 140 | Enforce manifest time and terminal-status invariants | Done | tests/unit/test_manifests.py timestamp/status regression tests |
+| 141 | Enforce manifest source-name uniqueness and explicit unavailable categories | Done | Manifest invariant regression tests |
+| 142 | Normalize rule-profile list order before fingerprinting | Done | tests/unit/test_profiles.py profile hash order test |
+| 143 | Reject malformed, duplicated, or unsupported rule-profile fields | Done | Rule-profile schema and invalid-profile regression tests |
+| 144 | Enforce the rule-profile file-size limit | Done | Rule-profile input size regression test |
+| 145 | Ignore volatile local TCP source ports while preserving destination differences | Done | tests/unit/test_comparison.py network identity regression tests |
+| 146 | Keep equivalent comparisons stable despite event-order noise | Done | Comparison order-independence regression test |
+| 147 | Detect a genuine destination change amid unrelated noise | Done | Comparison destination-change regression test |
+| 148 | Link changed observations to baseline and candidate evidence | Done | Comparison evidence-link regression test |
+| 149 | Classify action differences as added/removed observations | Done | Comparison action-change regression test |
+| 150 | Match duplicate observations as a multiset | Done | Duplicate-observation comparison regression test |
+| 151 | Exclude coverage-control records from behaviour findings | Done | Coverage-event comparison regression test |
+| 152 | Make declared gaps produce partial status and uncertainty | Done | Comparison coverage-gap regression test |
+| 153 | Turn environment mismatch into context/uncertainty rather than a verdict | Done | Comparison context-difference regression test |
+| 154 | Preserve deterministic report identity across normalized source ordering | Done | Comparison determinism and coverage-order tests |
+| 155 | Render findings search/filter in the read-only viewer | Done | Svelte viewer implementation and web tests |
+| 156 | Render a chronological evidence timeline and conservative process relationships | Done | Evidence timeline and process-tree modules and tests |
+| 157 | Formally defer comprehensive Linux kernel event tracing | Done (deferred) | docs/decisions/linux-event-tracing-deferral.md; polling remains experimental |
+| 158 | Formally defer VM/snapshot lifecycle and target-launch automation | Done (deferred) | docs/decisions/vm-lifecycle-management-deferral.md; operator-managed launch remains required |
+| 159 | Formally defer signed report attestations until a key-trust model exists | Done (deferred) | docs/decisions/signed-report-attestations-deferral.md; SHA-256 sidecar is unsigned |
+| 160 | Formally defer namespace-aware socket attribution pending controlled validation | Done (deferred) | docs/decisions/network-namespace-attribution-deferral.md; no broader visibility claim |
 
 ## CI and evidence
 
