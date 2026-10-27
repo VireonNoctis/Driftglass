@@ -10,7 +10,7 @@ Validation must establish what the tool captures, what it misses, and whether ea
 | Observer | Missing permissions, short-lived process, inaccessible PID, polling error | Gaps and errors are visible |
 | Normalization | Equivalent platform events, unknown fields, repeated events | Stable output without invented values |
 | Comparison | Added, removed, modified, reordered and duplicate events; volatile local TCP source ports; ambiguous events | Correct finding type and evidence link; equivalent synthetic runs have no findings for covered noise |
-| Reporting | Malformed records, hostile HTML-like text, missing event IDs, incomplete/failed run status, mislinked capture uncertainty | Safe rendering; a non-completed run is partial and linked to its own capture uncertainty |
+| Reporting | Malformed records, hostile HTML-like text, missing event IDs, incomplete/failed run status, mislinked capture uncertainty, inconsistent coverage snapshot | Safe rendering; capture and coverage gaps match run-linked uncertainty codes |
 | Storage | Insert, reopen, delete, corrupt DB, interrupted write | Documented local lifecycle |
 | Privacy | Redacted paths and identifiers | Export matches configured policy and records redaction |
 | Integration | Fixed fixtures, rule versions, and two bounded captures of a known loopback listener | Reproducible output; expected listener observation is present in both captures and equivalent pair yields no findings |
