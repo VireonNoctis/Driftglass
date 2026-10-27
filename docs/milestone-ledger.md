@@ -198,13 +198,13 @@ The new slice contains 96 implementation/validation acceptance items and four de
 
 | 172 | Reject unsafe integer-form JSON numbers before browser parsing | Done | Source-token scan compares decimal digits before `JSON.parse`; tests cover safe boundaries, positive/negative overflow, escaped strings, and decimal/exponent exclusions; dashboard and validation-matrix docs; CI run 193 passed all four jobs |
 
-| 176 | Bound resource use when checking oversized integer JSON tokens | Pending CI | Replace unbounded `BigInt` conversion with digit-length and lexicographic comparison; add a 100,000-digit synthetic token regression; dashboard and validation-matrix docs |
-
 | 173 | Show the browser's report-ID validation boundary when displaying report-v1 | Done | Visible neutral disclosure beside loaded report metadata, local CLI validation command, dashboard and validation-matrix docs; CI run 196 passed all four jobs |
 
 | 174 | Bound JSON nesting depth in browser imports | Done | Shared pre-parse scan rejects nesting beyond 256 levels; tests cover exact boundary and escaped string contents; dashboard and validation-matrix docs; CI run 199 passed all four jobs |
 
 | 175 | Run the browser nesting guard before duplicate-key scanning | Done | Shared pre-parse validation reports an over-depth error before key-set allocation; regression uses a deeply nested document containing duplicate members; dashboard and validation-matrix docs; CI run 202 passed all four jobs |
+
+| 176 | Bound resource use when checking oversized integer JSON tokens | Pending CI | Replace unbounded `BigInt` conversion with digit-length and lexicographic comparison; add a 100,000-digit synthetic token regression; dashboard and validation-matrix docs |
 
 ## CI and evidence
 
