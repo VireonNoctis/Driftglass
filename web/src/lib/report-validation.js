@@ -298,7 +298,8 @@ export function validateReportV1(value) {
       ["candidate", value.coverage.candidate]
     ]) {
       const expectedBehaviourCount = value.comparison_profile.included_categories
-        .reduce((total, category) => total + runCoverage.recorded_event_counts[category], 0);
+        .reduce((/** @type {number} */ total, /** @type {string} */ category) =>
+          total + runCoverage.recorded_event_counts[category], 0);
       if (expectedBehaviourCount !== summary[`${role}_behaviour_event_count`]) {
         return {
           ok: false,
