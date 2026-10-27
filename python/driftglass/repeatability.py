@@ -21,6 +21,7 @@ from .reporting import ReportExportError, validate_report, write_text_output
 
 
 MAX_REPORT_FILE_BYTES = 64 * 1024 * 1024
+MAX_REPEAT_REPORT_BYTES = 256 * 1024 * 1024
 
 
 class RepeatAnalysisError(ValueError):
@@ -111,6 +112,7 @@ def load_report_files(
         reports.append(report)
         total_bytes += byte_count
     return reports
+
 
 def _observed_signature(
     evidence: dict[str, Any], ignored_attributes: set[str]
