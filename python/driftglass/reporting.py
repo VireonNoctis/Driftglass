@@ -36,6 +36,19 @@ def _validate_report_relationships(report: dict[str, Any]) -> None:
             )
     if summary["uncertainty_count"] != len(report["uncertainties"]):
         raise ReportExportError("summary.uncertainty_count does not match uncertainties")
+
+    capture_uncertainties = {
+        (item["code"], item["run_id"]) for item in report["uncertainties"]
+    }
+    for role in ("baseline", "candidate"):
+        run = report[role]
+        if (
+            run["capture_status"] != "completed"
+            and ("capture_not_completed", run["run_id"]) not in capture_uncertainties
+        ):
+            raise ReportExportError(
+                f"{role} capture status requires a matching capture_not_completed uncertainty"
+            )
     if summary["baseline_behaviour_event_count"] > summary["baseline_event_count"]:
         raise ReportExportError(
             "summary.baseline_behaviour_event_count exceeds baseline_event_count"
