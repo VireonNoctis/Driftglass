@@ -34,7 +34,7 @@ function isProcessIdentity(value) {
     value.executable.length <= 4096 &&
     (value.start_time_ticks === undefined || isCount(value.start_time_ticks));
 }
-const RFC3339_DATE_TIME = /^(\\d{4})-(\\d{2})-(\\d{2})T(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$/;
+const RFC3339_DATE_TIME = /^(\d{4})-(\d{2})-(\d{2})T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/;
 
 /** @param {unknown} value @returns {boolean} */
 function isDateTime(value) {
