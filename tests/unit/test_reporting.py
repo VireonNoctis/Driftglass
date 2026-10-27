@@ -275,6 +275,13 @@ def test_canonical_json_rejects_non_finite_values():
 def test_html_report_includes_escaped_per_run_coverage_and_input_counts():
     report = make_report()
     report["coverage"]["baseline"]["errors"] = ["synthetic note <script>alert(1)</script>"]
+    report["status"] = "partial"
+    report["uncertainties"] = [{
+        "code": "collection_errors",
+        "message": "A synthetic collection error was reported.",
+        "run_id": report["baseline"]["run_id"],
+    }]
+    report["summary"]["uncertainty_count"] = 1
     report["report_id"] = __import__("hashlib").sha256(
         canonical_json({key: value for key, value in report.items() if key != "report_id"}).encode("utf-8")
     ).hexdigest()
