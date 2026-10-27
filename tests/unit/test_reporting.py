@@ -1,3 +1,4 @@
+import hashlib
 import json
 from pathlib import Path
 
@@ -102,6 +103,46 @@ def test_report_status_matches_declared_uncertainties(status, uncertainties, exp
 
     with pytest.raises(ReportExportError, match=expected_status):
         validate_report(report, REPORT_SCHEMA)
+
+
+def test_incomplete_capture_cannot_be_marked_complete():
+    report = make_report()
+    report["candidate"]["capture_status"] = "failed"
+
+    with pytest.raises(ReportExportError):
+        validate_report(report, REPORT_SCHEMA)
+
+
+def test_incomplete_capture_requires_uncertainty_for_that_run():
+    report = make_report()
+    report["candidate"]["capture_status"] = "incomplete"
+    report["status"] = "partial"
+    report["uncertainties"] = [{
+        "code": "capture_not_completed",
+        "message": "Synthetic incomplete capture.",
+        "run_id": report["baseline"]["run_id"],
+    }]
+    report["summary"]["uncertainty_count"] = 1
+
+    with pytest.raises(
+        ReportExportError,
+        match="candidate capture status requires a matching capture_not_completed uncertainty",
+    ):
+        validate_report(report, REPORT_SCHEMA)
+
+
+def test_incomplete_capture_with_matching_uncertainty_is_valid():
+    base = manifest("baseline", "run-base", "1.0", "a" * 64)
+    candidate = manifest("candidate", "run-candidate", "2.0", "b" * 64)
+    candidate["capture"]["status"] = "incomplete"
+    report = compare_loaded_runs(base, candidate, [event("evt-base")], [event("evt-candidate")])
+
+    assert report["status"] == "partial"
+    assert any(
+        item["code"] == "capture_not_completed" and item["run_id"] == "run-candidate"
+        for item in report["uncertainties"]
+    )
+    validate_report(report, REPORT_SCHEMA)
 
 
 def test_report_summary_counts_match_findings():
