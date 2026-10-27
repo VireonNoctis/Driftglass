@@ -1,6 +1,12 @@
 <script lang="ts">
   import { validateReportV1 } from "./lib/report-validation.js";
-  import { hasDuplicateJsonObjectKeys, hasNonFiniteJsonNumber, hasUnsafeIntegerJsonNumber } from "./lib/json-input-validation.js";
+  import {
+    hasDuplicateJsonObjectKeys,
+    hasNonFiniteJsonNumber,
+    hasUnsafeIntegerJsonNumber,
+    exceedsJsonNestingLimit,
+    MAX_JSON_NESTING_DEPTH
+  } from "./lib/json-input-validation.js";
   import {
     validateRepeatAnalysisV1,
     verifyRepeatAnalysisContentId
@@ -60,6 +66,10 @@
       const source = await file.text();
       if (hasDuplicateJsonObjectKeys(source)) {
         errorMessage = "The selected JSON contains duplicate object keys.";
+        return;
+      }
+      if (exceedsJsonNestingLimit(source)) {
+        errorMessage = `The selected JSON exceeds the maximum nesting depth of ${MAX_JSON_NESTING_DEPTH}.`;
         return;
       }
       if (hasUnsafeIntegerJsonNumber(source)) {
