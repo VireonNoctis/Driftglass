@@ -10,6 +10,7 @@ from driftglass.repeatability import (
     analyze_repeat_reports,
     export_repeat_analysis,
     load_report_file,
+    load_report_files,
     validate_repeat_analysis,
 )
 
@@ -159,3 +160,17 @@ def test_report_loader_rejects_oversized_json_before_parsing(tmp_path, monkeypat
 
     with pytest.raises(RepeatAnalysisError, match="exceeds the 8-byte file limit"):
         load_report_file(path, ROOT / "schemas" / "reports" / "report-v1.schema.json")
+
+def test_repeat_report_inputs_enforce_aggregate_byte_limit(tmp_path, monkeypatch):
+    paths = []
+    for index in (20, 21):
+        path = tmp_path / f"report-{index}.json"
+        path.write_text(json.dumps(report(index)), encoding="utf-8")
+        paths.append(path)
+
+    combined_size = sum(path.stat().st_size for path in paths)
+    monkeypatch.setattr("driftglass.repeatability.MAX_REPEAT_REPORT_BYTES", combined_size - 1)
+
+    with pytest.raises(RepeatAnalysisError, match="combined repeat-analysis input exceeds"):
+        load_report_files(paths, ROOT / "schemas" / "reports" / "report-v1.schema.json")
+
