@@ -21,7 +21,7 @@ from .repeatability import (
     RepeatAnalysisError,
     analyze_repeat_reports,
     export_repeat_analysis,
-    load_report_file,
+    load_report_files,
 )
 from .reporting import ReportExportError, export_html_report, export_json_report
 from .storage import StorageError, delete_report, get_report, list_reports, save_report
@@ -338,7 +338,7 @@ def _repeat(args: argparse.Namespace) -> int:
             ("repeat-analysis schema", args.analysis_schema),
         ],
     )
-    reports = [load_report_file(path, args.report_schema) for path in args.reports]
+    reports = load_report_files(args.reports, args.report_schema)
     analysis = analyze_repeat_reports(reports)
     if args.json_output:
         export_repeat_analysis(
