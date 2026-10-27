@@ -1,10 +1,10 @@
-# Driftglass 169-milestone execution ledger
+# Driftglass 170-milestone execution ledger
 
 This is the first expansion from the prior 60-item ledger to 160 numbered milestones; the original README roadmap was phase-based rather than a pre-existing 160-item plan. **Done** means the specific implementation, regression check, or documented decision in that row exists and its evidence is recorded. **Done (deferred)** closes a planning decision only; it does not mean the underlying capability exists. The original milestones and the new 61–160 slice both include validation items for features already present in the repository. They are not a claim that all 160 capabilities were newly implemented in this session.
 
 This ledger includes three later implementation checks—strict RFC 3339 browser timestamp acceptance, the repeat-analysis source-count schema ceiling, and an aggregate byte budget for repeat input—plus an explicit deferral decision for local API security. Implementation checks are based on passing CI for the relevant code and tests. Many earlier rows make existing test coverage more granular; they must not be read as newly shipped features.
 
-**Current tally: 169/169 milestones resolved: 160 implementation/validation milestones and 9 explicit deferral decisions; 0 remaining.** A deferral resolves the planning decision, not the underlying capability or security validation; deferred work remains unimplemented or unverified where applicable.
+**Current tally: 169/170 milestones resolved: 160 implementation/validation milestones and 9 explicit deferral decisions; 1 follow-on check pending CI.** A deferral resolves the planning decision, not the underlying capability or security validation; deferred work remains unimplemented or unverified where applicable.
 
 | # | Milestone | Status | Evidence / acceptance |
 |---:|---|---|---|
@@ -191,6 +191,8 @@ The new slice contains 96 implementation/validation acceptance items and four de
 | 168 | Require behaviour-event counts to match coverage counts for included profile categories | Done | Python and browser cross-field validation, synthetic mismatch regression, and documentation; CI run 176 passed |
 
 | 169 | Verify repeat-analysis content-derived IDs in the browser before display | Done | Python-compatible canonical JSON SHA-256 verifier, Unicode golden test, tamper test, and visible failure on unavailable crypto; CI run 180 passed |
+
+| 170 | Reject duplicate JSON object keys before browser report parsing | Pending CI | Shared browser intake scanner, escaped-key equivalence and nested-scope tests, dashboard and validation-matrix docs |
 
 ## CI and evidence
 
