@@ -4,7 +4,7 @@ The Svelte viewer under web/ displays a report v1 JSON file that a user explicit
 
 ## Validation boundary
 
-For report-v1 comparison files, the browser performs defensive structural checks and verifies evidence-link fields. It does not implement the full JSON Schema or recompute the deterministic report ID. The Python exporter and CLI remain authoritative validators. A structurally valid browser report is not a cryptographically verified export.
+For report-v1 comparison files, the browser performs defensive structural checks and verifies evidence-link fields. It does not implement the full JSON Schema or recompute the deterministic report ID, and the report view now displays this boundary beside the loaded report metadata. Use `python -m driftglass report validate ./comparison.json` to validate schema, cross-field relationships, and the content-derived report ID. A structurally valid browser report is not a cryptographically verified export.
 
 ## Privacy and security boundaries
 
