@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { hasDuplicateJsonObjectKeys } from "./json-input-validation.js";
+import { hasDuplicateJsonObjectKeys, hasNonFiniteJsonNumber } from "./json-input-validation.js";
 
 test("detects duplicate object keys", () => {
   assert.equal(hasDuplicateJsonObjectKeys('{"a":1,"a":2}'), true);
@@ -21,4 +21,14 @@ test("allows repeated keys in distinct objects in an array", () => {
 test("ignores braces and escaped quotes inside string values", () => {
   const source = JSON.stringify({ note: 'quoted " and \\', value: "{}" });
   assert.equal(hasDuplicateJsonObjectKeys(source), false);
+});
+
+test("detects overflowed JSON exponent values after native parsing", () => {
+  const parsed = JSON.parse('{"nested":[{"value":1e400}]}');
+  assert.equal(hasNonFiniteJsonNumber(parsed), true);
+});
+
+test("allows finite JSON numbers and strings that look like exponents", () => {
+  const parsed = JSON.parse('{"small":-1.25,"large":1e308,"text":"1e400","empty":null}');
+  assert.equal(hasNonFiniteJsonNumber(parsed), false);
 });
