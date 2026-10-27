@@ -42,6 +42,7 @@ It is intended for security researchers, privacy-conscious users, maintainers, a
 - [File activity collector deferral decision](docs/decisions/file-activity-collector-deferral.md)
 - [System/persistence collector deferral decision](docs/decisions/system-persistence-deferral.md)
 - [Windows observer deferral decision](docs/decisions/windows-observer-deferral.md)
+- [Local API security deferral decision](docs/decisions/local-api-security-deferral.md)
 - [Implemented architecture](docs/architecture.md)
 - [Threat model](docs/threat-model.md)
 - [Privacy model](docs/privacy-model.md)
@@ -509,7 +510,7 @@ Progress should be measured by verified capabilities and tests, not the number o
 - [x] Add a partial process relationship view backed by observed PID/parent and start-time identity, with missing relationships left unlinked.
 - [x] Add repeat-run analysis and configurable rule profiles with profile fingerprints and explicit recurrence uncertainty.
 - [x] Show repeat-analysis v1 output in the read-only dashboard with source IDs and partial-run caveats.
-- [ ] Validate the local API's access controls and document data flow.
+- [ ] Validate the local API's access controls and document data flow; deferred until an API exists ([decision](docs/decisions/local-api-security-deferral.md)).
 
 ### Phase 5 — Broader, verified coverage
 
