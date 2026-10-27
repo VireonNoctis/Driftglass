@@ -199,6 +199,7 @@
           <p class="eyebrow">LOADED REPORT / {fileName}</p>
           <h2>{report.application_name}</h2>
           <p class="muted">Experiment <code>{report.experiment_id}</code> · Report <code>{shortId(report.report_id)}</code></p>
+          <p class="micro muted">Browser checks report structure and evidence links, but does not recompute the report ID. For content-integrity validation, run <code>python -m driftglass report validate ./comparison.json</code> on the file locally.</p>
           {#if report.comparison_profile}
             <div class="profile-strip">
               <span class="eyebrow">COMPARISON PROFILE</span>
