@@ -13,7 +13,7 @@
   } from "./lib/repeat-analysis-validation.js";
   import { buildEvidenceTimeline } from "./lib/evidence-timeline.js";
   import { buildCoverageMatrix } from "./lib/coverage-matrix.js";
-  import { buildProcessTree } from "./lib/process-tree.js";
+  import { buildProcessTree, prepareProcessTreeForDisplay } from "./lib/process-tree.js";
   import type { Finding, ReportV1, RepeatAnalysisV1 } from "./types";
 
   const MAX_FILE_BYTES = 20 * 1024 * 1024;
@@ -31,6 +31,7 @@
 
   let timelineItems = $derived.by(() => buildEvidenceTimeline(visibleFindings));
   let processTree = $derived.by(() => buildProcessTree(timelineItems));
+  let processTreeDisplayGroups = $derived.by(() => processTree.groups.map(prepareProcessTreeForDisplay));
   let coverageMatrix = $derived.by(() => buildCoverageMatrix(report?.coverage));
 
   let visibleFindings = $derived.by(() => {
@@ -320,13 +321,16 @@
             <div class="empty-state"><p class="eyebrow">PROCESS IDENTITY UNAVAILABLE</p><p>The visible finding evidence does not contain enough validated PID, parent PID, executable, and start-time metadata to build process relationships.</p></div>
           {:else}
             <div class="process-tree-groups">
-              {#each processTree.groups as group (group.run_id + ":" + group.side)}
+              {#each processTreeDisplayGroups as group (group.run_id + ":" + group.side)}
                 <section class="process-tree-group">
                   <div class="process-tree-heading">
                     <span class="side-label">{group.side.toUpperCase()}</span>
                     <code>{group.run_id}</code>
                     <span class="count">{formatCount(group.node_count)} PROCESSES</span>
                   </div>
+                  {#if group.omitted_node_count > 0}
+                    <p class="timeline-note" role="status">For browser responsiveness, this view displays {formatCount(group.rows.length)} of {formatCount(group.node_count)} process identities referenced by the current finding filters. {formatCount(group.omitted_node_count)} additional identities are not rendered, so their relationships are not shown here.</p>
+                  {/if}
                   <ol class="process-tree-list" aria-label={group.side + " process relationships for " + group.run_id}>
                     {#each group.rows as node (node.key)}
                       <li class="process-tree-row" style={"padding-left: " + (12 + node.depth * 20) + "px"}>
