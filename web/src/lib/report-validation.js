@@ -34,12 +34,13 @@ function isProcessIdentity(value) {
     value.executable.length <= 4096 &&
     (value.start_time_ticks === undefined || isCount(value.start_time_ticks));
 }
-const RFC3339_DATE_TIME = /^(\d{4})-(\d{2})-(\d{2})T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/;
+const RFC3339_DATE_TIME = /^(\d{4})-(\d{2})-(\d{2})[Tt](?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:[Zz]|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/;
 
 /** @param {unknown} value @returns {boolean} */
 function isDateTime(value) {
   if (typeof value !== "string" || !RFC3339_DATE_TIME.test(value)) return false;
-  if (!Number.isFinite(Date.parse(value))) return false;
+  const normalizedValue = value.replace("t", "T").replace(/z$/, "Z");
+  if (!Number.isFinite(Date.parse(normalizedValue))) return false;
 
   // Date.parse can normalize impossible calendar dates, so verify the written
   // date separately before trusting the parsed timestamp.
