@@ -139,16 +139,30 @@ test("rejects malformed process identity in report evidence", () => {
 
 
 
-test("accepts an optional per-run coverage snapshot in report v1", () => {
+test("accepts a per-run coverage snapshot when matching uncertainties are present", () => {
   const report = validReport();
   const runCoverage = {
-    event_sources: [{ name: "network-source", state: "active", categories: ["network"] }],
+    event_sources: [
+      { name: "process-source", state: "active", categories: ["process"] },
+      { name: "network-source", state: "active", categories: ["network"] },
+      { name: "file-source", state: "active", categories: ["file"] },
+      { name: "system-source", state: "active", categories: ["system"] }
+    ],
     unavailable_categories: ["persistence"],
     dropped_events: 2,
     errors: ["synthetic permission note"],
     recorded_event_counts: { process: 1, network: 2, file: 0, system: 0, coverage: 1 }
   };
   report.coverage = { baseline: runCoverage, candidate: { ...runCoverage, dropped_events: 0 } };
+  report.status = "partial";
+  report.uncertainties = [
+    { code: "categories_unavailable", message: "Persistence is unavailable.", run_id: report.baseline.run_id },
+    { code: "events_dropped", message: "Events were dropped.", run_id: report.baseline.run_id },
+    { code: "collection_errors", message: "A collection error was reported.", run_id: report.baseline.run_id },
+    { code: "categories_unavailable", message: "Persistence is unavailable.", run_id: report.candidate.run_id },
+    { code: "collection_errors", message: "A collection error was reported.", run_id: report.candidate.run_id }
+  ];
+  report.summary.uncertainty_count = report.uncertainties.length;
   assert.equal(validateReportV1(report).ok, true);
 });
 
