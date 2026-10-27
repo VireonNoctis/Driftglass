@@ -174,3 +174,73 @@ test("rejects malformed comparison profile metadata", () => {
 test("continues to accept legacy reports without comparison profile metadata", () => {
   assert.equal(validateReportV1(validReport()).ok, true);
 });
+
+
+test("rejects identical baseline and candidate run IDs", () => {
+  const report = validReport();
+  report.candidate.run_id = report.baseline.run_id;
+  assert.match(validateReportV1(report).message, /distinct runs/);
+});
+
+test("rejects evidence whose run ID belongs to the opposite side", () => {
+  const report = validReport();
+  report.findings[0].candidate_evidence[0].run_id = report.baseline.run_id;
+  assert.match(validateReportV1(report).message, /wrong run/);
+});
+
+test("rejects evidence whose observed category contradicts its finding", () => {
+  const report = validReport();
+  report.findings[0].candidate_evidence[0].observed.category = "process";
+  assert.match(validateReportV1(report).message, /category does not match/);
+});
+
+test("rejects duplicate finding IDs", () => {
+  const report = validReport();
+  report.findings.push({ ...report.findings[0], summary: "Duplicate identity" });
+  report.summary.added_count = 2;
+  assert.match(validateReportV1(report).message, /Finding IDs must be unique/);
+});
+
+test("rejects uncertainty references outside the compared runs", () => {
+  const report = validReport();
+  report.uncertainties = [{ code: "gap", message: "Synthetic gap", run_id: "unknown-run" }];
+  report.summary.uncertainty_count = 1;
+  report.status = "partial";
+  assert.match(validateReportV1(report).message, /outside this comparison/);
+});
+
+test("rejects duplicate coverage source names", () => {
+  const report = validReport();
+  const runCoverage = {
+    event_sources: [
+      { name: "same-source", state: "active", categories: ["network"] },
+      { name: "same-source", state: "active", categories: ["process"] }
+    ],
+    unavailable_categories: [],
+    dropped_events: 0,
+    errors: [],
+    recorded_event_counts: { process: 0, network: 1, file: 0, system: 0, coverage: 0 }
+  };
+  report.coverage = { baseline: runCoverage, candidate: runCoverage };
+  assert.match(validateReportV1(report).message, /coverage snapshot is malformed/);
+});
+
+test("requires non-active coverage sources to declare their categories unavailable", () => {
+  const report = validReport();
+  const failedCoverage = {
+    event_sources: [{ name: "failed-network", state: "failed", categories: ["network"] }],
+    unavailable_categories: [],
+    dropped_events: 0,
+    errors: ["Synthetic source failure"],
+    recorded_event_counts: { process: 0, network: 0, file: 0, system: 0, coverage: 0 }
+  };
+  const activeCoverage = {
+    event_sources: [],
+    unavailable_categories: [],
+    dropped_events: 0,
+    errors: [],
+    recorded_event_counts: { process: 0, network: 0, file: 0, system: 0, coverage: 0 }
+  };
+  report.coverage = { baseline: failedCoverage, candidate: activeCoverage };
+  assert.match(validateReportV1(report).message, /coverage snapshot is malformed/);
+});

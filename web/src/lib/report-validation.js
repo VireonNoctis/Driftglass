@@ -66,6 +66,17 @@ function isRunCoverage(value) {
       !isCount(value.dropped_events) ||
       !Array.isArray(value.errors) || !value.errors.every(isText) ||
       !isRecord(value.recorded_event_counts)) return false;
+
+  const sourceNames = value.event_sources.map(source => source.name);
+  if (new Set(sourceNames).size !== sourceNames.length) return false;
+
+  // Mirror the manifest invariant: a source declared inactive/failed/unavailable
+  // must make each of its categories explicit in the run's coverage gaps.
+  const unavailable = new Set(value.unavailable_categories);
+  if (!value.event_sources.every(source =>
+    source.state === "active" || source.categories.every(category => unavailable.has(category))
+  )) return false;
+
   const categories = ["process", "network", "file", "system", "coverage"];
   return Object.keys(value.recorded_event_counts).length === categories.length &&
     categories.every(category => isCount(value.recorded_event_counts[category]));
@@ -122,6 +133,9 @@ export function validateReportV1(value) {
   if (!isRun(value.baseline) || !isRun(value.candidate)) {
     return { ok: false, message: "The baseline or candidate summary is malformed." };
   }
+  if (value.baseline.run_id === value.candidate.run_id) {
+    return { ok: false, message: "Baseline and candidate must reference distinct runs." };
+  }
   if (value.coverage !== undefined && !isReportCoverage(value.coverage)) {
     return { ok: false, message: "The declared per-run coverage snapshot is malformed." };
   }
@@ -136,9 +150,33 @@ export function validateReportV1(value) {
   if (!Array.isArray(value.findings) || !value.findings.every(isFinding)) {
     return { ok: false, message: "One or more findings are malformed or have invalid evidence links." };
   }
+  const findingIds = new Set();
+  for (const finding of value.findings) {
+    if (findingIds.has(finding.finding_id)) {
+      return { ok: false, message: "Finding IDs must be unique within a report." };
+    }
+    findingIds.add(finding.finding_id);
+    for (const [key, runId] of [
+      ["baseline_evidence", value.baseline.run_id],
+      ["candidate_evidence", value.candidate.run_id]
+    ]) {
+      for (const evidence of finding[key]) {
+        if (evidence.run_id !== runId) {
+          return { ok: false, message: "Finding evidence references the wrong run." };
+        }
+        if (evidence.observed.category !== finding.category) {
+          return { ok: false, message: "Finding evidence category does not match its finding." };
+        }
+      }
+    }
+  }
   if (!Array.isArray(value.uncertainties) || !value.uncertainties.every((item) =>
     isRecord(item) && isText(item.code) && isText(item.message) && isNullableText(item.run_id))) {
     return { ok: false, message: "One or more uncertainty records are malformed." };
+  }
+  const knownRunIds = new Set([value.baseline.run_id, value.candidate.run_id]);
+  if (value.uncertainties.some(item => item.run_id !== null && !knownRunIds.has(item.run_id))) {
+    return { ok: false, message: "An uncertainty references a run outside this comparison." };
   }
   const summary = value.summary;
   const keys = [
