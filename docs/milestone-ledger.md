@@ -4,7 +4,7 @@ This is the first expansion from the prior 60-item ledger to 160 numbered milest
 
 This ledger includes three later implementation checks—strict RFC 3339 browser timestamp acceptance, the repeat-analysis source-count schema ceiling, and an aggregate byte budget for repeat input—plus an explicit deferral decision for local API security. Implementation checks are based on passing CI for the relevant code and tests. Many earlier rows make existing test coverage more granular; they must not be read as newly shipped features.
 
-**Current tally: 180/180 milestones resolved: 171 implementation/validation milestones and 9 explicit deferral decisions; 0 remaining.** A deferral resolves the planning decision, not the underlying capability or security validation; deferred work remains unimplemented or unverified where applicable.
+**Current tally: 180/182 milestones resolved: 171 implementation/validation milestones and 9 explicit deferral decisions; milestones 181–182 await CI confirmation.** A deferral resolves the planning decision, not the underlying capability or security validation; deferred work remains unimplemented or unverified where applicable.
 
 | # | Milestone | Status | Evidence / acceptance |
 |---:|---|---|---|
@@ -215,6 +215,7 @@ The new slice contains 96 implementation/validation acceptance items and four de
 | 180 | Prevent mismatched JSON closers from bypassing nesting limits | Done | Track expected matching delimiters during the depth scan; unmatched closers no longer decrement the depth counter; regression checks malformed closers followed by over-limit nesting; dashboard and validation-matrix docs; CI run 217 passed all four jobs |
 
 | 181 | Flatten long process trees without recursive call-stack growth | Pending CI | Replaced recursive flattening with iterative depth-first traversal; a focused Node run of the process-tree test cases passed 5/5, including an 8,000-node linked chain; the prior recursive version reproduced `RangeError` at that size. GitHub Actions status is not exposed by the available status queries, so full CI is unverified. |
+| 182 | Bound process-tree parent lookup and rendered rows for large reports | Pending CI | Sort same-run PID candidate lists once and binary-search for the nearest strictly earlier start tick; render at most 1,000 rows per run group with an omitted-count disclosure; regressions cover PID reuse, an 8,000-node iterative traversal, and the display cap. GitHub Actions validation remains unverified. |
 
 ## CI and evidence
 
