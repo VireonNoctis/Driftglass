@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  decodeJsonInputUtf8,
   hasDuplicateJsonObjectKeys,
   hasNonFiniteJsonNumber,
   hasUnsafeIntegerJsonNumber,
@@ -90,4 +91,22 @@ test("rejects over-budget JSON tokens before duplicate-key scanning", () => {
 
   assert.equal(exceedsJsonTokenLimit(atLimit), false);
   assert.equal(validateJsonInputSource(overLimitWithDuplicate), "token-limit");
+});
+
+test("decodes valid UTF-8 JSON without changing non-ASCII text", () => {
+  const source = '{"application_name":"München 🚦"}';
+  assert.equal(decodeJsonInputUtf8(new TextEncoder().encode(source)), source);
+});
+
+test("rejects malformed UTF-8 bytes instead of replacing them", () => {
+  const bytes = new Uint8Array([0x7b, 0x22, 0x78, 0x22, 0x3a, 0x22, 0xc3, 0x28, 0x22, 0x7d]);
+  assert.equal(new TextDecoder().decode(bytes), '{"x":"�("}');
+  assert.throws(() => decodeJsonInputUtf8(bytes), TypeError);
+});
+
+test("preserves a UTF-8 BOM so JSON.parse can reject the non-JSON prefix", () => {
+  const bytes = new Uint8Array([0xef, 0xbb, 0xbf, 0x7b, 0x7d]);
+  const source = decodeJsonInputUtf8(bytes);
+  assert.equal(source.charCodeAt(0), 0xfeff);
+  assert.throws(() => JSON.parse(source), SyntaxError);
 });
