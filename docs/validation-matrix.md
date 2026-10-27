@@ -11,6 +11,7 @@ Validation must establish what the tool captures, what it misses, and whether ea
 | Normalization | Equivalent platform events, unknown fields, repeated events | Stable output without invented values |
 | Comparison | Added, removed, modified, reordered and duplicate events; volatile local TCP source ports; ambiguous events | Correct finding type and evidence link; equivalent synthetic runs have no findings for covered noise |
 | Reporting | Malformed records, hostile HTML-like text, missing event IDs, incomplete/failed run status, mislinked capture uncertainty, inconsistent coverage/behaviour counts, stale repeat-analysis ID, Unicode canonicalization | Safe rendering, consistent counts, Python-compatible repeat-analysis content-ID verification, and visible disclosure when report-v1 ID is not recomputed in browser |
+| Browser process tree | Long linked chain of synthetic process identities | Deterministic parent-child order and depth are preserved without recursive call-stack growth |
 | Storage | Insert, reopen, delete, corrupt DB, interrupted write | Documented local lifecycle |
 | Privacy | Redacted paths and identifiers | Export matches configured policy and records redaction |
 | Integration | Fixed fixtures, rule versions, and two bounded captures of a known loopback listener | Reproducible output; expected listener observation is present in both captures and equivalent pair yields no findings |
