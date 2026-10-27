@@ -126,7 +126,7 @@ function isSummary(value) {
 
 /**
  * Browser-side defensive checks for repeat-analysis-v1.
- * Python remains authoritative for schema validation and the content-derived ID.
+ * Python remains authoritative for full JSON Schema validation; the content ID is also verified here.
  * @param {unknown} value
  * @returns {{ok: true, analysis: import("../types").RepeatAnalysisV1} | {ok: false, message: string}}
  */
