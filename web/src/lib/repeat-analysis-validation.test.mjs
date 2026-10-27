@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { validateRepeatAnalysisV1 } from "./repeat-analysis-validation.js";
+import {
+  validateRepeatAnalysisV1,
+  verifyRepeatAnalysisContentId
+} from "./repeat-analysis-validation.js";
 
 const hash = letter => letter.repeat(64);
 
@@ -111,3 +114,53 @@ test("rejects duplicate source report IDs", () => {
   assert.equal(result.ok, false);
   assert.match(result.message, /duplicate source report IDs/);
 });
+
+function integrityFixture() {
+  return {
+    schema_version: 1,
+    analysis_id: "2c3faff7edf4bf94479faaa91b1f9d6686cf3fe5ada8123a59fc5f2468f7a636",
+    cohort: {
+      application_name: "München 🚦",
+      baseline_version: "1.0",
+      candidate_version: "2.0",
+      baseline_artifact_sha256: null,
+      candidate_artifact_sha256: null,
+      comparison_profile_sha256: null
+    },
+    report_count: 2,
+    reports: [
+      { report_id: hash("a"), status: "complete", added_count: 0, removed_count: 0, changed_count: 0, uncertainty_count: 0 },
+      { report_id: hash("b"), status: "complete", added_count: 0, removed_count: 0, changed_count: 0, uncertainty_count: 0 }
+    ],
+    partial_report_ids: [],
+    patterns: [],
+    summary: {
+      recurring_pattern_count: 0,
+      not_consistently_observed_pattern_count: 0,
+      partial_report_count: 0
+    }
+  };
+}
+
+test("verifies Python-compatible repeat-analysis content IDs including Unicode text", async () => {
+  const value = integrityFixture();
+  assert.equal((await verifyRepeatAnalysisContentId(value)).ok, true);
+
+  value.reports[0].added_count = 1;
+  const result = await verifyRepeatAnalysisContentId(value);
+  assert.equal(result.ok, false);
+  assert.match(result.message, /ID does not match its content/);
+});
+
+test("reports when browser cryptographic hashing is unavailable", async () => {
+  const originalCrypto = globalThis.crypto;
+  try {
+    Object.defineProperty(globalThis, "crypto", { configurable: true, value: undefined });
+    const result = await verifyRepeatAnalysisContentId(integrityFixture());
+    assert.equal(result.ok, false);
+    assert.match(result.message, /cannot verify/);
+  } finally {
+    Object.defineProperty(globalThis, "crypto", { configurable: true, value: originalCrypto });
+  }
+});
+
