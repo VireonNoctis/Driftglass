@@ -4,7 +4,7 @@ This is the first expansion from the prior 60-item ledger to 160 numbered milest
 
 This ledger includes three later implementation checks—strict RFC 3339 browser timestamp acceptance, the repeat-analysis source-count schema ceiling, and an aggregate byte budget for repeat input—plus an explicit deferral decision for local API security. Implementation checks are based on passing CI for the relevant code and tests. Many earlier rows make existing test coverage more granular; they must not be read as newly shipped features.
 
-**Current tally: 171/172 milestones resolved: 162 implementation/validation milestones and 9 explicit deferral decisions; 1 follow-on check pending CI.** A deferral resolves the planning decision, not the underlying capability or security validation; deferred work remains unimplemented or unverified where applicable.
+**Current tally: 172/172 milestones resolved: 163 implementation/validation milestones and 9 explicit deferral decisions; 0 remaining.** A deferral resolves the planning decision, not the underlying capability or security validation; deferred work remains unimplemented or unverified where applicable.
 
 | # | Milestone | Status | Evidence / acceptance |
 |---:|---|---|---|
@@ -196,7 +196,7 @@ The new slice contains 96 implementation/validation acceptance items and four de
 
 | 171 | Reject JSON numbers that overflow to non-finite browser values | Done | Shared intake check after native parsing; nested `1e400` and finite-number tests wired into `npm test`; dashboard and validation-matrix docs; CI run 190 passed all four jobs |
 
-| 172 | Reject unsafe integer-form JSON numbers before browser parsing | Pending CI | Source-token scan uses `BigInt` before `JSON.parse`; tests cover safe boundaries, positive/negative overflow, escaped strings, and decimal/exponent exclusions; dashboard and validation-matrix docs |
+| 172 | Reject unsafe integer-form JSON numbers before browser parsing | Done | Source-token scan uses `BigInt` before `JSON.parse`; tests cover safe boundaries, positive/negative overflow, escaped strings, and decimal/exponent exclusions; dashboard and validation-matrix docs; CI run 193 passed all four jobs |
 
 ## CI and evidence
 
