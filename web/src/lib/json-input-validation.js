@@ -69,6 +69,7 @@ export function hasDuplicateJsonObjectKeys(source) {
  * @returns {boolean}
  */
 export function hasNonFiniteJsonNumber(value) {
+  /** @type {unknown[]} */
   const pending = [value];
   while (pending.length > 0) {
     const current = pending.pop();
@@ -76,7 +77,9 @@ export function hasNonFiniteJsonNumber(value) {
     if (Array.isArray(current)) {
       for (const item of current) pending.push(item);
     } else if (typeof current === "object" && current !== null) {
-      for (const key of Object.keys(current)) pending.push(current[key]);
+      for (const item of Object.values(/** @type {Record<string, unknown>} */ (current))) {
+        pending.push(item);
+      }
     }
   }
   return false;
