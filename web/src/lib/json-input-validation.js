@@ -60,3 +60,27 @@ export function hasDuplicateJsonObjectKeys(source) {
 
   return false;
 }
+
+/**
+ * Detect numeric values that JSON.parse converted to Infinity from otherwise
+ * valid exponent notation, such as 1e400. Python's strict JSON loader rejects
+ * these values instead of silently changing their representation.
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+export function hasNonFiniteJsonNumber(value) {
+  /** @type {unknown[]} */
+  const pending = [value];
+  while (pending.length > 0) {
+    const current = pending.pop();
+    if (typeof current === "number" && !Number.isFinite(current)) return true;
+    if (Array.isArray(current)) {
+      for (const item of current) pending.push(item);
+    } else if (typeof current === "object" && current !== null) {
+      for (const item of Object.values(/** @type {Record<string, unknown>} */ (current))) {
+        pending.push(item);
+      }
+    }
+  }
+  return false;
+}
