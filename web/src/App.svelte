@@ -1,6 +1,6 @@
 <script lang="ts">
   import { validateReportV1 } from "./lib/report-validation.js";
-  import { hasDuplicateJsonObjectKeys } from "./lib/json-input-validation.js";
+  import { hasDuplicateJsonObjectKeys, hasNonFiniteJsonNumber } from "./lib/json-input-validation.js";
   import {
     validateRepeatAnalysisV1,
     verifyRepeatAnalysisContentId
@@ -63,6 +63,10 @@
         return;
       }
       const parsed: unknown = JSON.parse(source);
+      if (hasNonFiniteJsonNumber(parsed)) {
+        errorMessage = "The selected JSON contains a numeric value outside the browser's finite range.";
+        return;
+      }
       if (isRepeatAnalysisInput(parsed)) {
         const result = validateRepeatAnalysisV1(parsed);
         if (!result.ok) {
