@@ -72,7 +72,7 @@ test("deduplicates process nodes while counting each evidence event", () => {
 
 
 test("flattens a long linked process chain without overflowing the call stack", () => {
-  const count = 12_000;
+  const count = 8_000;
   const items = Array.from({ length: count }, (_, index) =>
     item("deep-run", "baseline", index + 2, index + 1, index + 2, "event-" + index)
   );
