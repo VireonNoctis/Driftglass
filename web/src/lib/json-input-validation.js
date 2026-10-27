@@ -194,3 +194,16 @@ export function exceedsJsonNestingLimit(source) {
 
   return false;
 }
+
+/**
+ * Run pre-parse checks in resource-safe order. The nesting guard must run before
+ * duplicate-key detection, which allocates a key set for each open object.
+ * @param {string} source
+ * @returns {"nesting-limit" | "duplicate-keys" | "unsafe-integer" | null}
+ */
+export function validateJsonInputSource(source) {
+  if (exceedsJsonNestingLimit(source)) return "nesting-limit";
+  if (hasDuplicateJsonObjectKeys(source)) return "duplicate-keys";
+  if (hasUnsafeIntegerJsonNumber(source)) return "unsafe-integer";
+  return null;
+}
