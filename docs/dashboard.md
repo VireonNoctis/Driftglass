@@ -1,6 +1,6 @@
 # Experimental local report viewer
 
-The Svelte viewer under web/ displays a report v1 JSON file that a user explicitly chooses or drops into the page. Before parsing, the browser rejects duplicate object keys (including equivalent escaped spellings) for both report-v1 and repeat-analysis-v1 files, matching the strict Python JSON loader. It provides run summaries, context differences, finding search and filters, a chronological timeline of evidence referenced by findings, source-evidence details, and declared uncertainty. The timeline is not the full event stream; unchanged events and standalone coverage records may not appear.
+The Svelte viewer under web/ displays a report v1 JSON file that a user explicitly chooses or drops into the page. Before parsing, the browser rejects duplicate object keys (including equivalent escaped spellings) for both report-v1 and repeat-analysis-v1 files. After parsing, it rejects numeric values that overflow JavaScript's finite-number range (for example, `1e400`) rather than later displaying `null`; Python's strict loader rejects these overflowed values too. It provides run summaries, context differences, finding search and filters, a chronological timeline of evidence referenced by findings, source-evidence details, and declared uncertainty. The timeline is not the full event stream; unchanged events and standalone coverage records may not appear.
 
 ## Validation boundary
 
