@@ -6,7 +6,7 @@ Validation must establish what the tool captures, what it misses, and whether ea
 
 | Layer | Required cases | Pass condition |
 |---|---|---|
-| Schema | Invalid UTF-8 bytes, missing fields, unknown version, invalid enum, duplicate JSON object keys, excessive JSON nesting (including duplicate keys below the limit), more than 500,000 JSON tokens, non-finite parsed numbers, unsafe integer-form JSON tokens including very long digit strings, over-limit event stream/line/count | Clear and deterministic rejection; browser checks nesting before duplicate-key scanning, then rejects non-finite parsed numbers and integer tokens that would be silently rounded |
+| Schema | Invalid UTF-8 bytes, missing fields, unknown version, invalid enum, duplicate JSON object keys, excessive JSON nesting (including duplicate keys below the limit and unmatched closers before deep opens), more than 500,000 JSON tokens, non-finite parsed numbers, unsafe integer-form JSON tokens including very long digit strings, over-limit event stream/line/count | Clear and deterministic rejection; browser checks nesting before duplicate-key scanning, then rejects non-finite parsed numbers and integer tokens that would be silently rounded |
 | Observer | Missing permissions, short-lived process, inaccessible PID, polling error | Gaps and errors are visible |
 | Normalization | Equivalent platform events, unknown fields, repeated events | Stable output without invented values |
 | Comparison | Added, removed, modified, reordered and duplicate events; volatile local TCP source ports; ambiguous events | Correct finding type and evidence link; equivalent synthetic runs have no findings for covered noise |
