@@ -192,6 +192,68 @@ test("accepts optional comparison profile metadata", () => {
   assert.equal(validateReportV1(report).ok, true);
 });
 
+function validCoverageSnapshot(overrides = {}) {
+  return {
+    event_sources: [
+      { name: "process-source", state: "active", categories: ["process"] },
+      { name: "network-source", state: "active", categories: ["network"] },
+      { name: "file-source", state: "active", categories: ["file"] },
+      { name: "system-source", state: "active", categories: ["system"] },
+      { name: "persistence-source", state: "active", categories: ["persistence"] }
+    ],
+    unavailable_categories: [],
+    dropped_events: 0,
+    errors: [],
+    recorded_event_counts: { process: 0, network: 0, file: 0, system: 0, coverage: 0 },
+    ...overrides
+  };
+}
+
+test("rejects a coverage gap without a matching uncertainty", () => {
+  const report = validReport();
+  report.coverage = {
+    baseline: validCoverageSnapshot({ dropped_events: 1 }),
+    candidate: validCoverageSnapshot()
+  };
+  const result = validateReportV1(report);
+  assert.equal(result.ok, false);
+  assert.match(result.message, /baseline coverage snapshot does not match uncertainty codes.*events_dropped/);
+});
+
+test("rejects a coverage uncertainty linked to the wrong run", () => {
+  const report = validReport();
+  report.coverage = {
+    baseline: validCoverageSnapshot({ errors: ["Synthetic collector error"] }),
+    candidate: validCoverageSnapshot()
+  };
+  report.status = "partial";
+  report.uncertainties = [{
+    code: "collection_errors",
+    message: "Synthetic collector error.",
+    run_id: report.candidate.run_id
+  }];
+  report.summary.uncertainty_count = 1;
+  const result = validateReportV1(report);
+  assert.equal(result.ok, false);
+  assert.match(result.message, /baseline coverage snapshot does not match uncertainty codes.*collection_errors/);
+});
+
+test("accepts a coverage gap when its uncertainty references the same run", () => {
+  const report = validReport();
+  report.coverage = {
+    baseline: validCoverageSnapshot({ dropped_events: 1 }),
+    candidate: validCoverageSnapshot()
+  };
+  report.status = "partial";
+  report.uncertainties = [{
+    code: "events_dropped",
+    message: "The baseline reports dropped events.",
+    run_id: report.baseline.run_id
+  }];
+  report.summary.uncertainty_count = 1;
+  assert.equal(validateReportV1(report).ok, true);
+});
+
 test("rejects malformed comparison profile metadata", () => {
   const report = validReport();
   report.comparison_profile = {
