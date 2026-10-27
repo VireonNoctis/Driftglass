@@ -99,7 +99,7 @@ export function hasUnsafeIntegerJsonNumber(source) {
     if (source[index] === '"') {
       index += 1;
       while (index < source.length) {
-        if (source[index] === "\\\\") {
+        if (source[index] === "\\") {
           index += 2;
           continue;
         }
