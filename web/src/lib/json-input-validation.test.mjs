@@ -6,6 +6,8 @@ import {
   hasUnsafeIntegerJsonNumber,
   exceedsJsonNestingLimit,
   MAX_JSON_NESTING_DEPTH,
+  MAX_JSON_TOKEN_COUNT,
+  exceedsJsonTokenLimit,
   validateJsonInputSource
 } from "./json-input-validation.js";
 
@@ -79,4 +81,13 @@ test("runs the nesting guard before duplicate-key detection", () => {
 test("handles very long integer tokens without numeric conversion", () => {
   const source = '{"value":' + "9".repeat(100_000) + "}";
   assert.equal(hasUnsafeIntegerJsonNumber(source), true);
+});
+
+test("rejects over-budget JSON tokens before duplicate-key scanning", () => {
+  const atLimit = "[" + "null,".repeat(MAX_JSON_TOKEN_COUNT - 3) + "null" + "]";
+  const overLimitWithDuplicate = '[{"duplicate":1,"duplicate":2},' +
+    "null,".repeat(MAX_JSON_TOKEN_COUNT - 8) + "null]";
+
+  assert.equal(exceedsJsonTokenLimit(atLimit), false);
+  assert.equal(validateJsonInputSource(overLimitWithDuplicate), "token-limit");
 });
