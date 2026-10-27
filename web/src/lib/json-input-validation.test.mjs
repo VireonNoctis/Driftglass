@@ -5,7 +5,8 @@ import {
   hasNonFiniteJsonNumber,
   hasUnsafeIntegerJsonNumber,
   exceedsJsonNestingLimit,
-  MAX_JSON_NESTING_DEPTH
+  MAX_JSON_NESTING_DEPTH,
+  validateJsonInputSource
 } from "./json-input-validation.js";
 
 test("detects duplicate object keys", () => {
@@ -66,4 +67,11 @@ test("rejects JSON nested beyond the configured limit", () => {
 test("ignores brackets, braces, and escaped quotes inside JSON strings", () => {
   const source = JSON.stringify({ note: 'text "[" and brace } with slash \\', child: [] });
   assert.equal(exceedsJsonNestingLimit(source), false);
+});
+
+test("runs the nesting guard before duplicate-key detection", () => {
+  const nestedDuplicate = '{"child":'.repeat(MAX_JSON_NESTING_DEPTH) +
+    '{"duplicate":1,"duplicate":2}' +
+    "}".repeat(MAX_JSON_NESTING_DEPTH);
+  assert.equal(validateJsonInputSource(nestedDuplicate), "nesting-limit");
 });
