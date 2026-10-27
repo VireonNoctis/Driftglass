@@ -21,6 +21,7 @@ from .repeatability import (
     RepeatAnalysisError,
     analyze_repeat_reports,
     export_repeat_analysis,
+    load_report_file,
     load_report_files,
 )
 from .reporting import ReportExportError, export_html_report, export_json_report
