@@ -1,6 +1,7 @@
 <script lang="ts">
   import { validateReportV1 } from "./lib/report-validation.js";
   import {
+    decodeJsonInputUtf8,
     hasNonFiniteJsonNumber,
     MAX_JSON_NESTING_DEPTH,
     MAX_JSON_TOKEN_COUNT,
@@ -62,7 +63,14 @@
         errorMessage = "Choose a JSON report exported by Driftglass.";
         return;
       }
-      const source = await file.text();
+      const bytes = await file.arrayBuffer();
+      let source: string;
+      try {
+        source = decodeJsonInputUtf8(bytes);
+      } catch {
+        errorMessage = "The selected file is not valid UTF-8 JSON.";
+        return;
+      }
       const sourceError = validateJsonInputSource(source);
       if (sourceError === "nesting-limit") {
         errorMessage = `The selected JSON exceeds the maximum nesting depth of ${MAX_JSON_NESTING_DEPTH}.`;
