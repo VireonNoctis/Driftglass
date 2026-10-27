@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildProcessTree } from "./process-tree.js";
+import { buildProcessTree, MAX_PROCESS_TREE_ROWS_PER_GROUP, prepareProcessTreeForDisplay } from "./process-tree.js";
 
 function item(run_id, side, pid, parent_pid, start_time_ticks, event_id, summary = event_id) {
   return {
@@ -33,6 +33,23 @@ test("links only same-run parents whose observed start tick is earlier", () => {
     [100, 0, "not-in-evidence"],
     [200, 1, "linked"]
   ]);
+});
+
+test("links a child to the nearest earlier identity when a PID is reused", () => {
+  const result = buildProcessTree([
+    item("base-run", "baseline", 300, 100, 50, "child"),
+    item("base-run", "baseline", 100, 1, 10, "older-parent"),
+    item("base-run", "baseline", 100, 1, 40, "nearest-parent"),
+    item("base-run", "baseline", 100, 1, 60, "future-parent"),
+  ]);
+  const rows = result.groups[0].rows;
+  const childIndex = rows.findIndex(row => row.pid === 300);
+  assert.ok(childIndex > 0);
+  assert.deepEqual(
+    [rows[childIndex - 1].pid, rows[childIndex - 1].start_time_ticks],
+    [100, 40]
+  );
+  assert.equal(rows[childIndex].depth, 1);
 });
 
 test("does not link across runs or infer a parent when start ticks are ambiguous", () => {
@@ -87,4 +104,11 @@ test("flattens a long linked process chain without overflowing the call stack", 
   assert.equal(rows[count - 1].pid, count + 1);
   assert.equal(rows[count - 1].depth, count - 1);
   assert.equal(rows[count - 1].parent_status, "linked");
+
+  const display = prepareProcessTreeForDisplay(result.groups[0]);
+  assert.equal(display.rows.length, MAX_PROCESS_TREE_ROWS_PER_GROUP);
+  assert.equal(display.rows[0].pid, 2);
+  assert.equal(display.rows[MAX_PROCESS_TREE_ROWS_PER_GROUP - 1].depth, MAX_PROCESS_TREE_ROWS_PER_GROUP - 1);
+  assert.equal(display.node_count, count);
+  assert.equal(display.omitted_node_count, count - MAX_PROCESS_TREE_ROWS_PER_GROUP);
 });
