@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "test": "node --test src/lib/report-validation.test.mjs src/lib/evidence-timeline.test.mjs src/lib/process-tree.test.mjs src/lib/coverage-matrix.test.mjs src/lib/repeat-analysis-validation.test.mjs",
+    "test": "node --test src/lib/report-validation.test.mjs src/lib/evidence-timeline.test.mjs src/lib/process-tree.test.mjs src/lib/coverage-matrix.test.mjs src/lib/repeat-analysis-validation.test.mjs src/lib/json-input-validation.test.mjs",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "build": "vite build"
   },
