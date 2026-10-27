@@ -88,12 +88,12 @@ export function hasNonFiniteJsonNumber(value) {
 /**
  * Detect integer-form JSON numbers outside JavaScript's exact integer range.
  * JSON.parse rounds these tokens before any schema or rendering code can inspect
- * them, so compare the original decimal token using BigInt instead.
+ * them, so compare digit length and lexicographic order without building a BigInt.
  * @param {string} source
  * @returns {boolean}
  */
 export function hasUnsafeIntegerJsonNumber(source) {
-  const maxSafeInteger = BigInt(Number.MAX_SAFE_INTEGER);
+  const maxSafeIntegerDigits = String(Number.MAX_SAFE_INTEGER);
 
   for (let index = 0; index < source.length;) {
     if (source[index] === '"') {
@@ -141,12 +141,17 @@ export function hasUnsafeIntegerJsonNumber(source) {
     }
 
     if (integerToken) {
-      const token = source.slice(start, index);
-      try {
-        const value = BigInt(token);
-        if (value > maxSafeInteger || value < -maxSafeInteger) return true;
-      } catch {
-        // Malformed numeric tokens remain the responsibility of JSON.parse.
+      const digitStart = source[start] === "-" ? start + 1 : start;
+      let significantStart = digitStart;
+      while (significantStart < index - 1 && source[significantStart] === "0") {
+        significantStart += 1;
+      }
+
+      const digitLength = index - significantStart;
+      if (digitLength > maxSafeIntegerDigits.length) return true;
+      if (digitLength === maxSafeIntegerDigits.length &&
+          source.slice(significantStart, index) > maxSafeIntegerDigits) {
+        return true;
       }
     }
   }
