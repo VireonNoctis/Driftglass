@@ -201,12 +201,6 @@ export function exceedsJsonNestingLimit(source) {
 }
 
 /**
- * Run pre-parse checks in resource-safe order. The nesting guard must run before
- * duplicate-key detection, which allocates a key set for each open object.
- * @param {string} source
- * @returns {"nesting-limit" | "duplicate-keys" | "unsafe-integer" | null}
- */
-/**
  * Upper bound on lexical JSON tokens processed by the browser viewer.
  * Strings/member names and array/object delimiters count toward the budget.
  */
