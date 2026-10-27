@@ -151,9 +151,16 @@ test("accepts a per-run coverage snapshot when matching uncertainties are presen
     unavailable_categories: ["persistence"],
     dropped_events: 2,
     errors: ["synthetic permission note"],
-    recorded_event_counts: { process: 1, network: 2, file: 0, system: 0, coverage: 1 }
+    recorded_event_counts: { process: 0, network: 1, file: 0, system: 0, coverage: 0 }
   };
-  report.coverage = { baseline: runCoverage, candidate: { ...runCoverage, dropped_events: 0 } };
+  report.coverage = {
+    baseline: runCoverage,
+    candidate: {
+      ...runCoverage,
+      dropped_events: 0,
+      recorded_event_counts: { process: 0, network: 2, file: 0, system: 0, coverage: 0 }
+    }
+  };
   report.status = "partial";
   report.uncertainties = [
     { code: "categories_unavailable", message: "Persistence is unavailable.", run_id: report.baseline.run_id },
@@ -206,7 +213,7 @@ test("accepts optional comparison profile metadata", () => {
   assert.equal(validateReportV1(report).ok, true);
 });
 
-function validCoverageSnapshot(overrides = {}) {
+function validCoverageSnapshot(overrides = {}, eventCount = 1) {
   return {
     event_sources: [
       { name: "process-source", state: "active", categories: ["process"] },
@@ -218,16 +225,27 @@ function validCoverageSnapshot(overrides = {}) {
     unavailable_categories: [],
     dropped_events: 0,
     errors: [],
-    recorded_event_counts: { process: 0, network: 0, file: 0, system: 0, coverage: 0 },
+    recorded_event_counts: { process: 0, network: eventCount, file: 0, system: 0, coverage: 0 },
     ...overrides
   };
 }
+
+test("rejects coverage record counts that differ from the report summary", () => {
+  const report = validReport();
+  report.coverage = {
+    baseline: validCoverageSnapshot({}, 2),
+    candidate: validCoverageSnapshot({}, 2)
+  };
+  const result = validateReportV1(report);
+  assert.equal(result.ok, false);
+  assert.match(result.message, /baseline coverage snapshot record count does not match the report summary/);
+});
 
 test("rejects a coverage gap without a matching uncertainty", () => {
   const report = validReport();
   report.coverage = {
     baseline: validCoverageSnapshot({ dropped_events: 1 }),
-    candidate: validCoverageSnapshot()
+    candidate: validCoverageSnapshot({}, 2)
   };
   const result = validateReportV1(report);
   assert.equal(result.ok, false);
@@ -238,7 +256,7 @@ test("rejects a coverage uncertainty linked to the wrong run", () => {
   const report = validReport();
   report.coverage = {
     baseline: validCoverageSnapshot({ errors: ["Synthetic collector error"] }),
-    candidate: validCoverageSnapshot()
+    candidate: validCoverageSnapshot({}, 2)
   };
   report.status = "partial";
   report.uncertainties = [{
@@ -256,7 +274,7 @@ test("accepts a coverage gap when its uncertainty references the same run", () =
   const report = validReport();
   report.coverage = {
     baseline: validCoverageSnapshot({ dropped_events: 1 }),
-    candidate: validCoverageSnapshot()
+    candidate: validCoverageSnapshot({}, 2)
   };
   report.status = "partial";
   report.uncertainties = [{

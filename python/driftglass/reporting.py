@@ -107,6 +107,12 @@ def _validate_report_relationships(report: dict[str, Any]) -> None:
                     f"(missing: {', '.join(missing) or 'none'}; "
                     f"unexpected: {', '.join(unexpected) or 'none'})"
                 )
+            recorded_count = sum(coverage["recorded_event_counts"].values())
+            if recorded_count != summary[f"{role}_event_count"]:
+                raise ReportExportError(
+                    f"{role} coverage snapshot record count does not match "
+                    f"summary.{role}_event_count"
+                )
     if summary["baseline_behaviour_event_count"] > summary["baseline_event_count"]:
         raise ReportExportError(
             "summary.baseline_behaviour_event_count exceeds baseline_event_count"

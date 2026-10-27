@@ -277,6 +277,21 @@ export function validateReportV1(value) {
   if (!isRecord(summary) || !keys.every((key) => isCount(summary[key]))) {
     return { ok: false, message: "The report summary contains invalid counts." };
   }
+  if (value.coverage !== undefined) {
+    for (const [role, runCoverage] of [
+      ["baseline", value.coverage.baseline],
+      ["candidate", value.coverage.candidate]
+    ]) {
+      const recordedCount = Object.values(runCoverage.recorded_event_counts)
+        .reduce((total, count) => total + count, 0);
+      if (recordedCount !== summary[`${role}_event_count`]) {
+        return {
+          ok: false,
+          message: `The ${role} coverage snapshot record count does not match the report summary.`
+        };
+      }
+    }
+  }
   for (const type of ["added", "removed", "changed"]) {
     if (summary[type + "_count"] !== value.findings.filter((finding) => finding.change_type === type).length) {
       return { ok: false, message: "Finding counts do not match the report summary." };

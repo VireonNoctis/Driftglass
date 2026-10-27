@@ -155,6 +155,17 @@ def test_coverage_snapshot_gap_requires_matching_uncertainty():
         validate_report(report, REPORT_SCHEMA)
 
 
+def test_coverage_record_count_must_match_report_summary():
+    report = make_report()
+    report["coverage"]["baseline"]["recorded_event_counts"]["network"] += 1
+
+    with pytest.raises(
+        ReportExportError,
+        match="baseline coverage snapshot record count does not match summary.baseline_event_count",
+    ):
+        validate_report(report, REPORT_SCHEMA)
+
+
 def test_coverage_uncertainty_must_reference_the_run_with_the_gap():
     report = make_report()
     report["coverage"]["baseline"]["errors"] = ["Synthetic collector error"]
