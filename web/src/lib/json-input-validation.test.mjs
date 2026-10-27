@@ -75,3 +75,8 @@ test("runs the nesting guard before duplicate-key detection", () => {
     "}".repeat(MAX_JSON_NESTING_DEPTH);
   assert.equal(validateJsonInputSource(nestedDuplicate), "nesting-limit");
 });
+
+test("handles very long integer tokens without numeric conversion", () => {
+  const source = '{"value":' + "9".repeat(100_000) + "}";
+  assert.equal(hasUnsafeIntegerJsonNumber(source), true);
+});
