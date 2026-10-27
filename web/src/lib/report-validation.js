@@ -137,7 +137,7 @@ function coverageUncertaintyMismatch(role, run, coverage, uncertainties) {
   const expected = new Set();
   if (run.capture_status !== "completed") expected.add("capture_not_completed");
   if (coverage.unavailable_categories.length > 0) expected.add("categories_unavailable");
-  if (coverage.event_sources.some(source => source.state !== "active")) expected.add("event_sources_not_active");
+  if (coverage.event_sources.some((/** @type {Record<string, any>} */ source) => source.state !== "active")) expected.add("event_sources_not_active");
   if (coverage.dropped_events > 0) expected.add("events_dropped");
   if (coverage.errors.length > 0) expected.add("collection_errors");
   if (undeclared.length > 0) expected.add("coverage_not_declared");
