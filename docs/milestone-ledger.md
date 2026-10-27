@@ -90,7 +90,7 @@ The new slice contains 96 implementation/validation acceptance items and four de
 | 73 | Require uncertainty count to match uncertainty records | Done | Browser report-validation regression test |
 | 74 | Require report complete/partial status to agree with uncertainty declaration | Done | Browser report-validation regression test |
 | 75 | Reject unsupported report schema versions before viewer rendering | Done | Browser report-validation regression test |
-| 76 | Preserve source evidence references on accepted report records | Done | Report-validation fixture checks event ID and source reference |
+| 76 | Require RFC 3339 evidence timestamps with a timezone and valid calendar date | Done | Browser validator rejects date-only, local-time, impossible-date and invalid-offset values; accepts UTC and explicit offsets |
 | 77 | Require repeat analysis to contain at least two reports | Done | tests/unit/test_repeatability.py |
 | 78 | Reject duplicate report IDs in repeat-analysis inputs | Done | Repeat-analysis regression tests |
 | 79 | Reject repeat reports from incompatible version cohorts | Done | Repeat-analysis version-cohort regression test |
