@@ -214,6 +214,8 @@ The new slice contains 96 implementation/validation acceptance items and four de
 
 | 180 | Prevent mismatched JSON closers from bypassing nesting limits | Done | Track expected matching delimiters during the depth scan; unmatched closers no longer decrement the depth counter; regression checks malformed closers followed by over-limit nesting; dashboard and validation-matrix docs; CI run 217 passed all four jobs |
 
+| 181 | Flatten long process trees without recursive call-stack growth | Pending CI | Replaced recursive flattening with iterative depth-first traversal; a focused Node run of the process-tree test cases passed 5/5, including an 8,000-node linked chain; the prior recursive version reproduced `RangeError` at that size. GitHub Actions status is not exposed by the available status queries, so full CI is unverified. |
+
 ## CI and evidence
 
 The latest source change should be considered complete only when the corresponding GitHub Actions run finishes successfully. CI runs Python unit tests, wheel/schema packaging and smoke checks, locked Rust workspace tests, and web tests/type checks/build. These checks do not replace controlled real-world observer measurements required by milestones 51–53.
