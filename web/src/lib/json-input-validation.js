@@ -1,6 +1,6 @@
 /**
  * Detect duplicate object member names before native JSON.parse discards them.
- * Equality is checked after decoding JSON escapes, so "key" and "\\u006bey"
+ * Equality is checked after decoding JSON escapes, so "key" and "\u006bey"
  * are treated as the same property name.
  * @param {string} source
  * @returns {boolean}
@@ -16,7 +16,7 @@ export function hasDuplicateJsonObjectKeys(source) {
       const start = index;
       index += 1;
       while (index < source.length) {
-        if (source[index] === "\\\\") {
+        if (source[index] === "\\") {
           index += 2;
           continue;
         }
@@ -29,9 +29,9 @@ export function hasDuplicateJsonObjectKeys(source) {
       let next = index + 1;
       while (
         source[next] === " " ||
-        source[next] === "\\t" ||
-        source[next] === "\\n" ||
-        source[next] === "\\r"
+        source[next] === "\t" ||
+        source[next] === "\n" ||
+        source[next] === "\r"
       ) {
         next += 1;
       }
