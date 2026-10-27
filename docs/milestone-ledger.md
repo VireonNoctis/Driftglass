@@ -4,7 +4,7 @@ This is the first expansion from the prior 60-item ledger to 160 numbered milest
 
 This ledger includes three later implementation checks—strict RFC 3339 browser timestamp acceptance, the repeat-analysis source-count schema ceiling, and an aggregate byte budget for repeat input—plus an explicit deferral decision for local API security. Implementation checks are based on passing CI for the relevant code and tests. Many earlier rows make existing test coverage more granular; they must not be read as newly shipped features.
 
-**Current tally: 174/175 milestones resolved: 165 implementation/validation milestones and 9 explicit deferral decisions; 1 follow-on check pending CI.** A deferral resolves the planning decision, not the underlying capability or security validation; deferred work remains unimplemented or unverified where applicable.
+**Current tally: 175/175 milestones resolved: 166 implementation/validation milestones and 9 explicit deferral decisions; 0 remaining.** A deferral resolves the planning decision, not the underlying capability or security validation; deferred work remains unimplemented or unverified where applicable.
 
 | # | Milestone | Status | Evidence / acceptance |
 |---:|---|---|---|
@@ -202,7 +202,7 @@ The new slice contains 96 implementation/validation acceptance items and four de
 
 | 174 | Bound JSON nesting depth in browser imports | Done | Shared pre-parse scan rejects nesting beyond 256 levels; tests cover exact boundary and escaped string contents; dashboard and validation-matrix docs; CI run 199 passed all four jobs |
 
-| 175 | Run the browser nesting guard before duplicate-key scanning | Pending CI | Shared pre-parse validation reports an over-depth error before key-set allocation; regression uses a deeply nested document containing duplicate members; dashboard and validation-matrix docs |
+| 175 | Run the browser nesting guard before duplicate-key scanning | Done | Shared pre-parse validation reports an over-depth error before key-set allocation; regression uses a deeply nested document containing duplicate members; dashboard and validation-matrix docs; CI run 202 passed all four jobs |
 
 ## CI and evidence
 
