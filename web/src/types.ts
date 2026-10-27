@@ -41,7 +41,7 @@ export interface RunSummary {
   run_id: string;
   version: string;
   artifact_sha256: string | null;
-  capture_status: "running" | "completed" | "incomplete" | "failed";
+  capture_status: "completed" | "incomplete" | "failed";
 }
 
 export type CoverageCategory = "process" | "network" | "file" | "system" | "persistence";
