@@ -17,7 +17,7 @@ There is no local HTTP API or backend to validate in this prototype. API access-
 
 ## Partial process relationship view
 
-The report viewer can draw a partial process relationship view from evidence records that include a validated PID, parent PID, executable, and Linux procfs start-time tick. A parent is linked only if evidence in the same run includes that parent PID with an earlier start tick. Evidence without a start tick is omitted from the tree rather than joined by PID alone. The view includes only process identities referenced by visible findings, not every process observed in the run. Older report files remain valid and continue to open; they may not contain enough identity metadata to populate this view.
+The report viewer can draw a partial process relationship view from evidence records that include a validated PID, parent PID, executable, and Linux procfs start-time tick. A parent is linked only if evidence in the same run includes that parent PID with an earlier start tick. Evidence without a start tick is omitted from the tree rather than joined by PID alone. The view includes only process identities referenced by visible findings, not every process observed in the run. The renderer flattens process relationships iteratively, so a long synthetic parent chain does not require one JavaScript call frame per process. The existing file-size and token limits still bound accepted imports. Older report files remain valid and continue to open; they may not contain enough identity metadata to populate this view.
 
 
 ## Per-run coverage matrix
