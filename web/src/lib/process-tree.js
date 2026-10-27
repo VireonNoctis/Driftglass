@@ -167,7 +167,7 @@ export function buildProcessTree(items) {
   function flattenRoots(roots, rows) {
     const pending = roots.slice().reverse().map(node => ({ node, depth: 0 }));
 
-    while (pending.length > 0 && rows.length < MAX_PROCESS_TREE_ROWS_PER_GROUP) {
+    while (pending.length > 0) {
       const entry = pending.pop();
       if (!entry) break;
       const { node, depth } = entry;
@@ -195,5 +195,21 @@ export function buildProcessTree(items) {
       }),
     skipped_evidence_count: skippedEvidenceCount,
     node_count: nodesByKey.size,
+  };
+}
+
+
+/**
+ * Bound only the rows rendered in the browser; keep the complete derived tree
+ * available for counts and deterministic analysis.
+ * @param {{run_id:string, side:"baseline"|"candidate", rows:ProcessTreeRow[], node_count:number}} group
+ * @returns {{run_id:string, side:"baseline"|"candidate", rows:ProcessTreeRow[], node_count:number, omitted_node_count:number}}
+ */
+export function prepareProcessTreeForDisplay(group) {
+  const rows = group.rows.slice(0, MAX_PROCESS_TREE_ROWS_PER_GROUP);
+  return {
+    ...group,
+    rows,
+    omitted_node_count: Math.max(0, group.node_count - rows.length),
   };
 }
