@@ -27,11 +27,13 @@
     },
     "report_count": {
       "type": "integer",
-      "minimum": 2
+      "minimum": 2,
+      "maximum": 500
     },
     "reports": {
       "type": "array",
       "minItems": 2,
+      "maxItems": 500,
       "items": {
         "$ref": "#/$defs/sourceReport"
       }

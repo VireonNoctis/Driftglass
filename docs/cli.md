@@ -36,7 +36,7 @@ python -m driftglass report attest ./comparison.json --manifest-output ./compari
 python -m driftglass report verify ./comparison.json --manifest ./comparison.integrity.json
 ~~~
 
-The sidecar records the exact report-file SHA-256, byte size and validated report ID. Keep the sidecar separately if it is used as a reference. It is not signed: anyone able to replace both report and sidecar can recompute the hash, so it detects changes relative to the saved sidecar but does not authenticate the author or prove collection completeness. Imported comparison JSON is limited to 64 MiB per file. Run manifests are limited to 4 MiB and comparison rule profiles to 1 MiB.
+The sidecar records the exact report-file SHA-256, byte size and validated report ID. Keep the sidecar separately if it is used as a reference. It is not signed: anyone able to replace both report and sidecar can recompute the hash, so it detects changes relative to the saved sidecar but does not authenticate the author or prove collection completeness. Imported comparison JSON is limited to 64 MiB per file. Repeat analysis also caps the combined source-report input at 256 MiB and at 500 reports; the per-file and aggregate limits are checked while reading. Run manifests are limited to 4 MiB and comparison rule profiles to 1 MiB.
 
 ~~~bash
 python -m driftglass events validate ./run-events.jsonl

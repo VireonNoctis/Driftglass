@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import pytest
+from jsonschema import Draft202012Validator
 
 from driftglass.comparison import compare_loaded_runs
 from driftglass.profiles import default_rule_profile
@@ -10,6 +11,7 @@ from driftglass.repeatability import (
     analyze_repeat_reports,
     export_repeat_analysis,
     load_report_file,
+    load_report_files,
     validate_repeat_analysis,
 )
 
@@ -159,3 +161,65 @@ def test_report_loader_rejects_oversized_json_before_parsing(tmp_path, monkeypat
 
     with pytest.raises(RepeatAnalysisError, match="exceeds the 8-byte file limit"):
         load_report_file(path, ROOT / "schemas" / "reports" / "report-v1.schema.json")
+
+def test_repeat_report_inputs_enforce_aggregate_byte_limit(tmp_path, monkeypatch):
+    paths = []
+    for index in (20, 21):
+        path = tmp_path / f"report-{index}.json"
+        path.write_text(json.dumps(report(index)), encoding="utf-8")
+        paths.append(path)
+
+    combined_size = sum(path.stat().st_size for path in paths)
+    monkeypatch.setattr("driftglass.repeatability.MAX_REPEAT_REPORT_BYTES", combined_size - 1)
+
+    with pytest.raises(RepeatAnalysisError, match="combined repeat-analysis input exceeds"):
+        load_report_files(paths, ROOT / "schemas" / "reports" / "report-v1.schema.json")
+
+
+def test_repeat_schema_caps_source_reports_at_500():
+    schema = json.loads(REPEAT_SCHEMA.read_text(encoding="utf-8"))
+    reports = [
+        {
+            "report_id": f"{index:064x}",
+            "status": "complete",
+            "added_count": 0,
+            "removed_count": 0,
+            "changed_count": 0,
+            "uncertainty_count": 0,
+        }
+        for index in range(501)
+    ]
+    value = {
+        "schema_version": 1,
+        "analysis_id": "b" * 64,
+        "cohort": {
+            "application_name": "Synthetic",
+            "baseline_version": "1.0",
+            "candidate_version": "2.0",
+            "baseline_artifact_sha256": None,
+            "candidate_artifact_sha256": None,
+            "comparison_profile_sha256": None,
+        },
+        "report_count": 501,
+        "reports": reports,
+        "partial_report_ids": [],
+        "patterns": [],
+        "summary": {
+            "recurring_pattern_count": 0,
+            "not_consistently_observed_pattern_count": 0,
+            "partial_report_count": 0,
+        },
+    }
+
+    errors = list(Draft202012Validator(schema).iter_errors(value))
+    assert any(
+        error.validator == "maxItems" and list(error.absolute_path) == ["reports"]
+        for error in errors
+    )
+
+    value["reports"] = reports[:2]
+    errors = list(Draft202012Validator(schema).iter_errors(value))
+    assert any(
+        error.validator == "maximum" and list(error.absolute_path) == ["report_count"]
+        for error in errors
+    )
