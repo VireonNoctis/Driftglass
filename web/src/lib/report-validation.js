@@ -16,6 +16,17 @@ function isNullableText(value) {
 function isCount(value) {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 }
+
+const COVERAGE_CATEGORIES = ["process", "network", "file", "system", "persistence"];
+const COVERAGE_UNCERTAINTY_CODES = new Set([
+  "capture_not_completed",
+  "categories_unavailable",
+  "event_sources_not_active",
+  "events_dropped",
+  "collection_errors",
+  "coverage_not_declared",
+  "artifact_hash_missing"
+]);
 /** @param {unknown} value @returns {boolean} */
 function isRun(value) {
   return isRecord(value) &&
@@ -72,7 +83,7 @@ function isCoverageSource(value) {
     isText(value.name) &&
     ["active", "inactive", "failed", "unavailable", "not_configured"].includes(value.state) &&
     Array.isArray(value.categories) &&
-    value.categories.every(category => ["process", "network", "file", "system", "persistence"].includes(category)) &&
+    value.categories.every(category => COVERAGE_CATEGORIES.includes(category)) &&
     new Set(value.categories).size === value.categories.length;
 }
 /** @param {unknown} value @returns {boolean} */
@@ -80,7 +91,7 @@ function isRunCoverage(value) {
   if (!isRecord(value) ||
       !Array.isArray(value.event_sources) || !value.event_sources.every(isCoverageSource) ||
       !Array.isArray(value.unavailable_categories) ||
-      !value.unavailable_categories.every(category => ["process", "network", "file", "system", "persistence"].includes(category)) ||
+      !value.unavailable_categories.every(category => COVERAGE_CATEGORIES.includes(category)) ||
       new Set(value.unavailable_categories).size !== value.unavailable_categories.length ||
       !isCount(value.dropped_events) ||
       !Array.isArray(value.errors) || !value.errors.every(isText) ||
@@ -103,6 +114,42 @@ function isRunCoverage(value) {
 /** @param {unknown} value @returns {boolean} */
 function isReportCoverage(value) {
   return isRecord(value) && isRunCoverage(value.baseline) && isRunCoverage(value.candidate);
+}
+
+/**
+ * @param {string} role
+ * @param {Record<string, any>} run
+ * @param {Record<string, any>} coverage
+ * @param {Record<string, any>[]} uncertainties
+ * @returns {string | null}
+ */
+function coverageUncertaintyMismatch(role, run, coverage, uncertainties) {
+  const unavailable = new Set(coverage.unavailable_categories);
+  const activeCategories = new Set();
+  for (const source of coverage.event_sources) {
+    if (source.state === "active") {
+      for (const category of source.categories) activeCategories.add(category);
+    }
+  }
+  const undeclared = COVERAGE_CATEGORIES.filter(category =>
+    !activeCategories.has(category) && !unavailable.has(category)
+  );
+  const expected = new Set();
+  if (run.capture_status !== "completed") expected.add("capture_not_completed");
+  if (coverage.unavailable_categories.length > 0) expected.add("categories_unavailable");
+  if (coverage.event_sources.some(source => source.state !== "active")) expected.add("event_sources_not_active");
+  if (coverage.dropped_events > 0) expected.add("events_dropped");
+  if (coverage.errors.length > 0) expected.add("collection_errors");
+  if (undeclared.length > 0) expected.add("coverage_not_declared");
+  if (run.artifact_sha256 === null) expected.add("artifact_hash_missing");
+
+  const actual = new Set(uncertainties
+    .filter(item => item.run_id === run.run_id && COVERAGE_UNCERTAINTY_CODES.has(item.code))
+    .map(item => item.code));
+  const missing = [...expected].filter(code => !actual.has(code)).sort();
+  const unexpected = [...actual].filter(code => !expected.has(code)).sort();
+  if (missing.length === 0 && unexpected.length === 0) return null;
+  return `The ${role} coverage snapshot does not match uncertainty codes (missing: ${missing.join(", ") || "none"}; unexpected: ${unexpected.join(", ") || "none"}).`;
 }
 
 /** @param {unknown} value @returns {boolean} */
@@ -210,6 +257,15 @@ export function validateReportV1(value) {
         ok: false,
         message: `The ${role} capture status requires a matching capture_not_completed uncertainty.`
       };
+    }
+  }
+  if (value.coverage !== undefined) {
+    for (const [role, run] of [
+      ["baseline", value.baseline],
+      ["candidate", value.candidate]
+    ]) {
+      const mismatch = coverageUncertaintyMismatch(role, run, value.coverage[role], value.uncertainties);
+      if (mismatch !== null) return { ok: false, message: mismatch };
     }
   }
   const summary = value.summary;
