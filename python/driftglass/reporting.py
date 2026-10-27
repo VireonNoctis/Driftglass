@@ -123,6 +123,18 @@ def _validate_report_relationships(report: dict[str, Any]) -> None:
         )
 
     profile = report.get("comparison_profile")
+    if profile is not None and report.get("coverage") is not None:
+        for role in ("baseline", "candidate"):
+            recorded_counts = report["coverage"][role]["recorded_event_counts"]
+            expected_behaviour_count = sum(
+                recorded_counts[category] for category in profile["included_categories"]
+            )
+            if expected_behaviour_count != summary[f"{role}_behaviour_event_count"]:
+                raise ReportExportError(
+                    f"{role} behaviour event count does not match coverage counts "
+                    "for comparison_profile.included_categories"
+                )
+
     if profile is not None:
         profile_core = {
             "schema_version": 1,
