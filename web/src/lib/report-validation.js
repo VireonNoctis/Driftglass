@@ -34,12 +34,30 @@ function isProcessIdentity(value) {
     value.executable.length <= 4096 &&
     (value.start_time_ticks === undefined || isCount(value.start_time_ticks));
 }
+const RFC3339_DATE_TIME = /^(\\d{4})-(\\d{2})-(\\d{2})T(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$/;
+
+/** @param {unknown} value @returns {boolean} */
+function isDateTime(value) {
+  if (typeof value !== "string" || !RFC3339_DATE_TIME.test(value)) return false;
+  if (!Number.isFinite(Date.parse(value))) return false;
+
+  // Date.parse can normalize impossible calendar dates, so verify the written
+  // date separately before trusting the parsed timestamp.
+  const datePart = value.slice(0, 10);
+  const date = new Date(`${datePart}T00:00:00Z`);
+  const [year, month, day] = datePart.split("-").map(Number);
+  return Number.isFinite(date.getTime()) &&
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() + 1 === month &&
+    date.getUTCDate() === day;
+}
+
 /** @param {unknown} value @returns {boolean} */
 function isEvidence(value) {
   return isRecord(value) &&
     isText(value.run_id) && isText(value.event_id) &&
     isText(value.collector) && isText(value.source_event_ref) &&
-    typeof value.timestamp === "string" && Number.isFinite(Date.parse(value.timestamp)) &&
+    isDateTime(value.timestamp) &&
     isRecord(value.observed) &&
     isText(value.observed.category) && isText(value.observed.action) &&
     isNullableText(value.observed.process_executable) &&

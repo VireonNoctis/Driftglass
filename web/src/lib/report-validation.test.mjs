@@ -244,3 +244,26 @@ test("requires non-active coverage sources to declare their categories unavailab
   report.coverage = { baseline: failedCoverage, candidate: activeCoverage };
   assert.match(validateReportV1(report).message, /coverage snapshot is malformed/);
 });
+
+
+test("requires RFC 3339 timestamps with timezone and valid calendar dates", () => {
+  for (const timestamp of [
+    "2026-01-01",
+    "2026-01-01T00:00:00",
+    "2026-02-30T00:00:00Z",
+    "2026-01-01T24:00:00Z",
+    "2026-01-01T00:00:00+25:00"
+  ]) {
+    const report = validReport();
+    report.findings[0].candidate_evidence[0].timestamp = timestamp;
+    assert.equal(validateReportV1(report).ok, false, timestamp);
+  }
+});
+
+test("accepts RFC 3339 timestamps with UTC and explicit offsets", () => {
+  for (const timestamp of ["2026-01-01T00:00:00Z", "2026-01-01T08:30:00.123+08:00"]) {
+    const report = validReport();
+    report.findings[0].candidate_evidence[0].timestamp = timestamp;
+    assert.equal(validateReportV1(report).ok, true, timestamp);
+  }
+});
