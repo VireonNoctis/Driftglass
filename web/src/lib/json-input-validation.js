@@ -201,13 +201,104 @@ export function exceedsJsonNestingLimit(source) {
 }
 
 /**
- * Run pre-parse checks in resource-safe order. The nesting guard must run before
- * duplicate-key detection, which allocates a key set for each open object.
+ * Upper bound on lexical JSON tokens processed by the browser viewer.
+ * Strings/member names and array/object delimiters count toward the budget.
+ */
+export const MAX_JSON_TOKEN_COUNT = 500_000;
+
+/**
+ * Count JSON lexical tokens without parsing or constructing the value tree.
+ * Commas, colons, and whitespace are not counted.
  * @param {string} source
- * @returns {"nesting-limit" | "duplicate-keys" | "unsafe-integer" | null}
+ * @returns {boolean}
+ */
+export function exceedsJsonTokenLimit(source) {
+  let tokenCount = 0;
+
+  const countToken = () => {
+    tokenCount += 1;
+    return tokenCount > MAX_JSON_TOKEN_COUNT;
+  };
+
+  for (let index = 0; index < source.length;) {
+    const character = source[index];
+
+    if (character === '"') {
+      if (countToken()) return true;
+      index += 1;
+      while (index < source.length) {
+        if (source[index] === "\\") {
+          index += 2;
+          continue;
+        }
+        if (source[index] === '"') {
+          index += 1;
+          break;
+        }
+        index += 1;
+      }
+      continue;
+    }
+
+    if (character === " " || character === "\t" || character === "\n" || character === "\r") {
+      index += 1;
+      continue;
+    }
+
+    if (character === "{" || character === "}" || character === "[" || character === "]") {
+      if (countToken()) return true;
+      index += 1;
+      continue;
+    }
+
+    if (character === "-" || (character >= "0" && character <= "9")) {
+      if (countToken()) return true;
+      if (source[index] === "-") index += 1;
+      while (source[index] >= "0" && source[index] <= "9") index += 1;
+      if (source[index] === ".") {
+        index += 1;
+        while (source[index] >= "0" && source[index] <= "9") index += 1;
+      }
+      if (source[index] === "e" || source[index] === "E") {
+        index += 1;
+        if (source[index] === "+" || source[index] === "-") index += 1;
+        while (source[index] >= "0" && source[index] <= "9") index += 1;
+      }
+      continue;
+    }
+
+    if (character === "t") {
+      if (countToken()) return true;
+      index += 4;
+      continue;
+    }
+    if (character === "f") {
+      if (countToken()) return true;
+      index += 5;
+      continue;
+    }
+    if (character === "n") {
+      if (countToken()) return true;
+      index += 4;
+      continue;
+    }
+
+    // Native JSON.parse will report malformed tokens after the bounded scan.
+    index += 1;
+  }
+
+  return false;
+}
+
+/**
+ * Run pre-parse checks in resource-safe order. Limits must run before duplicate-key
+ * detection, which allocates a key set for each open object.
+ * @param {string} source
+ * @returns {"nesting-limit" | "token-limit" | "duplicate-keys" | "unsafe-integer" | null}
  */
 export function validateJsonInputSource(source) {
   if (exceedsJsonNestingLimit(source)) return "nesting-limit";
+  if (exceedsJsonTokenLimit(source)) return "token-limit";
   if (hasDuplicateJsonObjectKeys(source)) return "duplicate-keys";
   if (hasUnsafeIntegerJsonNumber(source)) return "unsafe-integer";
   return null;

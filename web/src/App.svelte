@@ -3,6 +3,7 @@
   import {
     hasNonFiniteJsonNumber,
     MAX_JSON_NESTING_DEPTH,
+    MAX_JSON_TOKEN_COUNT,
     validateJsonInputSource
   } from "./lib/json-input-validation.js";
   import {
@@ -65,6 +66,10 @@
       const sourceError = validateJsonInputSource(source);
       if (sourceError === "nesting-limit") {
         errorMessage = `The selected JSON exceeds the maximum nesting depth of ${MAX_JSON_NESTING_DEPTH}.`;
+        return;
+      }
+      if (sourceError === "token-limit") {
+        errorMessage = `The selected JSON exceeds the maximum token count of ${MAX_JSON_TOKEN_COUNT.toLocaleString("en")}.`;
         return;
       }
       if (sourceError === "duplicate-keys") {
