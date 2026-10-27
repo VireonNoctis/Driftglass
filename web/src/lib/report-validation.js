@@ -74,7 +74,7 @@ function isRunCoverage(value) {
   // must make each of its categories explicit in the run's coverage gaps.
   const unavailable = new Set(value.unavailable_categories);
   if (!value.event_sources.every(source =>
-    source.state === "active" || source.categories.every(category => unavailable.has(category))
+    source.state === "active" || source.categories.every((/** @type {string} */ category) => unavailable.has(category))
   )) return false;
 
   const categories = ["process", "network", "file", "system", "coverage"];
