@@ -1,10 +1,10 @@
-# Driftglass 179-milestone execution ledger
+# Driftglass 180-milestone execution ledger
 
 This is the first expansion from the prior 60-item ledger to 160 numbered milestones; the original README roadmap was phase-based rather than a pre-existing 160-item plan. **Done** means the specific implementation, regression check, or documented decision in that row exists and its evidence is recorded. **Done (deferred)** closes a planning decision only; it does not mean the underlying capability exists. The original milestones and the new 61–160 slice both include validation items for features already present in the repository. They are not a claim that all 160 capabilities were newly implemented in this session.
 
 This ledger includes three later implementation checks—strict RFC 3339 browser timestamp acceptance, the repeat-analysis source-count schema ceiling, and an aggregate byte budget for repeat input—plus an explicit deferral decision for local API security. Implementation checks are based on passing CI for the relevant code and tests. Many earlier rows make existing test coverage more granular; they must not be read as newly shipped features.
 
-**Current tally: 179/179 milestones resolved: 170 implementation/validation milestones and 9 explicit deferral decisions; 0 remaining.** A deferral resolves the planning decision, not the underlying capability or security validation; deferred work remains unimplemented or unverified where applicable.
+**Current tally: 179/180 milestones resolved: 170 implementation/validation milestones and 9 explicit deferral decisions; 1 follow-on check pending CI.** A deferral resolves the planning decision, not the underlying capability or security validation; deferred work remains unimplemented or unverified where applicable.
 
 | # | Milestone | Status | Evidence / acceptance |
 |---:|---|---|---|
@@ -211,6 +211,8 @@ The new slice contains 96 implementation/validation acceptance items and four de
 | 178 | Reject malformed UTF-8 in browser report imports | Done | Decode byte buffers with fatal UTF-8 handling before any JSON scan; tests cover valid Unicode, invalid continuation bytes, and BOM preservation; dashboard and validation-matrix docs; CI run 211 passed all four jobs |
 
 | 179 | Release raw JSON bytes after strict decoding | Done | Scope the byte buffer to the UTF-8 decoding block so the original buffer is no longer referenced during preflight scans and parsing; preserve explicit read-versus-decode error handling; CI run 214 passed all four jobs |
+
+| 180 | Prevent mismatched JSON closers from bypassing nesting limits | Pending CI | Track expected matching delimiters during the depth scan; unmatched closers no longer decrement the depth counter; regression checks malformed closers followed by over-limit nesting; dashboard and validation-matrix docs |
 
 ## CI and evidence
 
