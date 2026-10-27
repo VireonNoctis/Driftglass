@@ -4,7 +4,7 @@ This is the first expansion from the prior 60-item ledger to 160 numbered milest
 
 This ledger includes three later implementation checks—strict RFC 3339 browser timestamp acceptance, the repeat-analysis source-count schema ceiling, and an aggregate byte budget for repeat input—plus an explicit deferral decision for local API security. Implementation checks are based on passing CI for the relevant code and tests. Many earlier rows make existing test coverage more granular; they must not be read as newly shipped features.
 
-**Current tally: 177/178 milestones resolved: 168 implementation/validation milestones and 9 explicit deferral decisions; 1 follow-on check pending CI.** A deferral resolves the planning decision, not the underlying capability or security validation; deferred work remains unimplemented or unverified where applicable.
+**Current tally: 178/178 milestones resolved: 169 implementation/validation milestones and 9 explicit deferral decisions; 0 remaining.** A deferral resolves the planning decision, not the underlying capability or security validation; deferred work remains unimplemented or unverified where applicable.
 
 | # | Milestone | Status | Evidence / acceptance |
 |---:|---|---|---|
@@ -208,7 +208,7 @@ The new slice contains 96 implementation/validation acceptance items and four de
 
 | 177 | Bound aggregate JSON token count before browser parsing | Done | 500,000-token preflight runs before duplicate-key scanning; tests cover exact limit and an over-limit document containing duplicate keys; dashboard and validation-matrix docs; CI run 208 passed all four jobs |
 
-| 178 | Reject malformed UTF-8 in browser report imports | Pending CI | Decode byte buffers with fatal UTF-8 handling before any JSON scan; tests cover valid Unicode, invalid continuation bytes, and BOM preservation; dashboard and validation-matrix docs |
+| 178 | Reject malformed UTF-8 in browser report imports | Done | Decode byte buffers with fatal UTF-8 handling before any JSON scan; tests cover valid Unicode, invalid continuation bytes, and BOM preservation; dashboard and validation-matrix docs; CI run 211 passed all four jobs |
 
 ## CI and evidence
 
