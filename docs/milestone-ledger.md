@@ -1,10 +1,10 @@
-# Driftglass 175-milestone execution ledger
+# Driftglass 176-milestone execution ledger
 
 This is the first expansion from the prior 60-item ledger to 160 numbered milestones; the original README roadmap was phase-based rather than a pre-existing 160-item plan. **Done** means the specific implementation, regression check, or documented decision in that row exists and its evidence is recorded. **Done (deferred)** closes a planning decision only; it does not mean the underlying capability exists. The original milestones and the new 61–160 slice both include validation items for features already present in the repository. They are not a claim that all 160 capabilities were newly implemented in this session.
 
 This ledger includes three later implementation checks—strict RFC 3339 browser timestamp acceptance, the repeat-analysis source-count schema ceiling, and an aggregate byte budget for repeat input—plus an explicit deferral decision for local API security. Implementation checks are based on passing CI for the relevant code and tests. Many earlier rows make existing test coverage more granular; they must not be read as newly shipped features.
 
-**Current tally: 175/175 milestones resolved: 166 implementation/validation milestones and 9 explicit deferral decisions; 0 remaining.** A deferral resolves the planning decision, not the underlying capability or security validation; deferred work remains unimplemented or unverified where applicable.
+**Current tally: 175/176 milestones resolved: 166 implementation/validation milestones and 9 explicit deferral decisions; 1 follow-on check pending CI.** A deferral resolves the planning decision, not the underlying capability or security validation; deferred work remains unimplemented or unverified where applicable.
 
 | # | Milestone | Status | Evidence / acceptance |
 |---:|---|---|---|
@@ -196,7 +196,9 @@ The new slice contains 96 implementation/validation acceptance items and four de
 
 | 171 | Reject JSON numbers that overflow to non-finite browser values | Done | Shared intake check after native parsing; nested `1e400` and finite-number tests wired into `npm test`; dashboard and validation-matrix docs; CI run 190 passed all four jobs |
 
-| 172 | Reject unsafe integer-form JSON numbers before browser parsing | Done | Source-token scan uses `BigInt` before `JSON.parse`; tests cover safe boundaries, positive/negative overflow, escaped strings, and decimal/exponent exclusions; dashboard and validation-matrix docs; CI run 193 passed all four jobs |
+| 172 | Reject unsafe integer-form JSON numbers before browser parsing | Done | Source-token scan compares decimal digits before `JSON.parse`; tests cover safe boundaries, positive/negative overflow, escaped strings, and decimal/exponent exclusions; dashboard and validation-matrix docs; CI run 193 passed all four jobs |
+
+| 176 | Bound resource use when checking oversized integer JSON tokens | Pending CI | Replace unbounded `BigInt` conversion with digit-length and lexicographic comparison; add a 100,000-digit synthetic token regression; dashboard and validation-matrix docs |
 
 | 173 | Show the browser's report-ID validation boundary when displaying report-v1 | Done | Visible neutral disclosure beside loaded report metadata, local CLI validation command, dashboard and validation-matrix docs; CI run 196 passed all four jobs |
 
