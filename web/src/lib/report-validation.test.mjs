@@ -53,6 +53,40 @@ test("rejects malformed artifact hashes", () => {
   report.candidate.artifact_sha256 = "not-a-hash";
   assert.match(validateReportV1(report).message, /summary is malformed/);
 });
+test("rejects non-terminal capture status in a report", () => {
+  const report = validReport();
+  report.candidate.capture_status = "running";
+  assert.equal(validateReportV1(report).ok, false);
+});
+
+test("requires a matching uncertainty for each non-completed capture", () => {
+  const report = validReport();
+  report.candidate.capture_status = "failed";
+  report.status = "partial";
+  report.uncertainties = [{
+    code: "capture_not_completed",
+    message: "Synthetic capture failure.",
+    run_id: report.baseline.run_id
+  }];
+  report.summary.uncertainty_count = 1;
+  const result = validateReportV1(report);
+  assert.equal(result.ok, false);
+  assert.match(result.message, /candidate capture status requires a matching/);
+});
+
+test("accepts a partial report with a run-linked incomplete-capture uncertainty", () => {
+  const report = validReport();
+  report.candidate.capture_status = "incomplete";
+  report.status = "partial";
+  report.uncertainties = [{
+    code: "capture_not_completed",
+    message: "Synthetic capture was incomplete.",
+    run_id: report.candidate.run_id
+  }];
+  report.summary.uncertainty_count = 1;
+  assert.equal(validateReportV1(report).ok, true);
+});
+
 test("rejects report summary counts inconsistent with findings", () => {
   const report = validReport();
   report.summary.added_count = 2;
