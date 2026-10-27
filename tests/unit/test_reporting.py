@@ -144,6 +144,49 @@ def test_incomplete_capture_with_matching_uncertainty_is_valid():
     validate_report(report, REPORT_SCHEMA)
 
 
+def test_coverage_snapshot_gap_requires_matching_uncertainty():
+    report = make_report()
+    report["coverage"]["baseline"]["dropped_events"] = 1
+
+    with pytest.raises(
+        ReportExportError,
+        match="baseline coverage snapshot does not match uncertainty codes.*events_dropped",
+    ):
+        validate_report(report, REPORT_SCHEMA)
+
+
+def test_coverage_uncertainty_must_reference_the_run_with_the_gap():
+    report = make_report()
+    report["coverage"]["baseline"]["errors"] = ["Synthetic collector error"]
+    report["status"] = "partial"
+    report["uncertainties"] = [{
+        "code": "collection_errors",
+        "message": "Synthetic collection error.",
+        "run_id": report["candidate"]["run_id"],
+    }]
+    report["summary"]["uncertainty_count"] = 1
+
+    with pytest.raises(
+        ReportExportError,
+        match="baseline coverage snapshot does not match uncertainty codes.*collection_errors",
+    ):
+        validate_report(report, REPORT_SCHEMA)
+
+
+def test_coverage_snapshot_with_matching_uncertainty_is_valid():
+    base = manifest("baseline", "run-base", "1.0", "a" * 64)
+    candidate = manifest("candidate", "run-candidate", "2.0", "b" * 64)
+    base["coverage"]["dropped_events"] = 1
+    report = compare_loaded_runs(base, candidate, [event("evt-base")], [event("evt-candidate")])
+
+    assert report["status"] == "partial"
+    assert any(
+        item["code"] == "events_dropped" and item["run_id"] == "run-base"
+        for item in report["uncertainties"]
+    )
+    validate_report(report, REPORT_SCHEMA)
+
+
 def test_report_summary_counts_match_findings():
     report = make_report()
     report["summary"]["added_count"] += 1
