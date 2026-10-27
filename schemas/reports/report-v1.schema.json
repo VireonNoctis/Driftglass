@@ -161,6 +161,51 @@
         }
       }
     }
+,
+    {
+      "if": {
+        "properties": {
+          "baseline": {
+            "properties": {
+              "capture_status": {
+                "enum": ["incomplete", "failed"]
+              }
+            },
+            "required": ["capture_status"]
+          }
+        },
+        "required": ["baseline"]
+      },
+      "then": {
+        "properties": {
+          "status": {
+            "const": "partial"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "candidate": {
+            "properties": {
+              "capture_status": {
+                "enum": ["incomplete", "failed"]
+              }
+            },
+            "required": ["capture_status"]
+          }
+        },
+        "required": ["candidate"]
+      },
+      "then": {
+        "properties": {
+          "status": {
+            "const": "partial"
+          }
+        }
+      }
+    }
   ],
   "$defs": {
     "runSummary": {
@@ -197,7 +242,6 @@
         "capture_status": {
           "type": "string",
           "enum": [
-            "running",
             "completed",
             "incomplete",
             "failed"
