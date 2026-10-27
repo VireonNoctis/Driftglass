@@ -1,6 +1,6 @@
 <script lang="ts">
   import { validateReportV1 } from "./lib/report-validation.js";
-  import { hasDuplicateJsonObjectKeys, hasNonFiniteJsonNumber } from "./lib/json-input-validation.js";
+  import { hasDuplicateJsonObjectKeys, hasNonFiniteJsonNumber, hasUnsafeIntegerJsonNumber } from "./lib/json-input-validation.js";
   import {
     validateRepeatAnalysisV1,
     verifyRepeatAnalysisContentId
@@ -60,6 +60,10 @@
       const source = await file.text();
       if (hasDuplicateJsonObjectKeys(source)) {
         errorMessage = "The selected JSON contains duplicate object keys.";
+        return;
+      }
+      if (hasUnsafeIntegerJsonNumber(source)) {
+        errorMessage = "The selected JSON contains an integer outside the browser's safe integer range.";
         return;
       }
       const parsed: unknown = JSON.parse(source);

@@ -84,3 +84,72 @@ export function hasNonFiniteJsonNumber(value) {
   }
   return false;
 }
+
+/**
+ * Detect integer-form JSON numbers outside JavaScript's exact integer range.
+ * JSON.parse rounds these tokens before any schema or rendering code can inspect
+ * them, so compare the original decimal token using BigInt instead.
+ * @param {string} source
+ * @returns {boolean}
+ */
+export function hasUnsafeIntegerJsonNumber(source) {
+  const maxSafeInteger = BigInt(Number.MAX_SAFE_INTEGER);
+
+  for (let index = 0; index < source.length;) {
+    if (source[index] === '"') {
+      index += 1;
+      while (index < source.length) {
+        if (source[index] === "\\") {
+          index += 2;
+          continue;
+        }
+        if (source[index] === '"') {
+          index += 1;
+          break;
+        }
+        index += 1;
+      }
+      continue;
+    }
+
+    if (source[index] !== "-" && (source[index] < "0" || source[index] > "9")) {
+      index += 1;
+      continue;
+    }
+
+    const start = index;
+    if (source[index] === "-") index += 1;
+    if (source[index] < "0" || source[index] > "9") continue;
+
+    if (source[index] === "0") {
+      index += 1;
+    } else {
+      while (source[index] >= "0" && source[index] <= "9") index += 1;
+    }
+
+    let integerToken = true;
+    if (source[index] === ".") {
+      integerToken = false;
+      index += 1;
+      while (source[index] >= "0" && source[index] <= "9") index += 1;
+    }
+    if (source[index] === "e" || source[index] === "E") {
+      integerToken = false;
+      index += 1;
+      if (source[index] === "+" || source[index] === "-") index += 1;
+      while (source[index] >= "0" && source[index] <= "9") index += 1;
+    }
+
+    if (integerToken) {
+      const token = source.slice(start, index);
+      try {
+        const value = BigInt(token);
+        if (value > maxSafeInteger || value < -maxSafeInteger) return true;
+      } catch {
+        // Malformed numeric tokens remain the responsibility of JSON.parse.
+      }
+    }
+  }
+
+  return false;
+}
