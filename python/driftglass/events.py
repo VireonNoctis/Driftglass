@@ -48,7 +48,7 @@ def load_jsonl(event_path: str | Path, schema_path: str | Path) -> list[dict[str
                 f"event file exceeds the {MAX_EVENT_STREAM_BYTES}-byte stream limit"
             )
 
-        with path.open("r", encoding="utf-8") as stream:
+        with path.open("rb") as stream:
             line_number = 0
             total_bytes = 0
             while True:
@@ -58,7 +58,7 @@ def load_jsonl(event_path: str | Path, schema_path: str | Path) -> list[dict[str
                 if not line:
                     break
                 line_number += 1
-                line_bytes = len(line.encode("utf-8"))
+                line_bytes = len(line)
                 if line_bytes > MAX_EVENT_LINE_BYTES:
                     raise EventValidationError(
                         f"{path}:{line_number}: record exceeds the {MAX_EVENT_LINE_BYTES}-byte line limit"
@@ -78,8 +78,15 @@ def load_jsonl(event_path: str | Path, schema_path: str | Path) -> list[dict[str
                     )
 
                 try:
+                    decoded_line = line.decode("utf-8")
+                except UnicodeDecodeError as exc:
+                    raise EventValidationError(
+                        f"{path}:{line_number}: record contains invalid UTF-8"
+                    ) from exc
+
+                try:
                     event = json.loads(
-                        line,
+                        decoded_line,
                         parse_constant=reject_json_constant,
                         parse_float=finite_json_float,
                         object_pairs_hook=unique_json_object,
