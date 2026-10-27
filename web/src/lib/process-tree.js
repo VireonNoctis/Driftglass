@@ -141,14 +141,26 @@ export function buildProcessTree(items) {
   }
 
   /**
-   * @param {InternalNode} node
-   * @param {number} depth
+   * Flatten the process tree without using one JavaScript call frame per level.
+   * Imported reports are untrusted, and a long parent chain can exceed the browser's
+   * recursion stack even when the JSON itself is within the documented input limits.
+   * @param {InternalNode[]} roots
    * @param {ProcessTreeRow[]} rows
    */
-  function flatten(node, depth, rows) {
-    const { parent, children, finding_set, last_seen_ms, ...visibleNode } = node;
-    rows.push({ ...visibleNode, depth, finding_summaries: [...finding_set] });
-    for (const child of children) flatten(child, depth + 1, rows);
+  function flattenRoots(roots, rows) {
+    const pending = roots.slice().reverse().map(node => ({ node, depth: 0 }));
+
+    while (pending.length > 0) {
+      const entry = pending.pop();
+      if (!entry) break;
+      const { node, depth } = entry;
+      const { parent, children, finding_set, last_seen_ms, ...visibleNode } = node;
+      rows.push({ ...visibleNode, depth, finding_summaries: [...finding_set] });
+
+      for (let index = children.length - 1; index >= 0; index -= 1) {
+        pending.push({ node: children[index], depth: depth + 1 });
+      }
+    }
   }
 
   return {
@@ -161,7 +173,7 @@ export function buildProcessTree(items) {
         group.roots.sort(compareNodes);
         /** @type {ProcessTreeRow[]} */
         const rows = [];
-        for (const root of group.roots) flatten(root, 0, rows);
+        flattenRoots(group.roots, rows);
         return { run_id: group.run_id, side: group.side, rows, node_count: group.node_count };
       }),
     skipped_evidence_count: skippedEvidenceCount,
