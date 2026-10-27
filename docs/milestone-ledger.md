@@ -4,7 +4,7 @@ This is the first expansion from the prior 60-item ledger to 160 numbered milest
 
 This ledger includes three later implementation checks—strict RFC 3339 browser timestamp acceptance, the repeat-analysis source-count schema ceiling, and an aggregate byte budget for repeat input—plus an explicit deferral decision for local API security. Implementation checks are based on passing CI for the relevant code and tests. Many earlier rows make existing test coverage more granular; they must not be read as newly shipped features.
 
-**Current tally: 166/167 milestones resolved: 157 implementation/validation milestones and 9 explicit deferral decisions; 1 follow-on check pending CI.** A deferral resolves the planning decision, not the underlying capability or security validation; deferred work remains unimplemented or unverified where applicable.
+**Current tally: 167/167 milestones resolved: 158 implementation/validation milestones and 9 explicit deferral decisions; 0 remaining.** A deferral resolves the planning decision, not the underlying capability or security validation; deferred work remains unimplemented or unverified where applicable.
 
 | # | Milestone | Status | Evidence / acceptance |
 |---:|---|---|---|
@@ -186,7 +186,7 @@ The new slice contains 96 implementation/validation acceptance items and four de
 
 | 166 | Require report coverage snapshots to match their run-linked uncertainty codes | Done | Python authoritative validator, browser validator, synthetic matching/missing/wrong-run cases, report-export documentation; CI run 167 passed |
 
-| 167 | Require coverage snapshot record counts to match report summary event counts | Pending CI | Python and browser cross-field validation, synthetic mismatch tests, and report-export documentation |
+| 167 | Require coverage snapshot record counts to match report summary event counts | Done | Python and browser cross-field validation, synthetic mismatch tests, and report-export documentation; CI run 172 passed |
 
 ## CI and evidence
 
