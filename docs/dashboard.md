@@ -4,7 +4,7 @@ The Svelte viewer under web/ displays a report v1 JSON file that a user explicit
 
 ## Validation boundary
 
-The browser performs defensive structural checks and verifies evidence-link fields. It does not implement the full JSON Schema or recompute the deterministic report ID. The Python exporter and CLI remain authoritative validators. A structurally valid browser report is not a cryptographically verified export.
+For report-v1 comparison files, the browser performs defensive structural checks and verifies evidence-link fields. It does not implement the full JSON Schema or recompute the deterministic report ID. The Python exporter and CLI remain authoritative validators. A structurally valid browser report is not a cryptographically verified export.
 
 ## Privacy and security boundaries
 
@@ -31,4 +31,4 @@ The event counts represent records in the input JSONL presented to the comparato
 
 The same read-only page can open an exported repeat-analysis-v1 JSON file. It validates the cohort shape, source report IDs/statuses, partial-report list, pattern-to-report references, recurrence labels, and summary counts before displaying the result. It shows recurring and not-consistently-observed patterns separately and preserves source report/finding IDs for manual lookup in the original comparison files.
 
-The browser performs defensive structural checks; the Python exporter and repeat command remain authoritative for full JSON Schema validation and the content-derived analysis ID. Source references are not embedded evidence, and the viewer does not load other files automatically. A recurring label means the normalized pattern was present in every supplied report; it is not a maliciousness or safety verdict. Partial runs, sampling and differences in actual environment conditions can affect repeatability.
+The browser verifies the repeat-analysis content-derived `analysis_id` using the same canonical JSON rules as the Python exporter before displaying the file. This detects content/ID mismatches but is not a signature: a party can change the file and recalculate its ID. The Python exporter and repeat command remain authoritative for full JSON Schema validation. Source references are not embedded evidence, and the viewer does not load other files automatically. A recurring label means the normalized pattern was present in every supplied report; it is not a maliciousness or safety verdict. Partial runs, sampling and differences in actual environment conditions can affect repeatability.
