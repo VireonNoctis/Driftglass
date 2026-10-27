@@ -1,7 +1,7 @@
 /** @typedef {import("../types").ProcessIdentity} ProcessIdentity */
 /** @typedef {import("./evidence-timeline.js").EvidenceTimelineItem} EvidenceTimelineItem */
 
-/** Maximum process rows returned for each run/side group to keep the viewer responsive. */
+/** Maximum process rows displayed per run/side group to keep the viewer responsive. */
 export const MAX_PROCESS_TREE_ROWS_PER_GROUP = 1_000;
 
 /**
