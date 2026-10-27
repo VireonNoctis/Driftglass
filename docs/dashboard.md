@@ -12,6 +12,8 @@ The viewer has no backend, history, uploader, local storage, or collector contro
 
 The dashboard is a review surface, not an isolation boundary. Hostnames, process metadata, paths, and evidence references can be sensitive. A complete report means only that supported input gaps were not declared; it does not prove the app is safe or that every action was observed.
 
+There is no local HTTP API or backend to validate in this prototype. API access-control validation is explicitly deferred until an API is proposed; see the [decision record](decisions/local-api-security-deferral.md).
+
 
 ## Partial process relationship view
 
