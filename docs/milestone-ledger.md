@@ -1,10 +1,10 @@
-# Driftglass 173-milestone execution ledger
+# Driftglass 174-milestone execution ledger
 
 This is the first expansion from the prior 60-item ledger to 160 numbered milestones; the original README roadmap was phase-based rather than a pre-existing 160-item plan. **Done** means the specific implementation, regression check, or documented decision in that row exists and its evidence is recorded. **Done (deferred)** closes a planning decision only; it does not mean the underlying capability exists. The original milestones and the new 61–160 slice both include validation items for features already present in the repository. They are not a claim that all 160 capabilities were newly implemented in this session.
 
 This ledger includes three later implementation checks—strict RFC 3339 browser timestamp acceptance, the repeat-analysis source-count schema ceiling, and an aggregate byte budget for repeat input—plus an explicit deferral decision for local API security. Implementation checks are based on passing CI for the relevant code and tests. Many earlier rows make existing test coverage more granular; they must not be read as newly shipped features.
 
-**Current tally: 173/173 milestones resolved: 164 implementation/validation milestones and 9 explicit deferral decisions; 0 remaining.** A deferral resolves the planning decision, not the underlying capability or security validation; deferred work remains unimplemented or unverified where applicable.
+**Current tally: 173/174 milestones resolved: 164 implementation/validation milestones and 9 explicit deferral decisions; 1 follow-on check pending CI.** A deferral resolves the planning decision, not the underlying capability or security validation; deferred work remains unimplemented or unverified where applicable.
 
 | # | Milestone | Status | Evidence / acceptance |
 |---:|---|---|---|
@@ -199,6 +199,8 @@ The new slice contains 96 implementation/validation acceptance items and four de
 | 172 | Reject unsafe integer-form JSON numbers before browser parsing | Done | Source-token scan uses `BigInt` before `JSON.parse`; tests cover safe boundaries, positive/negative overflow, escaped strings, and decimal/exponent exclusions; dashboard and validation-matrix docs; CI run 193 passed all four jobs |
 
 | 173 | Show the browser's report-ID validation boundary when displaying report-v1 | Done | Visible neutral disclosure beside loaded report metadata, local CLI validation command, dashboard and validation-matrix docs; CI run 196 passed all four jobs |
+
+| 174 | Bound JSON nesting depth in browser imports | Pending CI | Shared pre-parse scan rejects nesting beyond 256 levels; tests cover the boundary and escaped string contents; dashboard and validation-matrix docs |
 
 ## CI and evidence
 
