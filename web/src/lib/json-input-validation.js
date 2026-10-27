@@ -1,4 +1,14 @@
 /**
+ * Decode user-selected JSON bytes as strict UTF-8 without replacing malformed byte sequences.
+ * Preserve a leading BOM so JSON.parse rejects it rather than silently normalizing the file.
+ * @param {ArrayBuffer | Uint8Array} bytes
+ * @returns {string}
+ */
+export function decodeJsonInputUtf8(bytes) {
+  return new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
+}
+
+/**
  * Detect duplicate object member names before native JSON.parse discards them.
  * Equality is checked after decoding JSON escapes, so "key" and "\u006bey"
  * are treated as the same property name.
