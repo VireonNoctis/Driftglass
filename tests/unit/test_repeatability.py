@@ -175,6 +175,7 @@ def test_repeat_report_inputs_enforce_aggregate_byte_limit(tmp_path, monkeypatch
     with pytest.raises(RepeatAnalysisError, match="combined repeat-analysis input exceeds"):
         load_report_files(paths, ROOT / "schemas" / "reports" / "report-v1.schema.json")
 
+
 def test_repeat_schema_caps_source_reports_at_500():
     schema = json.loads(REPEAT_SCHEMA.read_text(encoding="utf-8"))
     reports = [
@@ -211,4 +212,14 @@ def test_repeat_schema_caps_source_reports_at_500():
     }
 
     errors = list(Draft202012Validator(schema).iter_errors(value))
-    assert any(error.validator == "maxItems" and list(error.absolute_path) == ["reports"] for error in errors)
+    assert any(
+        error.validator == "maxItems" and list(error.absolute_path) == ["reports"]
+        for error in errors
+    )
+
+    value["reports"] = reports[:2]
+    errors = list(Draft202012Validator(schema).iter_errors(value))
+    assert any(
+        error.validator == "maximum" and list(error.absolute_path) == ["report_count"]
+        for error in errors
+    )
