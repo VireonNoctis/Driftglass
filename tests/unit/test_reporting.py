@@ -144,6 +144,49 @@ def test_incomplete_capture_with_matching_uncertainty_is_valid():
     validate_report(report, REPORT_SCHEMA)
 
 
+def test_coverage_snapshot_gap_requires_matching_uncertainty():
+    report = make_report()
+    report["coverage"]["baseline"]["dropped_events"] = 1
+
+    with pytest.raises(
+        ReportExportError,
+        match="baseline coverage snapshot does not match uncertainty codes.*events_dropped",
+    ):
+        validate_report(report, REPORT_SCHEMA)
+
+
+def test_coverage_uncertainty_must_reference_the_run_with_the_gap():
+    report = make_report()
+    report["coverage"]["baseline"]["errors"] = ["Synthetic collector error"]
+    report["status"] = "partial"
+    report["uncertainties"] = [{
+        "code": "collection_errors",
+        "message": "Synthetic collection error.",
+        "run_id": report["candidate"]["run_id"],
+    }]
+    report["summary"]["uncertainty_count"] = 1
+
+    with pytest.raises(
+        ReportExportError,
+        match="baseline coverage snapshot does not match uncertainty codes.*collection_errors",
+    ):
+        validate_report(report, REPORT_SCHEMA)
+
+
+def test_coverage_snapshot_with_matching_uncertainty_is_valid():
+    base = manifest("baseline", "run-base", "1.0", "a" * 64)
+    candidate = manifest("candidate", "run-candidate", "2.0", "b" * 64)
+    base["coverage"]["dropped_events"] = 1
+    report = compare_loaded_runs(base, candidate, [event("evt-base")], [event("evt-candidate")])
+
+    assert report["status"] == "partial"
+    assert any(
+        item["code"] == "events_dropped" and item["run_id"] == "run-base"
+        for item in report["uncertainties"]
+    )
+    validate_report(report, REPORT_SCHEMA)
+
+
 def test_report_summary_counts_match_findings():
     report = make_report()
     report["summary"]["added_count"] += 1
@@ -232,6 +275,13 @@ def test_canonical_json_rejects_non_finite_values():
 def test_html_report_includes_escaped_per_run_coverage_and_input_counts():
     report = make_report()
     report["coverage"]["baseline"]["errors"] = ["synthetic note <script>alert(1)</script>"]
+    report["status"] = "partial"
+    report["uncertainties"] = [{
+        "code": "collection_errors",
+        "message": "A synthetic collection error was reported.",
+        "run_id": report["baseline"]["run_id"],
+    }]
+    report["summary"]["uncertainty_count"] = 1
     report["report_id"] = __import__("hashlib").sha256(
         canonical_json({key: value for key, value in report.items() if key != "report_id"}).encode("utf-8")
     ).hexdigest()

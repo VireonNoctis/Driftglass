@@ -17,6 +17,18 @@ class ReportExportError(ValueError):
     """Raised when a report is invalid or cannot be written safely."""
 
 
+COVERAGE_CATEGORIES = frozenset({"process", "network", "file", "system", "persistence"})
+COVERAGE_UNCERTAINTY_CODES = frozenset({
+    "capture_not_completed",
+    "categories_unavailable",
+    "event_sources_not_active",
+    "events_dropped",
+    "collection_errors",
+    "coverage_not_declared",
+    "artifact_hash_missing",
+})
+
+
 def _validate_report_relationships(report: dict[str, Any]) -> None:
     """Check cross-field invariants that JSON Schema cannot express directly."""
     baseline_run_id = report["baseline"]["run_id"]
@@ -49,6 +61,52 @@ def _validate_report_relationships(report: dict[str, Any]) -> None:
             raise ReportExportError(
                 f"{role} capture status requires a matching capture_not_completed uncertainty"
             )
+
+    if report.get("coverage") is not None:
+        coverage_uncertainties = {
+            (item["code"], item["run_id"])
+            for item in report["uncertainties"]
+            if item["code"] in COVERAGE_UNCERTAINTY_CODES
+        }
+        for role in ("baseline", "candidate"):
+            run = report[role]
+            coverage = report["coverage"][role]
+            unavailable = set(coverage["unavailable_categories"])
+            active_categories = {
+                category
+                for source in coverage["event_sources"] if source["state"] == "active"
+                for category in source["categories"]
+            }
+            undeclared = COVERAGE_CATEGORIES - active_categories - unavailable
+            expected_codes: set[str] = set()
+            if run["capture_status"] != "completed":
+                expected_codes.add("capture_not_completed")
+            if unavailable:
+                expected_codes.add("categories_unavailable")
+            if any(source["state"] != "active" for source in coverage["event_sources"]):
+                expected_codes.add("event_sources_not_active")
+            if coverage["dropped_events"] > 0:
+                expected_codes.add("events_dropped")
+            if coverage["errors"]:
+                expected_codes.add("collection_errors")
+            if undeclared:
+                expected_codes.add("coverage_not_declared")
+            if run["artifact_sha256"] is None:
+                expected_codes.add("artifact_hash_missing")
+
+            actual_codes = {
+                code
+                for code, run_id in coverage_uncertainties
+                if run_id == run["run_id"]
+            }
+            missing = sorted(expected_codes - actual_codes)
+            unexpected = sorted(actual_codes - expected_codes)
+            if missing or unexpected:
+                raise ReportExportError(
+                    f"{role} coverage snapshot does not match uncertainty codes "
+                    f"(missing: {', '.join(missing) or 'none'}; "
+                    f"unexpected: {', '.join(unexpected) or 'none'})"
+                )
     if summary["baseline_behaviour_event_count"] > summary["baseline_event_count"]:
         raise ReportExportError(
             "summary.baseline_behaviour_event_count exceeds baseline_event_count"
