@@ -57,6 +57,66 @@ function isPattern(value) {
     Array.isArray(value.report_refs) && value.report_refs.length > 0 &&
     value.report_refs.every(isPatternRef);
 }
+
+/**
+ * Serialize the integer-and-string-only repeat-analysis schema using Python's
+ * canonical_json rules (sorted keys, compact separators, ASCII escapes).
+ * @param {unknown} value
+ * @returns {string}
+ */
+function canonicalRepeatAnalysisJson(value) {
+  if (value === null) return "null";
+  if (typeof value === "string") {
+    return JSON.stringify(value).replace(/[^\x00-\x7f]/g, character =>
+      `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`
+    );
+  }
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (typeof value === "number" && Number.isSafeInteger(value)) return String(value);
+  if (Array.isArray(value)) {
+    return `[${value.map(canonicalRepeatAnalysisJson).join(",")}]`;
+  }
+  if (isRecord(value)) {
+    const keys = Object.keys(value).sort();
+    return `{${keys.map(key =>
+      `${canonicalRepeatAnalysisJson(key)}:${canonicalRepeatAnalysisJson(value[key])}`
+    ).join(",")}}`;
+  }
+  throw new TypeError("Unsupported value in repeat-analysis canonical JSON");
+}
+
+/**
+ * Verify the repeat-analysis content ID created by Python's canonical_json.
+ * @param {import("../types").RepeatAnalysisV1} analysis
+ * @returns {Promise<{ok: true} | {ok: false, message: string}>}
+ */
+export async function verifyRepeatAnalysisContentId(analysis) {
+  const cryptoProvider = globalThis.crypto;
+  if (!cryptoProvider?.subtle || typeof TextEncoder === "undefined") {
+    return {
+      ok: false,
+      message: "This browser environment cannot verify the repeat-analysis content ID."
+    };
+  }
+
+  try {
+    const { analysis_id: actualId, ...core } = analysis;
+    const bytes = new TextEncoder().encode(canonicalRepeatAnalysisJson(core));
+    const digest = await cryptoProvider.subtle.digest("SHA-256", bytes);
+    const expectedId = Array.from(new Uint8Array(digest), byte =>
+      byte.toString(16).padStart(2, "0")
+    ).join("");
+    if (actualId !== expectedId) {
+      return { ok: false, message: "The repeat-analysis ID does not match its content." };
+    }
+    return { ok: true };
+  } catch {
+    return {
+      ok: false,
+      message: "The repeat-analysis content ID could not be verified in this browser."
+    };
+  }
+}
 /** @param {unknown} value @returns {value is import("../types").RepeatAnalysisV1["summary"]} */
 function isSummary(value) {
   return isRecord(value) && isCount(value.recurring_pattern_count) &&
@@ -66,7 +126,7 @@ function isSummary(value) {
 
 /**
  * Browser-side defensive checks for repeat-analysis-v1.
- * Python remains authoritative for schema validation and the content-derived ID.
+ * Python remains authoritative for full JSON Schema validation; the content ID is also verified here.
  * @param {unknown} value
  * @returns {{ok: true, analysis: import("../types").RepeatAnalysisV1} | {ok: false, message: string}}
  */

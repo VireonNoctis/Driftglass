@@ -1,6 +1,9 @@
 <script lang="ts">
   import { validateReportV1 } from "./lib/report-validation.js";
-  import { validateRepeatAnalysisV1 } from "./lib/repeat-analysis-validation.js";
+  import {
+    validateRepeatAnalysisV1,
+    verifyRepeatAnalysisContentId
+  } from "./lib/repeat-analysis-validation.js";
   import { buildEvidenceTimeline } from "./lib/evidence-timeline.js";
   import { buildCoverageMatrix } from "./lib/coverage-matrix.js";
   import { buildProcessTree } from "./lib/process-tree.js";
@@ -58,6 +61,11 @@
         const result = validateRepeatAnalysisV1(parsed);
         if (!result.ok) {
           errorMessage = result.message;
+          return;
+        }
+        const integrity = await verifyRepeatAnalysisContentId(result.analysis);
+        if (!integrity.ok) {
+          errorMessage = integrity.message;
           return;
         }
         repeatAnalysis = result.analysis;
