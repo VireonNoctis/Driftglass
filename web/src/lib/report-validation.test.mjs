@@ -230,6 +230,24 @@ function validCoverageSnapshot(overrides = {}, eventCount = 1) {
   };
 }
 
+test("rejects behaviour event counts inconsistent with profile categories", () => {
+  const report = validReport();
+  report.coverage = {
+    baseline: validCoverageSnapshot(),
+    candidate: validCoverageSnapshot({}, 2)
+  };
+  report.comparison_profile = {
+    profile_id: "test-profile",
+    sha256: sha,
+    included_categories: ["network"],
+    ignored_attributes: []
+  };
+  report.summary.baseline_behaviour_event_count = 0;
+  const result = validateReportV1(report);
+  assert.equal(result.ok, false);
+  assert.match(result.message, /baseline behaviour event count does not match coverage counts for the comparison profile/);
+});
+
 test("rejects coverage record counts that differ from the report summary", () => {
   const report = validReport();
   report.coverage = {

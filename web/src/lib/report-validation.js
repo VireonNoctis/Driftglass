@@ -292,6 +292,22 @@ export function validateReportV1(value) {
       }
     }
   }
+  if (value.coverage !== undefined && value.comparison_profile !== undefined) {
+    for (const [role, runCoverage] of [
+      ["baseline", value.coverage.baseline],
+      ["candidate", value.coverage.candidate]
+    ]) {
+      const expectedBehaviourCount = value.comparison_profile.included_categories
+        .reduce((/** @type {number} */ total, /** @type {string} */ category) =>
+          total + runCoverage.recorded_event_counts[category], 0);
+      if (expectedBehaviourCount !== summary[`${role}_behaviour_event_count`]) {
+        return {
+          ok: false,
+          message: `The ${role} behaviour event count does not match coverage counts for the comparison profile.`
+        };
+      }
+    }
+  }
   for (const type of ["added", "removed", "changed"]) {
     if (summary[type + "_count"] !== value.findings.filter((finding) => finding.change_type === type).length) {
       return { ok: false, message: "Finding counts do not match the report summary." };
