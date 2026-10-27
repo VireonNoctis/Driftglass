@@ -6,7 +6,7 @@ Validation must establish what the tool captures, what it misses, and whether ea
 
 | Layer | Required cases | Pass condition |
 |---|---|---|
-| Schema | Missing fields, unknown version, invalid enum, duplicate JSON object keys, over-limit event stream/line/count | Clear and deterministic rejection; browser intake and Python parsing reject ambiguous duplicate members |
+| Schema | Missing fields, unknown version, invalid enum, duplicate JSON object keys, JSON exponent values that overflow to non-finite numbers, over-limit event stream/line/count | Clear and deterministic rejection; browser and Python reject duplicate members and overflowed numeric values |
 | Observer | Missing permissions, short-lived process, inaccessible PID, polling error | Gaps and errors are visible |
 | Normalization | Equivalent platform events, unknown fields, repeated events | Stable output without invented values |
 | Comparison | Added, removed, modified, reordered and duplicate events; volatile local TCP source ports; ambiguous events | Correct finding type and evidence link; equivalent synthetic runs have no findings for covered noise |
