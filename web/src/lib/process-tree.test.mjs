@@ -69,3 +69,22 @@ test("deduplicates process nodes while counting each evidence event", () => {
   assert.equal(result.groups[0].rows[0].event_count, 2);
   assert.deepEqual(result.groups[0].rows[0].finding_summaries, ["first finding", "second finding"]);
 });
+
+
+test("flattens a long linked process chain without overflowing the call stack", () => {
+  const count = 12_000;
+  const items = Array.from({ length: count }, (_, index) =>
+    item("deep-run", "baseline", index + 2, index + 1, index + 2, "event-" + index)
+  );
+
+  const result = buildProcessTree(items);
+  const rows = result.groups[0].rows;
+
+  assert.equal(result.node_count, count);
+  assert.equal(rows.length, count);
+  assert.equal(rows[0].pid, 2);
+  assert.equal(rows[0].depth, 0);
+  assert.equal(rows[count - 1].pid, count + 1);
+  assert.equal(rows[count - 1].depth, count - 1);
+  assert.equal(rows[count - 1].parent_status, "linked");
+});
