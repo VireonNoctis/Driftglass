@@ -153,3 +153,44 @@ export function hasUnsafeIntegerJsonNumber(source) {
 
   return false;
 }
+
+/** Upper bound for nesting in user-selected browser imports. */
+export const MAX_JSON_NESTING_DEPTH = 256;
+
+/**
+ * Reject excessively nested JSON before UI helpers recursively serialize evidence.
+ * Braces and brackets inside JSON strings are ignored.
+ * @param {string} source
+ * @returns {boolean}
+ */
+export function exceedsJsonNestingLimit(source) {
+  let depth = 0;
+
+  for (let index = 0; index < source.length;) {
+    if (source[index] === '"') {
+      index += 1;
+      while (index < source.length) {
+        if (source[index] === "\\") {
+          index += 2;
+          continue;
+        }
+        if (source[index] === '"') {
+          index += 1;
+          break;
+        }
+        index += 1;
+      }
+      continue;
+    }
+
+    if (source[index] === "{" || source[index] === "[") {
+      depth += 1;
+      if (depth > MAX_JSON_NESTING_DEPTH) return true;
+    } else if (source[index] === "}" || source[index] === "]") {
+      depth -= 1;
+    }
+    index += 1;
+  }
+
+  return false;
+}
