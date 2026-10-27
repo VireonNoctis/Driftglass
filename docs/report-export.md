@@ -2,6 +2,8 @@
 
 The reporting module accepts a comparison report object, validates it against the versioned report schema, and verifies that the deterministic report ID matches its content before writing anything.
 
+A report can only describe stopped captures: `running` is not a valid final-report run status. A run marked `incomplete` or `failed` makes the report `partial` and must have a `capture_not_completed` uncertainty linked to that same run ID. The Python validator and browser viewer both check this relationship so a failed run cannot be presented as a complete comparison.
+
 ## Python API
 
 The exporter is available as a Python library and through the local developer CLI (driftglass compare and driftglass history export).
