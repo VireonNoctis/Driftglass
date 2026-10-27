@@ -4,7 +4,7 @@ This is the first expansion from the prior 60-item ledger to 160 numbered milest
 
 This ledger includes three later implementation checks—strict RFC 3339 browser timestamp acceptance, the repeat-analysis source-count schema ceiling, and an aggregate byte budget for repeat input—plus an explicit deferral decision for local API security. Implementation checks are based on passing CI for the relevant code and tests. Many earlier rows make existing test coverage more granular; they must not be read as newly shipped features.
 
-**Current tally: 179/180 milestones resolved: 170 implementation/validation milestones and 9 explicit deferral decisions; 1 follow-on check pending CI.** A deferral resolves the planning decision, not the underlying capability or security validation; deferred work remains unimplemented or unverified where applicable.
+**Current tally: 180/180 milestones resolved: 171 implementation/validation milestones and 9 explicit deferral decisions; 0 remaining.** A deferral resolves the planning decision, not the underlying capability or security validation; deferred work remains unimplemented or unverified where applicable.
 
 | # | Milestone | Status | Evidence / acceptance |
 |---:|---|---|---|
@@ -212,7 +212,7 @@ The new slice contains 96 implementation/validation acceptance items and four de
 
 | 179 | Release raw JSON bytes after strict decoding | Done | Scope the byte buffer to the UTF-8 decoding block so the original buffer is no longer referenced during preflight scans and parsing; preserve explicit read-versus-decode error handling; CI run 214 passed all four jobs |
 
-| 180 | Prevent mismatched JSON closers from bypassing nesting limits | Pending CI | Track expected matching delimiters during the depth scan; unmatched closers no longer decrement the depth counter; regression checks malformed closers followed by over-limit nesting; dashboard and validation-matrix docs |
+| 180 | Prevent mismatched JSON closers from bypassing nesting limits | Done | Track expected matching delimiters during the depth scan; unmatched closers no longer decrement the depth counter; regression checks malformed closers followed by over-limit nesting; dashboard and validation-matrix docs; CI run 217 passed all four jobs |
 
 ## CI and evidence
 
