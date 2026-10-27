@@ -23,7 +23,7 @@ function isRun(value) {
     isText(value.version) &&
     (value.artifact_sha256 === null ||
       (typeof value.artifact_sha256 === "string" && /^[a-f0-9]{64}$/.test(value.artifact_sha256))) &&
-    ["running", "completed", "incomplete", "failed"].includes(value.capture_status);
+    ["completed", "incomplete", "failed"].includes(value.capture_status);
 }
 /** @param {unknown} value @returns {boolean} */
 function isProcessIdentity(value) {
@@ -196,6 +196,21 @@ export function validateReportV1(value) {
   const knownRunIds = new Set([value.baseline.run_id, value.candidate.run_id]);
   if (value.uncertainties.some(item => item.run_id !== null && !knownRunIds.has(item.run_id))) {
     return { ok: false, message: "An uncertainty references a run outside this comparison." };
+  }
+
+  for (const [role, run] of [
+    ["baseline", value.baseline],
+    ["candidate", value.candidate]
+  ]) {
+    if (run.capture_status !== "completed" &&
+        !value.uncertainties.some(item =>
+          item.code === "capture_not_completed" && item.run_id === run.run_id
+        )) {
+      return {
+        ok: false,
+        message: `The ${role} capture status requires a matching capture_not_completed uncertainty.`
+      };
+    }
   }
   const summary = value.summary;
   const keys = [
