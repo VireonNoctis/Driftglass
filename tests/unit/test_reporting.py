@@ -155,6 +155,17 @@ def test_coverage_snapshot_gap_requires_matching_uncertainty():
         validate_report(report, REPORT_SCHEMA)
 
 
+def test_behaviour_event_count_matches_profile_categories_in_coverage():
+    report = make_report()
+    report["summary"]["baseline_behaviour_event_count"] = 0
+
+    with pytest.raises(
+        ReportExportError,
+        match="baseline behaviour event count does not match coverage counts",
+    ):
+        validate_report(report, REPORT_SCHEMA)
+
+
 def test_coverage_record_count_must_match_report_summary():
     report = make_report()
     report["coverage"]["baseline"]["recorded_event_counts"]["network"] += 1
