@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { hasDuplicateJsonObjectKeys, hasNonFiniteJsonNumber, hasUnsafeIntegerJsonNumber } from "./json-input-validation.js";
+import {
+  hasDuplicateJsonObjectKeys,
+  hasNonFiniteJsonNumber,
+  hasUnsafeIntegerJsonNumber,
+  exceedsJsonNestingLimit,
+  MAX_JSON_NESTING_DEPTH
+} from "./json-input-validation.js";
 
 test("detects duplicate object keys", () => {
   assert.equal(hasDuplicateJsonObjectKeys('{"a":1,"a":2}'), true);
@@ -47,4 +53,17 @@ test("allows safe integer boundaries and non-integer numeric spellings", () => {
 test("ignores unsafe-looking integers within escaped JSON strings", () => {
   const source = JSON.stringify({ note: 'text "9007199254740993" and slash \\', value: 1 });
   assert.equal(hasUnsafeIntegerJsonNumber(source), false);
+});
+
+test("rejects JSON nested beyond the configured limit", () => {
+  const atLimit = "[".repeat(MAX_JSON_NESTING_DEPTH) + "0" + "]".repeat(MAX_JSON_NESTING_DEPTH);
+  const tooDeep = "[".repeat(MAX_JSON_NESTING_DEPTH + 1) + "0" + "]".repeat(MAX_JSON_NESTING_DEPTH + 1);
+
+  assert.equal(exceedsJsonNestingLimit(atLimit), false);
+  assert.equal(exceedsJsonNestingLimit(tooDeep), true);
+});
+
+test("ignores brackets, braces, and escaped quotes inside JSON strings", () => {
+  const source = JSON.stringify({ note: 'text "[" and brace } with slash \\', child: [] });
+  assert.equal(exceedsJsonNestingLimit(source), false);
 });
