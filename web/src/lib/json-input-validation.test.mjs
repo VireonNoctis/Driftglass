@@ -110,3 +110,13 @@ test("preserves a UTF-8 BOM so JSON.parse can reject the non-JSON prefix", () =>
   assert.equal(source.charCodeAt(0), 0xfeff);
   assert.throws(() => JSON.parse(source), SyntaxError);
 });
+
+test("unmatched closing delimiters cannot cancel nested JSON depth", () => {
+  const unmatchedClosers = "]".repeat(MAX_JSON_NESTING_DEPTH + 1);
+  const nestedObjects = "{".repeat(MAX_JSON_NESTING_DEPTH + 1) +
+    "}".repeat(MAX_JSON_NESTING_DEPTH + 1);
+  const source = unmatchedClosers + nestedObjects;
+
+  assert.equal(exceedsJsonNestingLimit(source), true);
+  assert.equal(validateJsonInputSource(source), "nesting-limit");
+});

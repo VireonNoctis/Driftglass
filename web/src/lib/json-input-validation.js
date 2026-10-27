@@ -179,7 +179,8 @@ export const MAX_JSON_NESTING_DEPTH = 256;
  * @returns {boolean}
  */
 export function exceedsJsonNestingLimit(source) {
-  let depth = 0;
+  /** @type {("}" | "]")[]} */
+  const expectedClosers = [];
 
   for (let index = 0; index < source.length;) {
     if (source[index] === '"') {
@@ -198,11 +199,18 @@ export function exceedsJsonNestingLimit(source) {
       continue;
     }
 
-    if (source[index] === "{" || source[index] === "[") {
-      depth += 1;
-      if (depth > MAX_JSON_NESTING_DEPTH) return true;
+    if (source[index] === "{") {
+      expectedClosers.push("}");
+      if (expectedClosers.length > MAX_JSON_NESTING_DEPTH) return true;
+    } else if (source[index] === "[") {
+      expectedClosers.push("]");
+      if (expectedClosers.length > MAX_JSON_NESTING_DEPTH) return true;
     } else if (source[index] === "}" || source[index] === "]") {
-      depth -= 1;
+      // Ignore unmatched or mismatched closers for resource accounting. The
+      // native JSON parser will reject malformed syntax after preflight.
+      if (expectedClosers[expectedClosers.length - 1] === source[index]) {
+        expectedClosers.pop();
+      }
     }
     index += 1;
   }
