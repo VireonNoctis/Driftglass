@@ -27,19 +27,20 @@ class RepeatAnalysisError(ValueError):
     """Raised when reports cannot be safely grouped or analysed."""
 
 
-def load_report_file(
+def _load_report_file(
     report_path: str | Path,
     report_schema_path: str | Path,
-) -> dict[str, Any]:
-    """Load strict JSON and validate the source report before aggregation."""
+    *,
+    max_bytes: int,
+    too_large_message: str,
+) -> tuple[dict[str, Any], int]:
+    """Load a report under a caller-supplied byte limit and validate it."""
     path = Path(report_path).expanduser()
     try:
         with path.open("rb") as stream:
-            raw = stream.read(MAX_REPORT_FILE_BYTES + 1)
-        if len(raw) > MAX_REPORT_FILE_BYTES:
-            raise RepeatAnalysisError(
-                f"comparison report exceeds the {MAX_REPORT_FILE_BYTES}-byte file limit"
-            )
+            raw = stream.read(max_bytes + 1)
+        if len(raw) > max_bytes:
+            raise RepeatAnalysisError(too_large_message)
         report = json.loads(
             raw.decode("utf-8"),
             parse_constant=reject_json_constant,
@@ -57,8 +58,59 @@ def load_report_file(
         validate_report(report, report_schema_path)
     except ReportExportError as exc:
         raise RepeatAnalysisError(f"invalid comparison report '{path}': {exc}") from exc
+    return report, len(raw)
+
+
+def load_report_file(
+    report_path: str | Path,
+    report_schema_path: str | Path,
+) -> dict[str, Any]:
+    """Load one source report with the per-file byte limit."""
+    report, _ = _load_report_file(
+        report_path,
+        report_schema_path,
+        max_bytes=MAX_REPORT_FILE_BYTES,
+        too_large_message=(
+            f"comparison report exceeds the {MAX_REPORT_FILE_BYTES}-byte file limit"
+        ),
+    )
     return report
 
+
+def load_report_files(
+    report_paths: list[str | Path],
+    report_schema_path: str | Path,
+) -> list[dict[str, Any]]:
+    """Load repeat-analysis inputs under per-file and aggregate byte limits."""
+    if len(report_paths) > 500:
+        raise RepeatAnalysisError("repeat analysis accepts at most 500 reports")
+
+    reports: list[dict[str, Any]] = []
+    total_bytes = 0
+    for report_path in report_paths:
+        remaining_bytes = MAX_REPEAT_REPORT_BYTES - total_bytes
+        if remaining_bytes <= 0:
+            raise RepeatAnalysisError(
+                f"combined repeat-analysis input exceeds the {MAX_REPEAT_REPORT_BYTES}-byte limit"
+            )
+        file_limit = min(MAX_REPORT_FILE_BYTES, remaining_bytes)
+        if remaining_bytes < MAX_REPORT_FILE_BYTES:
+            too_large_message = (
+                f"combined repeat-analysis input exceeds the {MAX_REPEAT_REPORT_BYTES}-byte limit"
+            )
+        else:
+            too_large_message = (
+                f"comparison report exceeds the {MAX_REPORT_FILE_BYTES}-byte file limit"
+            )
+        report, byte_count = _load_report_file(
+            report_path,
+            report_schema_path,
+            max_bytes=file_limit,
+            too_large_message=too_large_message,
+        )
+        reports.append(report)
+        total_bytes += byte_count
+    return reports
 
 def _observed_signature(
     evidence: dict[str, Any], ignored_attributes: set[str]
