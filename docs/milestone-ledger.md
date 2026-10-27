@@ -1,10 +1,10 @@
-# Driftglass 163-milestone execution ledger
+# Driftglass 164-milestone execution ledger
 
 This is the first expansion from the prior 60-item ledger to 160 numbered milestones; the original README roadmap was phase-based rather than a pre-existing 160-item plan. **Done** means the specific implementation, regression check, or documented decision in that row exists and its evidence is recorded. **Done (deferred)** closes a planning decision only; it does not mean the underlying capability exists. The original milestones and the new 61–160 slice both include validation items for features already present in the repository. They are not a claim that all 160 capabilities were newly implemented in this session.
 
-This ledger includes three later follow-on checks: strict RFC 3339 browser timestamp acceptance, the repeat-analysis source-count schema ceiling, and an aggregate byte budget for repeat input. Their status is based on passing CI for the relevant implementation and tests. Many earlier rows make existing test coverage more granular; they must not be read as newly shipped features.
+This ledger includes three later implementation checks—strict RFC 3339 browser timestamp acceptance, the repeat-analysis source-count schema ceiling, and an aggregate byte budget for repeat input—plus an explicit deferral decision for local API security. Implementation checks are based on passing CI for the relevant code and tests. Many earlier rows make existing test coverage more granular; they must not be read as newly shipped features.
 
-**Current tally: 163/163 milestones resolved: 155 implementation/validation milestones and 8 explicit deferral decisions; 0 remaining.** The eight deferred capabilities remain unavailable or unimplemented. A resolved roadmap decision is not a platform-support claim.
+**Current tally: 164/164 milestones resolved: 155 implementation/validation milestones and 9 explicit deferral decisions; 0 remaining.** The nine deferred capabilities remain unavailable or unimplemented. A resolved roadmap decision is not a platform-support claim.
 
 | # | Milestone | Status | Evidence / acceptance |
 |---:|---|---|---|
@@ -179,6 +179,8 @@ The new slice contains 96 implementation/validation acceptance items and four de
 | 161 | Accept RFC 3339 lowercase `t`/`z` timestamp designators in browser evidence | Done | Browser validator and lower-case/mixed-case timestamp regression tests |
 | 162 | Enforce the 500-source-report repeat-analysis ceiling in JSON Schema as well as code | Done | `schemas/reports/repeat-analysis-v1.schema.json`; `test_repeat_schema_caps_source_reports_at_500`; Python/browser limits already exist |
 | 163 | Bound the aggregate bytes of repeat-analysis source reports | Done | 64 MiB per-file limit plus 256 MiB aggregate loader cap; CLI regression test and documented limits |
+
+| 164 | Formally defer local API access-control validation until an API exists | Done (deferred) | `docs/decisions/local-api-security-deferral.md`; architecture and dashboard documents confirm the current product is file-based and has no local HTTP API |
 
 ## CI and evidence
 
