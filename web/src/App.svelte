@@ -1,5 +1,6 @@
 <script lang="ts">
   import { validateReportV1 } from "./lib/report-validation.js";
+  import { hasDuplicateJsonObjectKeys } from "./lib/json-input-validation.js";
   import {
     validateRepeatAnalysisV1,
     verifyRepeatAnalysisContentId
@@ -56,7 +57,12 @@
         errorMessage = "Choose a JSON report exported by Driftglass.";
         return;
       }
-      const parsed: unknown = JSON.parse(await file.text());
+      const source = await file.text();
+      if (hasDuplicateJsonObjectKeys(source)) {
+        errorMessage = "The selected JSON contains duplicate object keys.";
+        return;
+      }
+      const parsed: unknown = JSON.parse(source);
       if (isRepeatAnalysisInput(parsed)) {
         const result = validateRepeatAnalysisV1(parsed);
         if (!result.ok) {
