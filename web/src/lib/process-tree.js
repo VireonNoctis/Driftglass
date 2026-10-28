@@ -213,3 +213,18 @@ export function prepareProcessTreeForDisplay(group) {
     omitted_node_count: Math.max(0, group.node_count - rows.length),
   };
 }
+
+/** Maximum indentation depth used to display process relationships. */
+export const MAX_PROCESS_TREE_INDENT_DEPTH = 8;
+
+/**
+ * Keep deeply nested process rows inside the viewport while preserving true depth
+ * in the row data for textual inspection.
+ * @param {number} depth
+ * @returns {number} Padding in CSS pixels.
+ */
+export function processTreeIndentPixels(depth) {
+  const safeDepth = Number.isSafeInteger(depth) && depth > 0 ? depth : 0;
+  return 12 + Math.min(safeDepth, MAX_PROCESS_TREE_INDENT_DEPTH) * 20;
+}
+
