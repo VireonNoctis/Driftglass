@@ -1,6 +1,9 @@
 /** @typedef {import("../types").ProcessIdentity} ProcessIdentity */
 /** @typedef {import("./evidence-timeline.js").EvidenceTimelineItem} EvidenceTimelineItem */
 
+/** Maximum process rows displayed per run/side group to keep the viewer responsive. */
+export const MAX_PROCESS_TREE_ROWS_PER_GROUP = 1_000;
+
 /**
  * @typedef {Object} InternalNode
  * @property {string} key
@@ -98,6 +101,12 @@ export function buildProcessTree(items) {
     entries.push(node);
     byRunPid.set(index, entries);
   }
+  for (const entries of byRunPid.values()) {
+    entries.sort((left, right) =>
+      left.start_time_ticks - right.start_time_ticks ||
+      left.key.localeCompare(right.key)
+    );
+  }
 
   for (const node of nodesByKey.values()) {
     if (node.parent_pid === 0 || node.parent_pid === node.pid) {
@@ -105,11 +114,19 @@ export function buildProcessTree(items) {
       continue;
     }
 
-    const candidates = (byRunPid.get(node.run_id + "\u0000" + node.parent_pid) ?? [])
-      .filter(parent => parent.start_time_ticks < node.start_time_ticks)
-      .sort((left, right) => right.start_time_ticks - left.start_time_ticks);
+    const candidates = byRunPid.get(node.run_id + "\u0000" + node.parent_pid) ?? [];
+    let low = 0;
+    let high = candidates.length;
+    while (low < high) {
+      const middle = low + Math.floor((high - low) / 2);
+      if (candidates[middle].start_time_ticks < node.start_time_ticks) {
+        low = middle + 1;
+      } else {
+        high = middle;
+      }
+    }
 
-    const parent = candidates[0];
+    const parent = low > 0 ? candidates[low - 1] : undefined;
     if (parent) {
       node.parent = parent;
       node.parent_status = "linked";
@@ -178,5 +195,21 @@ export function buildProcessTree(items) {
       }),
     skipped_evidence_count: skippedEvidenceCount,
     node_count: nodesByKey.size,
+  };
+}
+
+
+/**
+ * Bound only the rows rendered in the browser; keep the complete derived tree
+ * available for counts and deterministic analysis.
+ * @param {{run_id:string, side:"baseline"|"candidate", rows:ProcessTreeRow[], node_count:number}} group
+ * @returns {{run_id:string, side:"baseline"|"candidate", rows:ProcessTreeRow[], node_count:number, omitted_node_count:number}}
+ */
+export function prepareProcessTreeForDisplay(group) {
+  const rows = group.rows.slice(0, MAX_PROCESS_TREE_ROWS_PER_GROUP);
+  return {
+    ...group,
+    rows,
+    omitted_node_count: Math.max(0, group.node_count - rows.length),
   };
 }
