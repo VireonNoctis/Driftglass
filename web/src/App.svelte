@@ -13,7 +13,7 @@
   } from "./lib/repeat-analysis-validation.js";
   import { buildEvidenceTimeline } from "./lib/evidence-timeline.js";
   import { buildCoverageMatrix } from "./lib/coverage-matrix.js";
-  import { buildProcessTree, prepareProcessTreeForDisplay } from "./lib/process-tree.js";
+  import { buildProcessTree, prepareProcessTreeForDisplay, processTreeIndentPixels } from "./lib/process-tree.js";
   import type { Finding, ReportV1, RepeatAnalysisV1 } from "./types";
 
   const MAX_FILE_BYTES = 20 * 1024 * 1024;
@@ -333,11 +333,11 @@
                   {/if}
                   <ol class="process-tree-list" aria-label={group.side + " process relationships for " + group.run_id}>
                     {#each group.rows as node (node.key)}
-                      <li class="process-tree-row" style={"padding-left: " + (12 + node.depth * 20) + "px"}>
+                      <li class="process-tree-row" style={"padding-left: " + processTreeIndentPixels(node.depth) + "px"}>
                         <span class="tree-guide" aria-hidden="true">{node.depth > 0 ? "↳" : "●"}</span>
                         <div class="process-tree-body">
                           <div class="process-tree-main"><strong>{node.executable || "Executable unavailable"}</strong><code>PID {node.pid}</code><code>PPID {node.parent_pid}</code></div>
-                          <p class="process-tree-meta">Procfs start tick {node.start_time_ticks} · {formatCount(node.event_count)} referenced event(s) · Last seen {node.last_seen}</p>
+                          <p class="process-tree-meta">Depth {formatCount(node.depth)} · Procfs start tick {node.start_time_ticks} · {formatCount(node.event_count)} referenced event(s) · Last seen {node.last_seen}</p>
                           {#if node.parent_status === "not-in-evidence"}
                             <p class="process-tree-warning">Parent PID {node.parent_pid} has no earlier process identity in this run's visible finding evidence; no parent link was inferred.</p>
                           {:else if node.parent_status === "root" && node.parent_pid !== 0 && node.parent_pid !== node.pid}
