@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildProcessTree, MAX_PROCESS_TREE_ROWS_PER_GROUP, prepareProcessTreeForDisplay } from "./process-tree.js";
+import {
+  buildProcessTree,
+  MAX_PROCESS_TREE_INDENT_DEPTH,
+  MAX_PROCESS_TREE_ROWS_PER_GROUP,
+  prepareProcessTreeForDisplay,
+  processTreeIndentPixels
+} from "./process-tree.js";
 
 function item(run_id, side, pid, parent_pid, start_time_ticks, event_id, summary = event_id) {
   return {
@@ -87,6 +93,16 @@ test("deduplicates process nodes while counting each evidence event", () => {
   assert.deepEqual(result.groups[0].rows[0].finding_summaries, ["first finding", "second finding"]);
 });
 
+
+test("caps display indentation without truncating measured process depth", () => {
+  assert.equal(processTreeIndentPixels(0), 12);
+  assert.equal(processTreeIndentPixels(1), 32);
+  assert.equal(processTreeIndentPixels(MAX_PROCESS_TREE_INDENT_DEPTH), 172);
+  assert.equal(processTreeIndentPixels(MAX_PROCESS_TREE_INDENT_DEPTH + 1), 172);
+  assert.equal(processTreeIndentPixels(7_999), 172);
+  assert.equal(processTreeIndentPixels(-1), 12);
+  assert.equal(processTreeIndentPixels(Number.NaN), 12);
+});
 
 test("flattens a long linked process chain without overflowing the call stack", () => {
   const count = 8_000;
