@@ -1,10 +1,10 @@
-# Driftglass 185-milestone execution ledger
+# Driftglass 186-milestone execution ledger
 
 This is the first expansion from the prior 60-item ledger to 160 numbered milestones; the original README roadmap was phase-based rather than a pre-existing 160-item plan. **Done** means the specific implementation, regression check, or documented decision in that row exists and its evidence is recorded. **Done (deferred)** closes a planning decision only; it does not mean the underlying capability exists. The original milestones and the new 61–160 slice both include validation items for features already present in the repository. They are not a claim that all 160 capabilities were newly implemented in this session.
 
 This ledger includes later implementation checks for strict RFC 3339 browser timestamp acceptance, the repeat-analysis source-count schema ceiling, an aggregate byte budget for repeat input, and collision-safe evidence timeline identity, plus an explicit deferral decision for local API security. Implementation checks are based on passing CI for the relevant code and tests. Many earlier rows make existing test coverage more granular; they must not be read as newly shipped features.
 
-**Current tally: 182/185 milestones resolved: 173 implementation/validation milestones and 9 explicit deferral decisions; milestones 183–185 are pending CI.** A deferral resolves the planning decision, not the underlying capability or security validation; deferred work remains unimplemented or unverified where applicable.
+**Current tally: 182/186 milestones resolved: 173 implementation/validation milestones and 9 explicit deferral decisions; milestones 183–186 are pending CI.** A deferral resolves the planning decision, not the underlying capability or security validation; deferred work remains unimplemented or unverified where applicable.
 
 | # | Milestone | Status | Evidence / acceptance |
 |---:|---|---|---|
@@ -219,6 +219,7 @@ The new slice contains 96 implementation/validation acceptance items and four de
 | 183 | Bound visible process-tree indentation while preserving actual depth | Pending CI | Visual indentation stops increasing after eight levels while each row displays its computed depth; Node.js 22 focused process-tree suite passed 8/8, including boundary, invalid-depth, and 8,000-node cases. Full GitHub Actions validation pending. |
 | 184 | Preserve all finding links for deduplicated timeline evidence | Pending CI | One run/event reference remains one timeline entry while every unique finding ID is retained in deterministic order and rendered; process-tree summaries include each linked finding. Node.js 22 focused timeline suite passed 3/3 and process-tree suite passed 8/8; full GitHub Actions validation pending. |
 | 185 | Make evidence timeline identity keys collision-safe | Pending CI | Tuple-encoded `(run_id, event_id)` keys are shared by timeline deduplication, deterministic tie-breaking, and rendered timeline rows; synthetic regressions cover NUL and colon delimiter collisions. Full GitHub Actions validation pending. |
+| 186 | Preserve unrelated files on manifest write failure | Pending CI | Manifest writer records the created file's device/inode and only removes the partial output if the path still references that file. Regressions cover pre-existing target preservation and replacement during synthetic serialization failure. Full Python suite and GitHub Actions validation pending. |
 
 ## CI and evidence
 
