@@ -34,7 +34,6 @@ It is intended for security researchers, privacy-conscious users, maintainers, a
 - [Experimental local report viewer](docs/dashboard.md)
 - [Experimental Linux observer](docs/linux-observer.md)
 - [Platform capability matrix](docs/platform-capabilities.md)
-- [186-milestone execution ledger](docs/milestone-ledger.md)
 - [Research notes](docs/research-notes.md)
 - [Mitigation strategy](docs/mitigation-strategy.md)
 - [Architecture research](docs/architecture-research.md)
