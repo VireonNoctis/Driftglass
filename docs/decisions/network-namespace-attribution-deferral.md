@@ -4,7 +4,7 @@
 
 ## Decision
 
-Do not expand the current /proc socket-owner inference into a claim of namespace-wide visibility in this milestone batch.
+Do not expand the current /proc socket-owner inference into a claim of namespace-wide visibility in the current scope.
 
 ## Why
 
