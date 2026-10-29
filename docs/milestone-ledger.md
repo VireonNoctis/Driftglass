@@ -1,10 +1,10 @@
-# Driftglass 183-milestone execution ledger
+# Driftglass 184-milestone execution ledger
 
 This is the first expansion from the prior 60-item ledger to 160 numbered milestones; the original README roadmap was phase-based rather than a pre-existing 160-item plan. **Done** means the specific implementation, regression check, or documented decision in that row exists and its evidence is recorded. **Done (deferred)** closes a planning decision only; it does not mean the underlying capability exists. The original milestones and the new 61–160 slice both include validation items for features already present in the repository. They are not a claim that all 160 capabilities were newly implemented in this session.
 
 This ledger includes three later implementation checks—strict RFC 3339 browser timestamp acceptance, the repeat-analysis source-count schema ceiling, and an aggregate byte budget for repeat input—plus an explicit deferral decision for local API security. Implementation checks are based on passing CI for the relevant code and tests. Many earlier rows make existing test coverage more granular; they must not be read as newly shipped features.
 
-**Current tally: 182/183 milestones resolved: 173 implementation/validation milestones and 9 explicit deferral decisions; milestone 183 is pending CI.** A deferral resolves the planning decision, not the underlying capability or security validation; deferred work remains unimplemented or unverified where applicable.
+**Current tally: 182/184 milestones resolved: 173 implementation/validation milestones and 9 explicit deferral decisions; milestones 183–184 are pending CI.** A deferral resolves the planning decision, not the underlying capability or security validation; deferred work remains unimplemented or unverified where applicable.
 
 | # | Milestone | Status | Evidence / acceptance |
 |---:|---|---|---|
@@ -217,6 +217,7 @@ The new slice contains 96 implementation/validation acceptance items and four de
 | 181 | Flatten long process trees without recursive call-stack growth | Done | Iterative depth-first traversal with an 8,000-node linked-chain regression; GitHub Actions CI run 228 passed all four jobs, including browser tests, Svelte checks, and production build. |
 | 182 | Bound process-tree parent lookup and rendered rows for large reports | Done | Same-run PID candidate lists are sorted once and binary-searched by start tick; the display caps at 1,000 rows per run group and discloses omitted identities. Reused-PID and display-cap regressions; GitHub Actions CI run 228 passed all four jobs. |
 | 183 | Bound visible process-tree indentation while preserving actual depth | Pending CI | Visual indentation stops increasing after eight levels while each row displays its computed depth; unit tests cover root, normal, at-limit, over-limit, negative, and non-finite depths. GitHub Actions validation pending. |
+| 184 | Preserve all finding links for deduplicated timeline evidence | Pending CI | One run/event reference remains one timeline entry while every unique finding ID is retained in deterministic order and rendered; process-tree summaries include each linked finding. Regression tests cover shared event references. GitHub Actions validation pending. |
 
 ## CI and evidence
 
