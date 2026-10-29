@@ -74,7 +74,7 @@ test("omits evidence without start-time identity and keeps run groups separate",
     item("base-run", "baseline", 200, 100, 20, "base-child"),
     {
       side: "candidate",
-      finding: { summary: "old report" },
+      findings: [{ finding_id: "legacy", summary: "old report" }],
       evidence: { run_id: "candidate-run", event_id: "legacy", timestamp: "2026-10-26T10:00:00Z", observed: {} }
     },
   ]);
