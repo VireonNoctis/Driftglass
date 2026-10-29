@@ -66,21 +66,34 @@ def _write_new_json(path: Path, value: dict[str, Any]) -> None:
     flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
     if hasattr(os, "O_NOFOLLOW"):
         flags |= os.O_NOFOLLOW
+
+    descriptor: int | None = None
+    created_identity: tuple[int, int] | None = None
     try:
         descriptor = os.open(path, flags, 0o600)
-        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+        file_stat = os.fstat(descriptor)
+        created_identity = (file_stat.st_dev, file_stat.st_ino)
+        stream = os.fdopen(descriptor, "w", encoding="utf-8")
+        descriptor = None
+        with stream:
             json.dump(value, stream, sort_keys=True, indent=2, ensure_ascii=False, allow_nan=False)
             stream.write("\n")
             stream.flush()
             os.fsync(stream.fileno())
     except (OSError, TypeError, ValueError) as exc:
-        try:
-            path.unlink(missing_ok=True)
-        except OSError:
-            pass
+        if descriptor is not None:
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
+        if created_identity is not None:
+            try:
+                current = os.stat(path, follow_symlinks=False)
+                if (current.st_dev, current.st_ino) == created_identity:
+                    path.unlink()
+            except OSError:
+                pass
         raise CaptureError(f"could not write run manifest ({type(exc).__name__})") from exc
-
-
 def _event_records(path: Path, schema_path: Path) -> tuple[list[dict[str, Any]], str | None]:
     if not path.is_file():
         return [], "observer did not create an event stream"
