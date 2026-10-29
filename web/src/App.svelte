@@ -305,7 +305,7 @@
                       <span>{item.evidence.observed.process_executable ?? "Process metadata unavailable"}</span>
                       <span>{resourceLabel(item.evidence.observed.resource)}</span>
                     </div>
-                    <p class="timeline-finding">{item.finding.summary}</p>
+                    <p class="timeline-finding">{item.findings.length} linked finding(s): {item.findings.map(finding => finding.summary).join(" · ")}</p>
                     <details><summary>Inspect observed fields</summary><pre>{JSON.stringify(item.evidence.observed, null, 2)}</pre></details>
                   </article>
                 </li>
