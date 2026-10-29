@@ -11,7 +11,7 @@
     validateRepeatAnalysisV1,
     verifyRepeatAnalysisContentId
   } from "./lib/repeat-analysis-validation.js";
-  import { buildEvidenceTimeline } from "./lib/evidence-timeline.js";
+  import { buildEvidenceTimeline, evidenceTimelineKey } from "./lib/evidence-timeline.js";
   import { buildCoverageMatrix } from "./lib/coverage-matrix.js";
   import { buildProcessTree, prepareProcessTreeForDisplay, processTreeIndentPixels } from "./lib/process-tree.js";
   import type { Finding, ReportV1, RepeatAnalysisV1 } from "./types";
@@ -295,7 +295,7 @@
           {:else}
             <p class="timeline-note">This timeline contains only events referenced by findings in this report—not the complete raw event stream. Unchanged events and standalone coverage records may not appear.</p>
             <ol class="evidence-timeline" aria-label="Finding evidence timeline">
-              {#each timelineItems as item (item.evidence.run_id + ":" + item.evidence.event_id)}
+              {#each timelineItems as item (evidenceTimelineKey(item.evidence))}
                 <li class="timeline-event">
                   <span class="timeline-point" aria-hidden="true"></span>
                   <article class="timeline-entry">
@@ -321,7 +321,7 @@
             <div class="empty-state"><p class="eyebrow">PROCESS IDENTITY UNAVAILABLE</p><p>The visible finding evidence does not contain enough validated PID, parent PID, executable, and start-time metadata to build process relationships.</p></div>
           {:else}
             <div class="process-tree-groups">
-              {#each processTreeDisplayGroups as group (group.run_id + ":" + group.side)}
+              {#each processTreeDisplayGroups as group (JSON.stringify([group.run_id, group.side]))}
                 <section class="process-tree-group">
                   <div class="process-tree-heading">
                     <span class="side-label">{group.side.toUpperCase()}</span>
