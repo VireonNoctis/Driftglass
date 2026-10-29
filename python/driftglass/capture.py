@@ -66,7 +66,7 @@ def _resolve_output_path(value: str | Path, label: str) -> Path:
 def _write_new_json(path: Path, value: dict[str, Any]) -> None:
     """Publish a complete manifest atomically without overwriting an existing path."""
     try:
-        with tempfile.TemporaryDirectory(prefix=f".{path.name}.", dir=path.parent) as temp_dir:
+        with tempfile.TemporaryDirectory(prefix=".driftglass-manifest-", dir=path.parent) as temp_dir:
             temporary_path = Path(temp_dir) / "manifest.json"
             flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
             if hasattr(os, "O_NOFOLLOW"):
@@ -83,6 +83,8 @@ def _write_new_json(path: Path, value: dict[str, Any]) -> None:
             os.link(temporary_path, path, follow_symlinks=False)
     except (OSError, TypeError, ValueError) as exc:
         raise CaptureError(f"could not write run manifest ({type(exc).__name__})") from exc
+
+
 def _event_records(path: Path, schema_path: Path) -> tuple[list[dict[str, Any]], str | None]:
     if not path.is_file():
         return [], "observer did not create an event stream"
