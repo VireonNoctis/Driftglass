@@ -11,7 +11,7 @@ import {
 function item(run_id, side, pid, parent_pid, start_time_ticks, event_id, summary = event_id) {
   return {
     side,
-    finding: { summary },
+    findings: [{ finding_id: event_id, summary }],
     evidence: {
       run_id,
       event_id,
@@ -82,6 +82,19 @@ test("omits evidence without start-time identity and keeps run groups separate",
   assert.equal(result.node_count, 1);
   assert.equal(result.groups.length, 1);
   assert.equal(result.groups[0].run_id, "base-run");
+});
+
+test("preserves every finding summary linked to one process event", () => {
+  const shared = item("base-run", "baseline", 100, 1, 10, "shared-event", "first finding");
+  shared.findings.push({ finding_id: "second-finding", summary: "second finding" });
+
+  const result = buildProcessTree([shared]);
+  assert.equal(result.node_count, 1);
+  assert.equal(result.groups[0].rows[0].event_count, 1);
+  assert.deepEqual(
+    result.groups[0].rows[0].finding_summaries,
+    ["first finding", "second finding"]
+  );
 });
 
 test("deduplicates process nodes while counting each evidence event", () => {
