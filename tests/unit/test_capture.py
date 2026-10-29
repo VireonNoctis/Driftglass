@@ -266,7 +266,6 @@ def test_manifest_write_failure_preserves_replacement_path(tmp_path, monkeypatch
     manifest_path = tmp_path / "manifest.json"
 
     def replace_then_fail(value, stream, **kwargs):
-        manifest_path.unlink()
         manifest_path.write_text("replacement file", encoding="utf-8")
         raise ValueError("synthetic serialization failure")
 
