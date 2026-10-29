@@ -94,6 +94,8 @@ def _write_new_json(path: Path, value: dict[str, Any]) -> None:
             except OSError:
                 pass
         raise CaptureError(f"could not write run manifest ({type(exc).__name__})") from exc
+
+
 def _event_records(path: Path, schema_path: Path) -> tuple[list[dict[str, Any]], str | None]:
     if not path.is_file():
         return [], "observer did not create an event stream"
