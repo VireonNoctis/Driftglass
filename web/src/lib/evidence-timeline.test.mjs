@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildEvidenceTimeline } from "./evidence-timeline.js";
+import { buildEvidenceTimeline, evidenceTimelineKey } from "./evidence-timeline.js";
 
 function evidence(run_id, event_id, timestamp) {
   return {
@@ -60,6 +60,24 @@ test("deduplicates events while preserving every finding reference", () => {
   );
   assert.equal(result[1].evidence.run_id, "candidate");
   assert.deepEqual(result[1].findings.map(item => item.finding_id), ["candidate-copy"]);
+});
+
+test("keeps tuple keys distinct when IDs contain delimiters", () => {
+  const nullSeparatedA = evidence("a", "b\\u0000c", "2026-10-26T09:00:00Z");
+  const nullSeparatedB = evidence("a\\u0000b", "c", "2026-10-26T09:00:00Z");
+  assert.notEqual(evidenceTimelineKey(nullSeparatedA), evidenceTimelineKey(nullSeparatedB));
+
+  const colonSeparatedA = evidence("a", "b:c", "2026-10-26T09:00:00Z");
+  const colonSeparatedB = evidence("a:b", "c", "2026-10-26T09:00:00Z");
+  assert.notEqual(evidenceTimelineKey(colonSeparatedA), evidenceTimelineKey(colonSeparatedB));
+
+  const result = buildEvidenceTimeline([
+    finding("null-a", [nullSeparatedA], []),
+    finding("null-b", [], [nullSeparatedB]),
+    finding("colon-a", [colonSeparatedA], []),
+    finding("colon-b", [], [colonSeparatedB])
+  ]);
+  assert.equal(result.length, 4);
 });
 
 test("handles reports without evidence", () => {
