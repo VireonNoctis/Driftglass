@@ -5,7 +5,7 @@
  * @typedef {Object} EvidenceTimelineItem
  * @property {Evidence} evidence
  * @property {"baseline"|"candidate"} side
- * @property {Finding} finding
+ * @property {Finding[]} findings
  */
 
 /**
@@ -24,12 +24,21 @@ export function buildEvidenceTimeline(findings) {
    */
   function add(evidence, side, finding) {
     const key = evidence.run_id + "\u0000" + evidence.event_id;
-    if (!unique.has(key)) unique.set(key, { evidence, side, finding });
+    const existing = unique.get(key);
+    if (!existing) {
+      unique.set(key, { evidence, side, findings: [finding] });
+    } else if (!existing.findings.some(item => item.finding_id === finding.finding_id)) {
+      existing.findings.push(finding);
+    }
   }
 
   for (const finding of findings) {
     for (const evidence of finding.baseline_evidence) add(evidence, "baseline", finding);
     for (const evidence of finding.candidate_evidence) add(evidence, "candidate", finding);
+  }
+
+  for (const item of unique.values()) {
+    item.findings.sort((left, right) => left.finding_id.localeCompare(right.finding_id));
   }
 
   return [...unique.values()].sort((left, right) => {
