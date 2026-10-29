@@ -276,3 +276,19 @@ def test_history_enforces_report_count_and_payload_budget_atomically(tmp_path, m
     with pytest.raises(StorageError, match="report-payload budget"):
         save_report(db, second, REPORT_SCHEMA)
     assert [item["report_id"] for item in list_reports(db)] == [first["report_id"]]
+
+def test_rejects_symlink_database_path_without_modifying_target(tmp_path):
+    target = tmp_path / "target.db"
+    target.write_bytes(b"")
+    alias = tmp_path / "history.db"
+    try:
+        alias.symlink_to(target)
+    except OSError:
+        pytest.skip("symlink creation is not permitted")
+
+    original = target.read_bytes()
+    with pytest.raises(StorageError, match="symlinks and special filesystem entries"):
+        list_reports(alias)
+
+    assert target.read_bytes() == original
+
