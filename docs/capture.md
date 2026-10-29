@@ -31,7 +31,7 @@ python -m driftglass capture \
 
 Use the same experiment ID and equivalent scenarios for the candidate run. Change the role, version, PID, and output paths, and record any important environment differences. Artifact SHA-256 is optional and user-supplied; the coordinator does not verify that it corresponds to the executable running under the supplied PID.
 
-Output paths must be distinct, must not already exist, and must have an existing parent directory. New manifest files are created with owner-only permissions on POSIX. The observer independently refuses to overwrite an existing JSONL path. The wrapper passes arguments as an argv list rather than constructing a shell command.
+Output paths must be distinct, must not already exist, and must have an existing parent directory. New manifest files are created with owner-only permissions on POSIX. The observer independently refuses to overwrite an existing JSONL path. The wrapper passes arguments as an argv list rather than constructing a shell command. Manifest-write cleanup records the identity of the file it created and removes a partial file only while that path still refers to that file; a pre-existing or concurrently replaced path is preserved.
 
 ## Manifest and failure handling
 
