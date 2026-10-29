@@ -63,8 +63,8 @@ test("deduplicates events while preserving every finding reference", () => {
 });
 
 test("keeps tuple keys distinct when IDs contain delimiters", () => {
-  const nullSeparatedA = evidence("a", "b\\u0000c", "2026-10-26T09:00:00Z");
-  const nullSeparatedB = evidence("a\\u0000b", "c", "2026-10-26T09:00:00Z");
+  const nullSeparatedA = evidence("a", "b\u0000c", "2026-10-26T09:00:00Z");
+  const nullSeparatedB = evidence("a\u0000b", "c", "2026-10-26T09:00:00Z");
   assert.notEqual(evidenceTimelineKey(nullSeparatedA), evidenceTimelineKey(nullSeparatedB));
 
   const colonSeparatedA = evidence("a", "b:c", "2026-10-26T09:00:00Z");
