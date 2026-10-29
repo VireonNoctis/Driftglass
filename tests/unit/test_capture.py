@@ -235,6 +235,7 @@ def test_malformed_observer_stream_writes_failed_manifest(tmp_path, monkeypatch)
     assert any("did not pass JSONL validation" in note for note in manifest["coverage"]["errors"])
     assert any("capture_started" in note for note in manifest["coverage"]["errors"])
 
+
 def test_manifest_write_failure_does_not_delete_preexisting_path(tmp_path):
     manifest_path = tmp_path / "manifest.json"
     manifest_path.write_text("keep this file", encoding="utf-8")
