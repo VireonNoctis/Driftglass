@@ -9,6 +9,15 @@
  */
 
 /**
+ * Encode the evidence identity as a tuple so delimiter characters in IDs cannot collide.
+ * @param {Evidence} evidence
+ * @returns {string}
+ */
+export function evidenceTimelineKey(evidence) {
+  return JSON.stringify([evidence.run_id, evidence.event_id]);
+}
+
+/**
  * Build a sorted, de-duplicated timeline from evidence explicitly linked to findings.
  * @param {Finding[]} findings
  * @returns {EvidenceTimelineItem[]}
@@ -23,7 +32,7 @@ export function buildEvidenceTimeline(findings) {
    * @param {Finding} finding
    */
   function add(evidence, side, finding) {
-    const key = evidence.run_id + "\u0000" + evidence.event_id;
+    const key = evidenceTimelineKey(evidence);
     const existing = unique.get(key);
     if (!existing) {
       unique.set(key, { evidence, side, findings: [finding] });
@@ -44,8 +53,8 @@ export function buildEvidenceTimeline(findings) {
   return [...unique.values()].sort((left, right) => {
     const difference = Date.parse(left.evidence.timestamp) - Date.parse(right.evidence.timestamp);
     if (Number.isFinite(difference) && difference !== 0) return difference;
-    const leftKey = left.evidence.run_id + ":" + left.evidence.event_id;
-    const rightKey = right.evidence.run_id + ":" + right.evidence.event_id;
+    const leftKey = evidenceTimelineKey(left.evidence);
+    const rightKey = evidenceTimelineKey(right.evidence);
     return leftKey.localeCompare(rightKey);
   });
 }
