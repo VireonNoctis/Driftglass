@@ -246,6 +246,22 @@ def test_manifest_write_failure_does_not_delete_preexisting_path(tmp_path):
     assert manifest_path.read_text(encoding="utf-8") == "keep this file"
 
 
+def test_manifest_serialization_failure_does_not_publish_partial_output(tmp_path, monkeypatch):
+    manifest_path = tmp_path / "manifest.json"
+
+    def fail_serialization(value, stream, **kwargs):
+        stream.write('{"partial":')
+        raise ValueError("synthetic serialization failure")
+
+    monkeypatch.setattr(capture.json, "dump", fail_serialization)
+
+    with pytest.raises(CaptureError, match="could not write run manifest"):
+        capture._write_new_json(manifest_path, {"status": "completed"})
+
+    assert not manifest_path.exists()
+    assert list(tmp_path.iterdir()) == []
+
+
 def test_manifest_write_failure_preserves_replacement_path(tmp_path, monkeypatch):
     manifest_path = tmp_path / "manifest.json"
 
