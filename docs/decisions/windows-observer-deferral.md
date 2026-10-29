@@ -16,7 +16,7 @@ The repository currently has no Windows observer, Windows CI runner, Windows fix
 
 ## Re-entry criteria
 
-Reopen this milestone when all of the following are available:
+Revisit Windows observer implementation when all of the following are available:
 
 1. A supported Windows build/test environment and a documented event-provider selection.
 2. A minimal privilege and data-minimization model, including whether elevated service components are required.
