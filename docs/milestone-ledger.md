@@ -216,8 +216,8 @@ The new slice contains 96 implementation/validation acceptance items and four de
 
 | 181 | Flatten long process trees without recursive call-stack growth | Done | Iterative depth-first traversal with an 8,000-node linked-chain regression; GitHub Actions CI run 228 passed all four jobs, including browser tests, Svelte checks, and production build. |
 | 182 | Bound process-tree parent lookup and rendered rows for large reports | Done | Same-run PID candidate lists are sorted once and binary-searched by start tick; the display caps at 1,000 rows per run group and discloses omitted identities. Reused-PID and display-cap regressions; GitHub Actions CI run 228 passed all four jobs. |
-| 183 | Bound visible process-tree indentation while preserving actual depth | Pending CI | Visual indentation stops increasing after eight levels while each row displays its computed depth; unit tests cover root, normal, at-limit, over-limit, negative, and non-finite depths. GitHub Actions validation pending. |
-| 184 | Preserve all finding links for deduplicated timeline evidence | Pending CI | One run/event reference remains one timeline entry while every unique finding ID is retained in deterministic order and rendered; process-tree summaries include each linked finding. Regression tests cover shared event references. GitHub Actions validation pending. |
+| 183 | Bound visible process-tree indentation while preserving actual depth | Pending CI | Visual indentation stops increasing after eight levels while each row displays its computed depth; Node.js 22 focused process-tree suite passed 8/8, including boundary, invalid-depth, and 8,000-node cases. Full GitHub Actions validation pending. |
+| 184 | Preserve all finding links for deduplicated timeline evidence | Pending CI | One run/event reference remains one timeline entry while every unique finding ID is retained in deterministic order and rendered; process-tree summaries include each linked finding. Node.js 22 focused timeline suite passed 3/3 and process-tree suite passed 8/8; full GitHub Actions validation pending. |
 
 ## CI and evidence
 
