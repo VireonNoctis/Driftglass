@@ -87,9 +87,11 @@ export function buildProcessTree(items) {
       node.last_seen_ms = observedTime;
       node.last_seen = item.evidence.timestamp;
     }
-    if (!node.finding_set.has(item.finding.summary)) {
-      node.finding_set.add(item.finding.summary);
-      node.finding_summaries.push(item.finding.summary);
+    for (const finding of item.findings) {
+      if (!node.finding_set.has(finding.summary)) {
+        node.finding_set.add(finding.summary);
+        node.finding_summaries.push(finding.summary);
+      }
     }
   }
 
