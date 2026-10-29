@@ -42,16 +42,24 @@ test("orders evidence by actual timestamp across timezone offsets", () => {
   assert.deepEqual(result.map(item => item.evidence.event_id), ["earlier", "later"]);
 });
 
-test("deduplicates identical run/event refs but keeps refs from different runs", () => {
+test("deduplicates events while preserving every finding reference", () => {
   const shared = evidence("baseline", "same-event", "2026-10-26T09:00:00Z");
   const result = buildEvidenceTimeline([
-    finding("first", [shared], []),
-    finding("duplicate", [shared], []),
+    finding("finding-b", [shared], []),
+    finding("finding-a", [shared], []),
     finding("candidate-copy", [], [evidence("candidate", "same-event", "2026-10-26T09:01:00Z")])
   ]);
   assert.equal(result.length, 2);
-  assert.equal(result[0].finding.finding_id, "first");
+  assert.deepEqual(
+    result[0].findings.map(item => item.finding_id),
+    ["finding-a", "finding-b"]
+  );
+  assert.deepEqual(
+    result[0].findings.map(item => item.summary),
+    ["finding-a", "finding-b"]
+  );
   assert.equal(result[1].evidence.run_id, "candidate");
+  assert.deepEqual(result[1].findings.map(item => item.finding_id), ["candidate-copy"]);
 });
 
 test("handles reports without evidence", () => {
