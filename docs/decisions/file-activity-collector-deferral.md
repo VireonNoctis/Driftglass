@@ -8,7 +8,7 @@
 
 Keep the `file` category explicitly unavailable. Do not add a file watcher until Driftglass selects and validates a collection source that can provide the required event semantics, source attribution, permission model and coverage-gap reporting.
 
-This decision completes a planning milestone; it does not implement file telemetry.
+This decision records a deferral; it does not implement file telemetry.
 
 ## Rationale
 
@@ -20,7 +20,7 @@ Driftglass currently has no file-event collector. Claiming file support from pat
 
 ## Re-entry criteria
 
-Reopen the implementation milestone when a proposal demonstrates:
+Revisit file-activity implementation when a proposal demonstrates:
 
 1. Defined event actions and resource identity in the versioned event schema.
 2. A tested means of attributing relevant events to the selected process scope, including ambiguous or unavailable attribution.
