@@ -234,3 +234,29 @@ def test_malformed_observer_stream_writes_failed_manifest(tmp_path, monkeypatch)
     assert manifest["capture"]["status"] == "failed"
     assert any("did not pass JSONL validation" in note for note in manifest["coverage"]["errors"])
     assert any("capture_started" in note for note in manifest["coverage"]["errors"])
+
+def test_manifest_write_failure_does_not_delete_preexisting_path(tmp_path):
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text("keep this file", encoding="utf-8")
+
+    with pytest.raises(CaptureError, match="could not write run manifest"):
+        capture._write_new_json(manifest_path, {"status": "completed"})
+
+    assert manifest_path.read_text(encoding="utf-8") == "keep this file"
+
+
+def test_manifest_write_failure_preserves_replacement_path(tmp_path, monkeypatch):
+    manifest_path = tmp_path / "manifest.json"
+
+    def replace_then_fail(value, stream, **kwargs):
+        manifest_path.unlink()
+        manifest_path.write_text("replacement file", encoding="utf-8")
+        raise ValueError("synthetic serialization failure")
+
+    monkeypatch.setattr(capture.json, "dump", replace_then_fail)
+
+    with pytest.raises(CaptureError, match="could not write run manifest"):
+        capture._write_new_json(manifest_path, {"status": "completed"})
+
+    assert manifest_path.read_text(encoding="utf-8") == "replacement file"
+
