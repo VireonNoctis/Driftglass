@@ -4,7 +4,7 @@
 
 ## Decision
 
-Do not describe the current observer as a comprehensive event tracer, and do not add a second kernel-event collection mechanism in this milestone batch. The current collector samples process metadata and TCP/TCP6 socket state; short-lived activity can occur between samples.
+Do not describe the current observer as a comprehensive event tracer, and do not add a second kernel-event collection mechanism in the current scope. The current collector samples process metadata and TCP/TCP6 socket state; short-lived activity can occur between samples.
 
 ## Why
 
