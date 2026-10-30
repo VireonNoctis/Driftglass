@@ -6,6 +6,7 @@ import json
 import os
 import re
 import sqlite3
+import stat
 from pathlib import Path
 from typing import Any
 
@@ -43,15 +44,73 @@ def _open_database(database_path: str | Path) -> sqlite3.Connection:
     if not path.parent.is_dir():
         raise StorageError(f"database directory does not exist: '{path.parent}'")
 
+    try:
+        existing = path.lstat()
+    except FileNotFoundError:
+        existing = None
+    except OSError as exc:
+        raise StorageError(
+            f"could not inspect report database path '{path}' ({type(exc).__name__})"
+        ) from exc
+    if existing is not None and not stat.S_ISREG(existing.st_mode):
+        raise StorageError(
+            "database path must be a regular file; symlinks and special filesystem entries are not accepted"
+        )
+
     connection: sqlite3.Connection | None = None
     try:
         try:
-            descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+            descriptor = os.open(
+                path,
+                os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_NOFOLLOW", 0),
+                0o600,
+            )
             os.close(descriptor)
+            created = True
         except FileExistsError:
-            pass
+            created = False
+
+        try:
+            expected_path_stat = path.lstat()
+        except OSError as exc:
+            raise StorageError(
+                f"could not inspect report database path '{path}' ({type(exc).__name__})"
+            ) from exc
+        if not stat.S_ISREG(expected_path_stat.st_mode):
+            raise StorageError(
+                "database path must be a regular file; symlinks and special filesystem entries are not accepted"
+            )
+        if (
+            not created
+            and existing is not None
+            and existing.st_ino
+            and expected_path_stat.st_ino
+            and (
+                existing.st_dev != expected_path_stat.st_dev
+                or existing.st_ino != expected_path_stat.st_ino
+            )
+        ):
+            raise StorageError("database path changed before it could be opened")
 
         connection = sqlite3.connect(path, timeout=5.0)
+        try:
+            opened_path_stat = path.lstat()
+        except OSError as exc:
+            raise StorageError(
+                f"could not verify report database path after opening ({type(exc).__name__})"
+            ) from exc
+        if (
+            not stat.S_ISREG(opened_path_stat.st_mode)
+            or (
+                expected_path_stat.st_ino
+                and opened_path_stat.st_ino
+                and (
+                    expected_path_stat.st_dev != opened_path_stat.st_dev
+                    or expected_path_stat.st_ino != opened_path_stat.st_ino
+                )
+            )
+        ):
+            raise StorageError("database path changed while it was being opened")
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys = ON")
         version = connection.execute("PRAGMA user_version").fetchone()[0]
