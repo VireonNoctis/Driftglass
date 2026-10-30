@@ -1,5 +1,13 @@
 # Driftglass
 
+<!-- REPOSITORY-HEALTH:START -->
+[![Code quality](https://github.com/VireonNoctis/Driftglass/actions/workflows/repository-health.yml/badge.svg?branch=main)](https://github.com/VireonNoctis/Driftglass/actions/workflows/repository-health.yml)
+[![Top language](https://img.shields.io/github/languages/top/VireonNoctis/Driftglass?style=flat-square)](https://github.com/VireonNoctis/Driftglass)
+[![Languages](https://img.shields.io/github/languages/count/VireonNoctis/Driftglass?style=flat-square)](https://github.com/VireonNoctis/Driftglass)
+[![Automated tech stack](https://img.shields.io/badge/tech_stack-auto--detected-64748b?style=flat-square)](TECH_STACK.md)
+<!-- REPOSITORY-HEALTH:END -->
+
+
 > **Every update leaves a trace. Find it.**
 
 Driftglass is a planned, open-source, privacy-first application update auditor. It is designed to compare the observable behaviour of two application versions in controlled, isolated environments, then turn their differences into a reproducible report with evidence a person can inspect.
