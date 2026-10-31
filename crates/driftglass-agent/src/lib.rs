@@ -44,6 +44,9 @@ pub struct SocketInfo {
 pub struct NetworkScan {
     pub sockets: BTreeMap<String, SocketInfo>,
     pub table_errors: u64,
+    pub table_not_found: u64,
+    pub table_permission_denied: u64,
+    pub table_read_errors: u64,
     pub malformed_rows: u64,
 }
 
@@ -346,6 +349,15 @@ pub fn read_socket_owners(proc_root: &Path, pids: &[u32]) -> SocketOwnerScan {
     scan
 }
 
+fn record_tcp_table_error(scan: &mut NetworkScan, error: &io::Error) {
+    scan.table_errors += 1;
+    match error.kind() {
+        io::ErrorKind::NotFound => scan.table_not_found += 1,
+        io::ErrorKind::PermissionDenied => scan.table_permission_denied += 1,
+        _ => scan.table_read_errors += 1,
+    }
+}
+
 pub fn read_tcp_snapshot(proc_root: &Path, network_namespace_pid: u32) -> NetworkScan {
     let mut scan = NetworkScan::default();
     let net_root = proc_root.join(network_namespace_pid.to_string()).join("net");
@@ -353,8 +365,8 @@ pub fn read_tcp_snapshot(proc_root: &Path, network_namespace_pid: u32) -> Networ
         let path = net_root.join(relative_path);
         let contents = match fs::read_to_string(path) {
             Ok(contents) => contents,
-            Err(_) => {
-                scan.table_errors += 1;
+            Err(error) => {
+                record_tcp_table_error(&mut scan, &error);
                 continue;
             }
         };
@@ -568,6 +580,49 @@ mod tests {
         assert_eq!(second.table_errors, 0);
         assert_eq!(first_ports, vec![8080]);
         assert_eq!(second_ports, vec![8081]);
+
+        fs::remove_dir_all(root).expect("remove synthetic procfs fixture");
+    }
+
+    #[test]
+    fn classifies_tcp_table_errors_without_confusing_empty_tables_with_failures() {
+        let mut scan = NetworkScan::default();
+        record_tcp_table_error(&mut scan, &io::Error::from(io::ErrorKind::NotFound));
+        record_tcp_table_error(&mut scan, &io::Error::from(io::ErrorKind::PermissionDenied));
+        record_tcp_table_error(&mut scan, &io::Error::from(io::ErrorKind::Other));
+
+        assert_eq!(scan.table_errors, 3);
+        assert_eq!(scan.table_not_found, 1);
+        assert_eq!(scan.table_permission_denied, 1);
+        assert_eq!(scan.table_read_errors, 1);
+        assert!(scan.sockets.is_empty());
+    }
+
+    #[test]
+    fn empty_tcp_tables_are_not_reported_as_read_errors() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("current time")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "driftglass-empty-net-fixture-{}-{unique}",
+            std::process::id()
+        ));
+        let net_dir = root.join("10").join("net");
+        fs::create_dir_all(&net_dir).expect("create synthetic procfs network directory");
+        let header = "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\\n";
+        fs::write(net_dir.join("tcp"), header).expect("write empty TCP table");
+        fs::write(net_dir.join("tcp6"), header).expect("write empty TCP6 table");
+
+        let scan = read_tcp_snapshot(&root, 10);
+
+        assert!(scan.sockets.is_empty());
+        assert_eq!(scan.table_errors, 0);
+        assert_eq!(scan.table_not_found, 0);
+        assert_eq!(scan.table_permission_denied, 0);
+        assert_eq!(scan.table_read_errors, 0);
 
         fs::remove_dir_all(root).expect("remove synthetic procfs fixture");
     }
