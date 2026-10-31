@@ -612,7 +612,7 @@ mod tests {
         ));
         let net_dir = root.join("10").join("net");
         fs::create_dir_all(&net_dir).expect("create synthetic procfs network directory");
-        let header = "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\\n";
+        let header = "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n";
         fs::write(net_dir.join("tcp"), header).expect("write empty TCP table");
         fs::write(net_dir.join("tcp6"), header).expect("write empty TCP6 table");
 
