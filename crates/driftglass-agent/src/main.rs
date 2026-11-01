@@ -135,6 +135,7 @@ fn run(arguments: impl Iterator<Item = String>) -> Result<(), String> {
         &initial_owners,
         &previous_scope,
     );
+    let mut network_namespace_anchor_lost = false;
 
     let mut sequence = 1_u64;
     emit(
@@ -255,60 +256,84 @@ fn run(arguments: impl Iterator<Item = String>) -> Result<(), String> {
             }
         }
 
-        let owners = read_socket_owners(&proc_root, &scope_pids(&current_scope));
-        totals.add_owners(&owners);
-        let current_sockets = if current_scope.is_empty() {
-            BTreeMap::new()
-        } else {
-            let network_namespace_pid = if current_scope.contains_key(&args.pid) {
-                args.pid
-            } else {
-                current_scope.keys().next().copied().unwrap_or(args.pid)
-            };
+        let current_sockets = if network_namespace_anchor_lost {
+            None
+        } else if let Some(network_namespace_pid) =
+            network_namespace_anchor(&current_scope, args.pid)
+        {
+            let owners = read_socket_owners(&proc_root, &scope_pids(&current_scope));
+            totals.add_owners(&owners);
             let network = read_tcp_snapshot(&proc_root, network_namespace_pid);
             totals.add_network(&network);
-            owned_sockets(
+            Some(owned_sockets(
                 &network.sockets,
                 &owners,
                 &current_scope,
-            )
+            ))
+        } else {
+            network_namespace_anchor_lost = true;
+            emit(
+                &mut writer,
+                &mut sequence,
+                "coverage",
+                "coverage_gap",
+                "capture:network-namespace-anchor-unavailable".to_owned(),
+                None,
+                None,
+                "partial",
+                BTreeMap::from([
+                    ("category".to_owned(), json!("network")),
+                    (
+                        "reason_code".to_owned(),
+                        json!("target_network_namespace_anchor_unavailable"),
+                    ),
+                    ("target_pid".to_owned(), json!(args.pid)),
+                    (
+                        "last_observed_socket_count".to_owned(),
+                        json!(previous_sockets.len()),
+                    ),
+                ]),
+            )?;
+            None
         };
 
-        for (key, old_socket) in &previous_sockets {
-            match current_sockets.get(key) {
-                None => emit_socket_event(
-                    &mut writer,
-                    &mut sequence,
-                    "socket_no_longer_observed",
-                    old_socket,
-                    "complete",
-                )?,
-                Some(current) if current.socket.state != old_socket.socket.state => {
+        if let Some(current_sockets) = current_sockets {
+            for (key, old_socket) in &previous_sockets {
+                match current_sockets.get(key) {
+                    None => emit_socket_event(
+                        &mut writer,
+                        &mut sequence,
+                        "socket_no_longer_observed",
+                        old_socket,
+                        "complete",
+                    )?,
+                    Some(current) if current.socket.state != old_socket.socket.state => {
+                        emit_socket_event(
+                            &mut writer,
+                            &mut sequence,
+                            "socket_state_changed",
+                            current,
+                            "complete",
+                        )?;
+                    }
+                    Some(_) => {}
+                }
+            }
+            for (key, current_socket) in &current_sockets {
+                if !previous_sockets.contains_key(key) {
                     emit_socket_event(
                         &mut writer,
                         &mut sequence,
-                        "socket_state_changed",
-                        current,
+                        "socket_first_seen",
+                        current_socket,
                         "complete",
                     )?;
                 }
-                Some(_) => {}
             }
-        }
-        for (key, current_socket) in &current_sockets {
-            if !previous_sockets.contains_key(key) {
-                emit_socket_event(
-                    &mut writer,
-                    &mut sequence,
-                    "socket_first_seen",
-                    current_socket,
-                    "complete",
-                )?;
-            }
+            previous_sockets = current_sockets;
         }
 
         previous_scope = current_scope;
-        previous_sockets = current_sockets;
     }
 
     if totals.process_permission_denied > 0
@@ -358,17 +383,17 @@ fn run(arguments: impl Iterator<Item = String>) -> Result<(), String> {
         )?;
     }
 
+    let network_gap = network_namespace_anchor_lost
+        || totals.fd_permission_denied > 0
+        || totals.fd_read_errors > 0
+        || totals.ambiguous_socket_owner_observations > 0
+        || totals.network_table_errors > 0
+        || totals.network_malformed_rows > 0;
     let gap_count = u8::from(
         totals.process_permission_denied > 0
             || totals.process_read_errors > 0
             || totals.process_malformed_rows > 0,
-    ) + u8::from(
-        totals.fd_permission_denied > 0
-            || totals.fd_read_errors > 0
-            || totals.ambiguous_socket_owner_observations > 0
-            || totals.network_table_errors > 0
-            || totals.network_malformed_rows > 0,
-    );
+    ) + u8::from(network_gap);
     emit(
         &mut writer,
         &mut sequence,
@@ -377,13 +402,24 @@ fn run(arguments: impl Iterator<Item = String>) -> Result<(), String> {
         "capture:finish".to_owned(),
         None,
         None,
-        if totals.has_gaps() { "partial" } else { "complete" },
+        if totals.has_gaps() || network_namespace_anchor_lost { "partial" } else { "complete" },
         BTreeMap::from([
             ("capture_status".to_owned(), json!("completed")),
             ("coverage_gap_categories".to_owned(), json!(gap_count)),
             ("target_pid_observed_at_end".to_owned(), json!(previous_scope.contains_key(&args.pid))),
             ("processes_in_scope_at_end".to_owned(), json!(previous_scope.len())),
-            ("tcp_sockets_in_scope_at_end".to_owned(), json!(previous_sockets.len())),
+            (
+                "tcp_sockets_in_scope_at_end".to_owned(),
+                json!(if network_namespace_anchor_lost {
+                    None::<usize>
+                } else {
+                    Some(previous_sockets.len())
+                }),
+            ),
+            (
+                "tcp_snapshot_available_at_end".to_owned(),
+                json!(!network_namespace_anchor_lost),
+            ),
             ("elapsed_ms".to_owned(), json!(started.elapsed().as_millis())),
             ("sampling_interval_ms".to_owned(), json!(args.interval.as_millis())),
         ]),
@@ -550,6 +586,13 @@ fn create_new_output_file(path: &Path) -> io::Result<std::fs::File> {
     options.open(path)
 }
 
+fn network_namespace_anchor(
+    scope: &BTreeMap<u32, ProcessInfo>,
+    target_pid: u32,
+) -> Option<u32> {
+    scope.contains_key(&target_pid).then_some(target_pid)
+}
+
 fn target_pid_was_reused(snapshot: &BTreeMap<u32, ProcessInfo>, target_pid: u32, initial_start_time_ticks: u64) -> bool {
     snapshot.get(&target_pid).is_some_and(|current| current.start_time_ticks != initial_start_time_ticks)
 }
@@ -594,6 +637,27 @@ mod tests {
         assert!(!target_pid_was_reused(&BTreeMap::new(), 10, 100));
         let reused = BTreeMap::from([(10, ProcessInfo { start_time_ticks: 200, ..original })]);
         assert!(target_pid_was_reused(&reused, 10, 100));
+    }
+
+    #[test]
+    fn retained_descendant_does_not_replace_missing_target_namespace_anchor() {
+        let child = ProcessInfo {
+            pid: 11,
+            parent_pid: 1,
+            name: "retained-child".into(),
+            start_time_ticks: 200,
+        };
+        let descendants_only = BTreeMap::from([(11, child.clone())]);
+        assert_eq!(network_namespace_anchor(&descendants_only, 10), None);
+
+        let target = ProcessInfo {
+            pid: 10,
+            parent_pid: 1,
+            name: "target".into(),
+            start_time_ticks: 100,
+        };
+        let target_and_child = BTreeMap::from([(10, target), (11, child)]);
+        assert_eq!(network_namespace_anchor(&target_and_child, 10), Some(10));
     }
 
     #[cfg(unix)]
