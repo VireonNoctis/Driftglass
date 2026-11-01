@@ -25,7 +25,7 @@ Driftglass is a local-first prototype for comparing observations from two applic
 ## Main risks and limits
 
 - **Missed or misattributed activity:** sampling can miss short-lived processes and sockets; access errors or ambiguous ownership reduce confidence. Reports must not turn lack of observation into proof of absence.
-- **Hostile or malformed input:** malformed event/report structures may trigger errors or misleading display. JSONL and comparison-report size limits plus schema/parser tests reduce resource-exhaustion exposure for those inputs, but do not prove all inputs safe; local SQLite history still has no global database-size limit.
+- **Hostile or malformed input:** malformed event/report structures may trigger errors or misleading display. JSONL and comparison-report size limits plus schema/parser tests reduce resource-exhaustion exposure for those inputs, but do not prove all inputs safe; local SQLite history is bounded to a 512 MiB database-file cap, a 256 MiB aggregate report-JSON payload cap, and 1,000 reports; transient rollback-journal overhead and underlying disk exhaustion remain environmental risks.
 - **Sensitive report disclosure:** paths, process names and network metadata may be private. Local-first defaults and opt-in export redaction help; users must inspect redacted outputs before sharing.
 - **Environment contamination:** a candidate application could access host resources if the operator runs it outside isolation. The observer itself is not a sandbox.
 - **False attribution:** external network behavior, runtime noise or environment differences may explain an observed change. Findings are review leads, not maliciousness verdicts.
