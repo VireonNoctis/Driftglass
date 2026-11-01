@@ -16,6 +16,7 @@ from .reporting import ReportExportError, validate_report
 DATABASE_SCHEMA_VERSION = 1
 MAX_HISTORY_REPORTS = 1000
 MAX_HISTORY_REPORT_PAYLOAD_BYTES = 256 * 1024 * 1024
+MAX_HISTORY_DATABASE_BYTES = 512 * 1024 * 1024
 _REQUIRED_TABLES = {"reports", "runs", "report_runs", "findings"}
 _REQUIRED_COLUMNS = {
     "reports": {
@@ -37,6 +38,36 @@ _REQUIRED_COLUMNS = {
 
 class StorageError(ValueError):
     """Raised when local report history is invalid, inconsistent, or unavailable."""
+
+
+def _configure_database_size_limit(connection: sqlite3.Connection, path: Path) -> None:
+    """Bound the SQLite database file and reject an existing file above the cap."""
+    if type(MAX_HISTORY_DATABASE_BYTES) is not int or MAX_HISTORY_DATABASE_BYTES <= 0:
+        raise StorageError("local history database-size limit must be a positive integer")
+
+    page_size = connection.execute("PRAGMA page_size").fetchone()[0]
+    page_count = connection.execute("PRAGMA page_count").fetchone()[0]
+    max_pages = MAX_HISTORY_DATABASE_BYTES // page_size
+    if max_pages < 1:
+        raise StorageError("local history database-size limit is smaller than one SQLite page")
+
+    try:
+        file_size = path.stat().st_size
+    except OSError as exc:
+        raise StorageError(
+            f"could not inspect report database size ({type(exc).__name__})"
+        ) from exc
+    if file_size > MAX_HISTORY_DATABASE_BYTES or page_count > max_pages:
+        raise StorageError(
+            f"database exceeds the local history database-size limit "
+            f"({MAX_HISTORY_DATABASE_BYTES} bytes)"
+        )
+
+    configured_max_pages = connection.execute(
+        f"PRAGMA max_page_count = {max_pages}"
+    ).fetchone()
+    if configured_max_pages is None or configured_max_pages[0] > max_pages:
+        raise StorageError("could not enforce the local history database-size limit")
 
 
 def _open_database(database_path: str | Path) -> sqlite3.Connection:
@@ -113,6 +144,7 @@ def _open_database(database_path: str | Path) -> sqlite3.Connection:
             raise StorageError("database path changed while it was being opened")
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys = ON")
+        _configure_database_size_limit(connection, path)
         version = connection.execute("PRAGMA user_version").fetchone()[0]
 
         if version == 0:
@@ -362,6 +394,15 @@ def save_report(
         raise
     except (sqlite3.Error, json.JSONDecodeError, TypeError, ValueError) as exc:
         connection.rollback()
+        error_code = getattr(exc, "sqlite_errorcode", None)
+        if (
+            isinstance(exc, sqlite3.Error)
+            and error_code is not None
+            and (error_code & 0xFF) == sqlite3.SQLITE_FULL
+        ):
+            raise StorageError(
+                "local history database-size limit or available disk space was reached"
+            ) from exc
         raise StorageError(f"could not store report ({type(exc).__name__})") from exc
     finally:
         connection.close()

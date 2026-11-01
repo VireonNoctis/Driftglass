@@ -292,3 +292,46 @@ def test_rejects_symlink_database_path_without_modifying_target(tmp_path):
 
     assert target.read_bytes() == original
 
+
+
+
+def test_history_database_size_limit_bounds_database_growth(tmp_path, monkeypatch):
+    import driftglass.storage as storage
+
+    db = tmp_path / "history.db"
+    limit = 256 * 1024
+    monkeypatch.setattr(storage, "MAX_HISTORY_DATABASE_BYTES", limit)
+
+    for index in range(100):
+        report = make_report(
+            base_run=f"base-{index}",
+            base_version=f"1.{index}",
+            base_hash=f"{index + 1:064x}",
+            candidate_run=f"candidate-{index}",
+            candidate_version=f"2.{index}",
+            candidate_hash=f"{index + 1001:064x}",
+        )
+        try:
+            save_report(db, report, REPORT_SCHEMA)
+        except StorageError as exc:
+            assert "database-size limit or available disk space" in str(exc)
+            break
+    else:
+        pytest.fail("history database did not enforce its configured size limit")
+
+    assert db.stat().st_size <= limit
+    assert len(list_reports(db)) == index
+
+
+def test_history_rejects_an_existing_database_above_its_size_limit(tmp_path, monkeypatch):
+    import driftglass.storage as storage
+
+    db = tmp_path / "history.db"
+    report = make_report()
+    save_report(db, report, REPORT_SCHEMA)
+    actual_size = db.stat().st_size
+    assert actual_size > 1
+
+    monkeypatch.setattr(storage, "MAX_HISTORY_DATABASE_BYTES", actual_size - 1)
+    with pytest.raises(StorageError, match="database exceeds the local history database-size limit"):
+        list_reports(db)
