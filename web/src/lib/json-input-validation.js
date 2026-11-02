@@ -128,8 +128,14 @@ export function hasUnsafeIntegerJsonNumber(source) {
     }
 
     const start = index;
-    if (source[index] === "-") index += 1;
-    if (source[index] < "0" || source[index] > "9") continue;
+    if (source[index] === "-") {
+      index += 1;
+      // A malformed negative-number prefix is left for JSON.parse to reject.
+      // Advancing past the minus keeps this preflight scan bounded.
+      if (index >= source.length || source[index] < "0" || source[index] > "9") {
+        continue;
+      }
+    }
 
     if (source[index] === "0") {
       index += 1;

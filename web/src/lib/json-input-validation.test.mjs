@@ -54,6 +54,13 @@ test("allows safe integer boundaries and non-integer numeric spellings", () => {
   assert.equal(hasUnsafeIntegerJsonNumber(source), false);
 });
 
+test("malformed negative-number prefixes do not stall integer preflight", () => {
+  for (const source of ['{"value":-}', '{"value":- }', '{"value":-x}', "-"]) {
+    assert.equal(hasUnsafeIntegerJsonNumber(source), false);
+    assert.throws(() => JSON.parse(source), SyntaxError);
+  }
+});
+
 test("ignores unsafe-looking integers within escaped JSON strings", () => {
   const source = JSON.stringify({ note: 'text "9007199254740993" and slash \\', value: 1 });
   assert.equal(hasUnsafeIntegerJsonNumber(source), false);
