@@ -177,7 +177,7 @@ def workflow_action_pin_issues(text: str) -> list[tuple[int, str]]:
         if reference.startswith("./"):
             continue
         if reference.startswith("docker://"):
-            pinned = "@sha256:" in reference
+            pinned = re.fullmatch(r"docker://[^@\\s]+@sha256:[0-9a-f]{64}", reference) is not None
         else:
             pinned = re.fullmatch(r".+@[0-9a-f]{40}", reference) is not None
         if not pinned:
