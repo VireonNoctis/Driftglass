@@ -166,10 +166,50 @@ def check_css(path: Path) -> str | None:
     return None
 
 
+def workflow_action_pin_issues(text: str) -> list[tuple[int, str]]:
+    """Return external GitHub Actions references that are not immutably pinned."""
+    issues: list[tuple[int, str]] = []
+    for line_number, line in enumerate(text.splitlines(), start=1):
+        match = re.match(r"^\s*(?:-\s*)?uses:\s*([^\s#]+)", line)
+        if not match:
+            continue
+        reference = match.group(1)
+        if reference.startswith("./"):
+            continue
+        if reference.startswith("docker://"):
+            pinned = re.fullmatch(r"docker://[^@\s]+@sha256:[0-9a-f]{64}", reference) is not None
+        else:
+            pinned = re.fullmatch(r".+@[0-9a-f]{40}", reference) is not None
+        if not pinned:
+            issues.append((line_number, reference))
+    return issues
+
+
 def check_quality() -> int:
     files = tracked_files()
     failures: list[str] = []
     print(f"Checking {len(files)} tracked files in {ROOT}.")
+    workflow_files = [
+        path for path in files
+        if path.parent == ROOT / ".github" / "workflows"
+        and path.suffix.lower() in {".yml", ".yaml"}
+    ]
+    for path in workflow_files:
+        try:
+            content = path.read_text(encoding="utf-8-sig")
+        except (OSError, UnicodeDecodeError) as exc:
+            failures.append(f"Workflow read: {relative(path)}")
+            print(f"::error file={relative(path)}::could not read workflow ({type(exc).__name__})")
+            continue
+        for line_number, reference in workflow_action_pin_issues(content):
+            failures.append(f"Unpinned GitHub Action: {relative(path)}:{line_number}")
+            print(
+                f"::error file={relative(path)},line={line_number}::"
+                f"external action must use a full commit SHA: {reference}"
+            )
+    if workflow_files:
+        print(f"::notice::GitHub Actions references checked: {len(workflow_files)} workflows")
+
 
     python_files = [p for p in files if p.suffix in {".py", ".pyi"}]
     for path in python_files:
