@@ -36,6 +36,9 @@ struct Totals {
     fd_read_errors: u64,
     ambiguous_socket_owner_observations: u64,
     network_table_errors: u64,
+    network_table_not_found: u64,
+    network_table_permission_denied: u64,
+    network_table_read_errors: u64,
     network_malformed_rows: u64,
 }
 
@@ -65,6 +68,9 @@ impl Totals {
 
     fn add_network(&mut self, scan: &driftglass_agent::NetworkScan) {
         self.network_table_errors += scan.table_errors;
+        self.network_table_not_found += scan.table_not_found;
+        self.network_table_permission_denied += scan.table_permission_denied;
+        self.network_table_read_errors += scan.table_read_errors;
         self.network_malformed_rows += scan.malformed_rows;
     }
 }
@@ -353,6 +359,9 @@ fn run(arguments: impl Iterator<Item = String>) -> Result<(), String> {
                 ("fd_read_errors".to_owned(), json!(totals.fd_read_errors)),
                 ("ambiguous_socket_owner_observations".to_owned(), json!(totals.ambiguous_socket_owner_observations)),
                 ("tcp_table_errors".to_owned(), json!(totals.network_table_errors)),
+                ("tcp_table_not_found".to_owned(), json!(totals.network_table_not_found)),
+                ("tcp_table_permission_denied".to_owned(), json!(totals.network_table_permission_denied)),
+                ("tcp_table_read_errors".to_owned(), json!(totals.network_table_read_errors)),
                 ("malformed_rows".to_owned(), json!(totals.network_malformed_rows)),
             ]),
         )?;
