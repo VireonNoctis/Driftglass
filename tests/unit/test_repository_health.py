@@ -22,7 +22,7 @@ def test_external_actions_require_full_commit_shas():
 def test_local_actions_and_digest_pinned_containers_are_allowed():
     workflow = """steps:
   - uses: ./.github/actions/local-check
-  - uses: docker://example/tool@sha256:0000000000000000000000000000000000000000000000000000000000000000
+  - uses: docker://ghcr.io/example/services/tool@sha256:0000000000000000000000000000000000000000000000000000000000000000
   - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 """
     assert workflow_action_pin_issues(workflow) == []
@@ -30,10 +30,10 @@ def test_local_actions_and_digest_pinned_containers_are_allowed():
 
 def test_docker_action_requires_a_complete_sha256_digest():
     workflow = """steps:
-  - uses: docker://example/tool@sha256:0123456789abcdef
+  - uses: docker://ghcr.io/example/services/tool@sha256:0123456789abcdef
 """
     assert workflow_action_pin_issues(workflow) == [
-        (2, "docker://example/tool@sha256:0123456789abcdef"),
+        (2, "docker://ghcr.io/example/services/tool@sha256:0123456789abcdef"),
     ]
 
 
