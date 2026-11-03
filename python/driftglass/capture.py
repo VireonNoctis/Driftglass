@@ -181,7 +181,10 @@ def capture_run(
         package_id = _required_text("package_id", package_id, 512)
     if snapshot_id is not None:
         snapshot_id = _required_text("snapshot_id", snapshot_id, 256)
-    if artifact_sha256 is not None and not re.fullmatch(r"[a-f0-9]{64}", artifact_sha256):
+    if artifact_sha256 is not None and (
+        not isinstance(artifact_sha256, str)
+        or re.fullmatch(r"[a-f0-9]{64}", artifact_sha256) is None
+    ):
         raise CaptureError("artifact_sha256 must be a lowercase 64-character SHA-256 digest")
 
     try:

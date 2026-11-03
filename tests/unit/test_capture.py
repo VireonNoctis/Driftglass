@@ -169,6 +169,19 @@ def test_rejects_invalid_pid_before_running_observer(tmp_path, monkeypatch):
     assert calls == []
 
 
+@pytest.mark.parametrize("artifact_sha256", [123, "A" * 64])
+def test_rejects_noncanonical_artifact_hash_before_running_observer(
+    tmp_path, monkeypatch, artifact_sha256
+):
+    args, calls, _, _ = setup_capture(tmp_path, monkeypatch, records=complete_events())
+    args["artifact_sha256"] = artifact_sha256
+
+    with pytest.raises(CaptureError, match="artifact_sha256 must be a lowercase"):
+        capture_run(**args)
+
+    assert calls == []
+
+
 
 def test_capture_incomplete_signal_overrides_zero_exit_and_boundary_events(tmp_path, monkeypatch):
     records = [
