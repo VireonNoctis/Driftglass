@@ -47,6 +47,7 @@ pub struct NetworkScan {
     pub table_not_found: u64,
     pub table_permission_denied: u64,
     pub table_read_errors: u64,
+    pub malformed_headers: u64,
     pub malformed_rows: u64,
 }
 
@@ -371,16 +372,44 @@ pub fn read_tcp_snapshot(proc_root: &Path, network_namespace_pid: u32) -> Networ
             }
         };
 
-        for row in contents.lines().skip(1).filter(|row| !row.trim().is_empty()) {
-            match parse_tcp_row(row, ipv6) {
-                Some(socket) => {
-                    scan.sockets.insert(socket.key.clone(), socket);
-                }
-                None => scan.malformed_rows += 1,
+        let mut rows = contents.lines();
+        match rows.next() {
+            Some(header) if is_tcp_table_header(header) => {}
+            Some(first_row) => {
+                scan.malformed_headers += 1;
+                record_tcp_row(&mut scan, first_row, ipv6);
             }
+            None => scan.malformed_headers += 1,
+        }
+
+        for row in rows {
+            record_tcp_row(&mut scan, row, ipv6);
         }
     }
     scan
+}
+
+fn is_tcp_table_header(line: &str) -> bool {
+    let fields: Vec<&str> = line.split_whitespace().collect();
+    fields.len() >= 10
+        && fields[0] == "sl"
+        && fields[1] == "local_address"
+        && fields[2] == "rem_address"
+        && fields[3] == "st"
+        && fields.last() == Some(&"inode")
+}
+
+fn record_tcp_row(scan: &mut NetworkScan, row: &str, ipv6: bool) {
+    if row.trim().is_empty() {
+        return;
+    }
+
+    match parse_tcp_row(row, ipv6) {
+        Some(socket) => {
+            scan.sockets.insert(socket.key.clone(), socket);
+        }
+        None => scan.malformed_rows += 1,
+    }
 }
 
 fn parse_tcp_row(row: &str, ipv6: bool) -> Option<SocketInfo> {
@@ -578,6 +607,8 @@ mod tests {
 
         assert_eq!(first.table_errors, 0);
         assert_eq!(second.table_errors, 0);
+        assert_eq!(first.malformed_headers, 0);
+        assert_eq!(second.malformed_headers, 0);
         assert_eq!(first_ports, vec![8080]);
         assert_eq!(second_ports, vec![8081]);
 
@@ -623,6 +654,64 @@ mod tests {
         assert_eq!(scan.table_not_found, 0);
         assert_eq!(scan.table_permission_denied, 0);
         assert_eq!(scan.table_read_errors, 0);
+        assert_eq!(scan.malformed_headers, 0);
+
+        fs::remove_dir_all(root).expect("remove synthetic procfs fixture");
+    }
+
+    #[test]
+    fn headerless_tcp_table_keeps_a_valid_first_socket_row_and_reports_the_gap() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("current time")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "driftglass-headerless-net-fixture-{}-{unique}",
+            std::process::id()
+        ));
+        let net_dir = root.join("10").join("net");
+        fs::create_dir_all(&net_dir).expect("create synthetic procfs network directory");
+        let row = "  0: 0100007F:1F90 08080808:01BB 01 00000000:00000000 00:00000000 00000000 1000 0 12345\n";
+        let header = "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n";
+        fs::write(net_dir.join("tcp"), row).expect("write headerless TCP table");
+        fs::write(net_dir.join("tcp6"), header).expect("write valid empty TCP6 table");
+
+        let scan = read_tcp_snapshot(&root, 10);
+
+        assert_eq!(scan.malformed_headers, 1);
+        assert_eq!(scan.malformed_rows, 0);
+        assert_eq!(scan.table_errors, 0);
+        assert!(scan.sockets.values().any(|socket| socket.local_port == 8080));
+
+        fs::remove_dir_all(root).expect("remove synthetic procfs fixture");
+    }
+
+    #[test]
+    fn empty_headerless_tcp_table_is_not_misreported_as_a_valid_empty_table() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("current time")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "driftglass-empty-headerless-net-fixture-{}-{unique}",
+            std::process::id()
+        ));
+        let net_dir = root.join("10").join("net");
+        fs::create_dir_all(&net_dir).expect("create synthetic procfs network directory");
+        let header = "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n";
+        fs::write(net_dir.join("tcp"), "").expect("write empty headerless TCP table");
+        fs::write(net_dir.join("tcp6"), header).expect("write valid empty TCP6 table");
+
+        let scan = read_tcp_snapshot(&root, 10);
+
+        assert_eq!(scan.malformed_headers, 1);
+        assert_eq!(scan.malformed_rows, 0);
+        assert_eq!(scan.table_errors, 0);
+        assert!(scan.sockets.is_empty());
 
         fs::remove_dir_all(root).expect("remove synthetic procfs fixture");
     }

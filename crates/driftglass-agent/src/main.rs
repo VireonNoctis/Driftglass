@@ -39,6 +39,7 @@ struct Totals {
     network_table_not_found: u64,
     network_table_permission_denied: u64,
     network_table_read_errors: u64,
+    network_table_malformed_headers: u64,
     network_malformed_rows: u64,
 }
 
@@ -51,6 +52,7 @@ impl Totals {
             || self.fd_read_errors > 0
             || self.ambiguous_socket_owner_observations > 0
             || self.network_table_errors > 0
+            || self.network_table_malformed_headers > 0
             || self.network_malformed_rows > 0
     }
 
@@ -71,6 +73,7 @@ impl Totals {
         self.network_table_not_found += scan.table_not_found;
         self.network_table_permission_denied += scan.table_permission_denied;
         self.network_table_read_errors += scan.table_read_errors;
+        self.network_table_malformed_headers += scan.malformed_headers;
         self.network_malformed_rows += scan.malformed_rows;
     }
 }
@@ -367,6 +370,7 @@ fn run(arguments: impl Iterator<Item = String>) -> Result<(), String> {
         || totals.fd_read_errors > 0
         || totals.ambiguous_socket_owner_observations > 0
         || totals.network_table_errors > 0
+        || totals.network_table_malformed_headers > 0
         || totals.network_malformed_rows > 0
     {
         emit(
@@ -387,6 +391,7 @@ fn run(arguments: impl Iterator<Item = String>) -> Result<(), String> {
                 ("tcp_table_not_found".to_owned(), json!(totals.network_table_not_found)),
                 ("tcp_table_permission_denied".to_owned(), json!(totals.network_table_permission_denied)),
                 ("tcp_table_read_errors".to_owned(), json!(totals.network_table_read_errors)),
+                ("tcp_table_malformed_headers".to_owned(), json!(totals.network_table_malformed_headers)),
                 ("malformed_rows".to_owned(), json!(totals.network_malformed_rows)),
             ]),
         )?;
@@ -397,6 +402,7 @@ fn run(arguments: impl Iterator<Item = String>) -> Result<(), String> {
         || totals.fd_read_errors > 0
         || totals.ambiguous_socket_owner_observations > 0
         || totals.network_table_errors > 0
+        || totals.network_table_malformed_headers > 0
         || totals.network_malformed_rows > 0;
     let gap_count = u8::from(
         totals.process_permission_denied > 0
@@ -739,6 +745,18 @@ mod tests {
 
         assert!(totals.has_gaps());
         assert_eq!(totals.ambiguous_socket_owner_observations, 1);
+    }
+
+    #[test]
+    fn malformed_tcp_table_header_marks_capture_partial() {
+        let mut network = driftglass_agent::NetworkScan::default();
+        network.malformed_headers = 1;
+        let mut totals = Totals::default();
+
+        totals.add_network(&network);
+
+        assert!(totals.has_gaps());
+        assert_eq!(totals.network_table_malformed_headers, 1);
     }
 
     #[cfg(target_os = "linux")]
