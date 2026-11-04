@@ -289,3 +289,38 @@ def test_manifest_write_failure_preserves_replacement_path(tmp_path, monkeypatch
 
     assert manifest_path.read_text(encoding="utf-8") == "replacement file"
 
+@pytest.mark.parametrize(
+    ("records", "expected_error"),
+    [
+        (
+            complete_events() + [event("duplicate-start", "capture_started")],
+            "exactly one capture_started",
+        ),
+        (
+            [event("finish", "capture_finished"), event("start", "capture_started")],
+            "capture_started must be the first event",
+        ),
+        (
+            complete_events() + [
+                event("after-finish", "coverage_gap", attributes={"category": "network"})
+            ],
+            "capture_finished must be the final event",
+        ),
+        (
+            complete_events() + [event("duplicate-finish", "capture_finished")],
+            "exactly one capture_finished",
+        ),
+    ],
+)
+def test_invalid_capture_boundary_sequence_is_incomplete(
+    tmp_path, monkeypatch, records, expected_error
+):
+    args, _, _, manifest_path = setup_capture(tmp_path, monkeypatch, records=records)
+
+    with pytest.raises(CaptureError, match="capture status is incomplete"):
+        capture_run(**args)
+
+    manifest = load_manifest(manifest_path, MANIFEST_SCHEMA)
+    assert manifest["capture"]["status"] == "incomplete"
+    assert any(expected_error in error for error in manifest["coverage"]["errors"])
+

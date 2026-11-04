@@ -94,6 +94,27 @@ def _event_records(path: Path, schema_path: Path) -> tuple[list[dict[str, Any]],
         return [], "observer output did not pass JSONL validation"
 
 
+def _capture_boundary_error(records: list[dict[str, Any]]) -> str | None:
+    """Reject streams whose capture boundary markers do not match the observer contract."""
+    starts = [
+        index for index, record in enumerate(records)
+        if record.get("category") == "coverage" and record.get("action") == "capture_started"
+    ]
+    finishes = [
+        index for index, record in enumerate(records)
+        if record.get("category") == "coverage" and record.get("action") == "capture_finished"
+    ]
+    if len(starts) != 1:
+        return "observer output must contain exactly one capture_started event"
+    if len(finishes) != 1:
+        return "observer output must contain exactly one capture_finished event"
+    if starts[0] != 0:
+        return "capture_started must be the first event"
+    if finishes[0] != len(records) - 1:
+        return "capture_finished must be the final event"
+    return None
+
+
 def _manifest_errors(
     records: list[dict[str, Any]],
     *,
@@ -241,6 +262,8 @@ def capture_run(
         stderr_text = str(exc)
 
     records, stream_error = _event_records(event_path, event_schema)
+    if stream_error is None:
+        stream_error = _capture_boundary_error(records)
     started = any(
         record.get("category") == "coverage" and record.get("action") == "capture_started"
         for record in records
