@@ -94,8 +94,10 @@ def _event_records(path: Path, schema_path: Path) -> tuple[list[dict[str, Any]],
         return [], "observer output did not pass JSONL validation"
 
 
-def _capture_boundary_error(records: list[dict[str, Any]]) -> str | None:
-    """Reject streams whose capture boundary markers do not match the observer contract."""
+def _capture_boundary_error(
+    records: list[dict[str, Any]], expected_pid: int
+) -> str | None:
+    """Reject streams whose boundary markers do not describe the requested capture."""
     starts = [
         index for index, record in enumerate(records)
         if record.get("category") == "coverage" and record.get("action") == "capture_started"
@@ -112,6 +114,24 @@ def _capture_boundary_error(records: list[dict[str, Any]]) -> str | None:
         return "capture_started must be the first event"
     if finishes[0] != len(records) - 1:
         return "capture_finished must be the final event"
+
+    start_attributes = records[starts[0]].get("attributes")
+    target_pid = (
+        start_attributes.get("target_pid")
+        if isinstance(start_attributes, dict)
+        else None
+    )
+    if type(target_pid) is not int or target_pid != expected_pid:
+        return "capture_started target_pid must match the requested PID"
+
+    finish_attributes = records[finishes[0]].get("attributes")
+    capture_status = (
+        finish_attributes.get("capture_status")
+        if isinstance(finish_attributes, dict)
+        else None
+    )
+    if capture_status != "completed":
+        return "capture_finished capture_status must be 'completed'"
     return None
 
 
@@ -263,7 +283,7 @@ def capture_run(
 
     records, stream_error = _event_records(event_path, event_schema)
     if stream_error is None:
-        stream_error = _capture_boundary_error(records)
+        stream_error = _capture_boundary_error(records, pid)
     started = any(
         record.get("category") == "coverage" and record.get("action") == "capture_started"
         for record in records
