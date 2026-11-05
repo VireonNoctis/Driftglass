@@ -374,7 +374,7 @@ int run(int argc, char** argv) {
         const Json report = driftglass::compare_runs(
             baseline_manifest, candidate_manifest, baseline_events, candidate_events, profile);
         const std::string serialized = report.dump(2, ' ', true, Json::error_handler_t::strict);
-        if (store_history) driftglass::save_report(options.at("--history-db"), report);
+        if (store_history) (void)driftglass::save_report(options.at("--history-db"), report);
         if (options.contains("--output")) write_output(options.at("--output"), serialized, overwrite);
         if (options.contains("--html-output")) {
             write_output(options.at("--html-output"), driftglass::render_html_report(report), overwrite);

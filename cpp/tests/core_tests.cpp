@@ -338,6 +338,7 @@ void test_capture_coordinator_validates_boundaries_and_publishes_manifest() {
     options.event_output_path = directory / "events.jsonl";
     options.manifest_output_path = directory / "manifest.json";
     options.scenario = "synthetic capture contract";
+    options.profile = "fixture-process-observer";
 
     const auto result = driftglass::capture_run(options);
     expect(result.completed, "valid observer run should complete");
