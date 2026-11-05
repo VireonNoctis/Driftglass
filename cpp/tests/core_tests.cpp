@@ -245,6 +245,35 @@ void test_report_redaction_is_deterministic_and_preserves_source() {
                  "redaction without any category must fail");
 }
 
+
+void test_sqlite_history_is_transactional_idempotent_and_explicit() {
+    const auto directory = fs::temp_directory_path()
+        / ("driftglass-history-test-" + std::to_string(
+            std::chrono::steady_clock::now().time_since_epoch().count()));
+    fs::create_directory(directory);
+    const auto database = directory / "history.sqlite";
+    const auto report = comparison_report(8);
+    const auto id = report.at("report_id").get<std::string>();
+
+    expect(driftglass::save_report(database, report) == id, "history save must return the report ID");
+    expect(driftglass::save_report(database, report) == id, "saving identical content must be idempotent");
+    const auto rows = driftglass::list_reports(database);
+    expect(rows.size() == 1, "idempotent save must not duplicate history rows");
+    expect(rows.at(0).at("report_id") == id, "history list must return the stored report");
+    const auto restored = driftglass::get_report(database, id);
+    expect(restored.has_value() && restored->at("report_id") == id, "history get must validate and return its report");
+
+    expect_error([&] { (void)driftglass::list_reports(database, 0); },
+                 "history limit below one must fail");
+    expect_error([&] { (void)driftglass::get_report(database, "not-a-report-id"); },
+                 "invalid history report IDs must fail");
+
+    expect(driftglass::delete_report(database, id), "explicit API delete must remove an existing report");
+    expect(!driftglass::get_report(database, id).has_value(), "deleted report must not remain readable");
+    expect(!driftglass::delete_report(database, id), "repeated delete must report absence");
+    fs::remove_all(directory);
+}
+
 } // namespace
 
 template <typename Function>
@@ -267,6 +296,7 @@ int main() {
         run_test("profile_ignored_attributes", test_profile_ignored_attributes_remain_in_evidence);
         run_test("report_repeat_integrity", test_report_validation_repeat_analysis_and_integrity);
         run_test("report_redaction", test_report_redaction_is_deterministic_and_preserves_source);
+        run_test("sqlite_history", test_sqlite_history_is_transactional_idempotent_and_explicit);
         std::cout << "C++ core tests passed\n";
         return 0;
     } catch (const std::exception& error) {

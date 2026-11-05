@@ -6,15 +6,17 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(OpenSSL REQUIRED)
+find_package(SQLite3 REQUIRED)
 find_package(nlohmann_json 3.10 REQUIRED)
 
 add_library(driftglass_core
     src/core.cpp
     src/reports.cpp
     src/redaction.cpp
+    src/storage.cpp
 )
 target_include_directories(driftglass_core PUBLIC include)
-target_link_libraries(driftglass_core PUBLIC nlohmann_json::nlohmann_json OpenSSL::Crypto)
+target_link_libraries(driftglass_core PUBLIC nlohmann_json::nlohmann_json OpenSSL::Crypto SQLite::SQLite3)
 target_compile_features(driftglass_core PUBLIC cxx_std_20)
 
 if(MSVC)

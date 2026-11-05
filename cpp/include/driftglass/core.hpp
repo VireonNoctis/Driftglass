@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <filesystem>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -50,6 +51,10 @@ void validate_report(const Json& report);
 [[nodiscard]] Json redact_report(const Json& report, bool redact_paths, bool redact_network, bool redact_process_names);
 [[nodiscard]] Json analyze_repeat_reports(const std::vector<Json>& reports);
 void validate_repeat_analysis(const Json& analysis);
+[[nodiscard]] std::string save_report(const std::filesystem::path& database_path, const Json& report);
+[[nodiscard]] Json list_reports(const std::filesystem::path& database_path, std::size_t limit = 100);
+[[nodiscard]] std::optional<Json> get_report(const std::filesystem::path& database_path, const std::string& report_id);
+[[nodiscard]] bool delete_report(const std::filesystem::path& database_path, const std::string& report_id);
 [[nodiscard]] Json attest_report(const std::filesystem::path& report_path);
 [[nodiscard]] Json verify_report_integrity(const std::filesystem::path& report_path, const std::filesystem::path& manifest_path);
 

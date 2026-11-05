@@ -24,6 +24,9 @@ void print_usage() {
         << "  driftglass-core report verify --report FILE --manifest FILE\n"
         << "  driftglass-core report redact --report FILE --output FILE [--paths] [--network] [--process-names]\n"
         << "  driftglass-core repeat analyze REPORT.json REPORT.json [REPORT.json ...] [--output FILE] [--overwrite]\n"
+        << "  driftglass-core history list --database FILE [--limit N]\n"
+        << "  driftglass-core history show --database FILE --report-id SHA256\n"
+        << "  driftglass-core history delete --database FILE --report-id SHA256 --confirm SHA256\n"
         << "  driftglass-core compare --baseline-manifest FILE --candidate-manifest FILE\n"
         << "      --baseline-events FILE --candidate-events FILE [--profile FILE]\n"
         << "      [--output FILE] [--overwrite]\n\n"
@@ -34,7 +37,7 @@ std::map<std::string, std::string> parse_options(int argc, char** argv, int star
     const std::set<std::string> value_options{
         "--baseline-manifest", "--candidate-manifest",
         "--baseline-events", "--candidate-events",
-        "--profile", "--output", "--report", "--manifest"
+        "--profile", "--output", "--report", "--manifest", "--history-db", "--database", "--report-id", "--confirm", "--limit"
     };
     const std::set<std::string> flags{"--overwrite", "--paths", "--network", "--process-names"};
     std::map<std::string, std::string> result;
@@ -222,6 +225,53 @@ int run(int argc, char** argv) {
                   << " patterns=" << analysis.at("patterns").size() << "\n";
         return 0;
     }
+    if (command == "history") {
+        if (argc < 3) throw Error("usage: driftglass-core history list|show|delete ...");
+        const std::string operation = argv[2];
+        const auto options = parse_options(argc, argv, 3);
+        const auto database = normalized_path(need(options, "--database"));
+        if (operation == "list") {
+            const auto limit_text = options.contains("--limit") ? options.at("--limit") : "100";
+            std::size_t limit = 0;
+            try {
+                std::size_t consumed = 0;
+                const auto parsed = std::stoull(limit_text, &consumed);
+                if (consumed != limit_text.size() || parsed < 1 || parsed > 1000U) throw Error("history limit must be between 1 and 1000");
+                limit = static_cast<std::size_t>(parsed);
+            } catch (const Error&) { throw; }
+            catch (...) { throw Error("history limit must be an integer between 1 and 1000"); }
+            const auto reports = driftglass::list_reports(database, limit);
+            if (reports.empty()) {
+                std::cout << "no reports in local history\n";
+            } else {
+                for (const auto& item : reports) {
+                    std::cout << item.at("report_id") << "  " << item.at("status") << "  "
+                              << item.at("application_name") << "  "
+                              << item.at("baseline_version") << " -> " << item.at("candidate_version")
+                              << "  findings=" << item.at("finding_count")
+                              << " uncertainties=" << item.at("uncertainty_count") << "\n";
+                }
+            }
+            return 0;
+        }
+        if (operation == "show") {
+            const auto report = driftglass::get_report(database, need(options, "--report-id"));
+            if (!report) throw Error("report not found in local history");
+            std::cout << report->dump(2, ' ', true) << "\n";
+            return 0;
+        }
+        if (operation == "delete") {
+            const auto report_id = need(options, "--report-id");
+            if (need(options, "--confirm") != report_id) {
+                throw Error("confirmation must exactly match --report-id; nothing was deleted");
+            }
+            if (!driftglass::delete_report(database, report_id)) throw Error("report not found in local history");
+            std::cout << "deleted local report " << report_id
+                      << "; unreferenced run rows removed; source capture files unchanged\n";
+            return 0;
+        }
+        throw Error("unknown history operation: " + operation);
+    }
     if (command == "compare") {
         const auto options = parse_options(argc, argv, 2);
         const auto baseline_manifest = need(options, "--baseline-manifest");
@@ -230,6 +280,7 @@ int run(int argc, char** argv) {
         const auto candidate_events = need(options, "--candidate-events");
         const auto profile = options.contains("--profile") ? options.at("--profile") : std::string{};
         const bool overwrite = options.contains("--overwrite");
+        const bool store_history = options.contains("--history-db");
 
         if (overwrite && !options.contains("--output")) throw Error("--overwrite requires --output");
         if (options.contains("--output")) {
@@ -239,10 +290,21 @@ int run(int argc, char** argv) {
             }
             if (!profile.empty() && output == normalized_path(profile)) throw Error("report output must not replace the rule profile");
         }
+        if (store_history) {
+            const auto history = normalized_path(options.at("--history-db"));
+            for (const auto& input : {baseline_manifest, candidate_manifest, baseline_events, candidate_events}) {
+                if (history == normalized_path(input)) throw Error("history database must not replace an input file");
+            }
+            if (options.contains("--output") && history == normalized_path(options.at("--output"))) {
+                throw Error("history database and report output must use different paths");
+            }
+            if (!profile.empty() && history == normalized_path(profile)) throw Error("history database must not replace the rule profile");
+        }
 
         const Json report = driftglass::compare_runs(
             baseline_manifest, candidate_manifest, baseline_events, candidate_events, profile);
         const std::string serialized = report.dump(2, ' ', true, Json::error_handler_t::strict);
+        if (store_history) driftglass::save_report(options.at("--history-db"), report);
         if (options.contains("--output")) {
             write_output(options.at("--output"), serialized, overwrite);
         } else {
