@@ -95,7 +95,7 @@ def test_udp_socket_observations_ignore_volatile_local_ports(tmp_path):
             "port": 0,
             "protocol": "udp",
         },
-        attributes={"socket_state": "UNCONNECTED", "socket_inode": 12345},
+        attributes={"socket_state": "UNCONNECTED", "socket_inode": 12345, "local_port": 53000},
     )
     candidate_event = event(
         "udp-candidate",
@@ -106,7 +106,7 @@ def test_udp_socket_observations_ignore_volatile_local_ports(tmp_path):
             "port": 0,
             "protocol": "udp",
         },
-        attributes={"socket_state": "UNCONNECTED", "socket_inode": 67890},
+        attributes={"socket_state": "UNCONNECTED", "socket_inode": 67890, "local_port": 54000},
     )
 
     report = compare(tmp_path, baseline, candidate, [baseline_event], [candidate_event])

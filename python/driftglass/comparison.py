@@ -68,6 +68,11 @@ def _signature(event: dict[str, Any], profile: RuleProfile) -> str:
         details["resource"] = {
             key: value for key, value in resource.items() if key != "identifier"
         }
+        details["attributes"] = {
+            key: value
+            for key, value in details["attributes"].items()
+            if key not in {"socket_inode", "local_port"}
+        }
     return canonical_json(details)
 
 

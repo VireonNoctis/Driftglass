@@ -709,6 +709,7 @@ mod tests {
             key: "tcp:ipv4:123:127.0.0.1:50000:198.51.100.2:443".into(),
             inode: 123,
             family: "ipv4",
+            protocol: "tcp",
             local_address: "127.0.0.1".into(),
             local_port: 50000,
             remote_address: "198.51.100.2".into(),
