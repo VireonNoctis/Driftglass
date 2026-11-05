@@ -231,9 +231,9 @@ void test_report_redaction_is_deterministic_and_preserves_source() {
            "redacted report must receive a new report identity");
     expect(source.at("findings").at(0).at("finding_id") != redacted.at("findings").at(0).at("finding_id"),
            "redacted finding must receive a new finding identity");
-    expect(canonical_json(source).find("/opt/fixture") != std::string::npos,
+    expect(driftglass::canonical_json(source).find("/opt/fixture") != std::string::npos,
            "redaction must not mutate the caller's source report");
-    const auto serialized = canonical_json(redacted);
+    const auto serialized = driftglass::canonical_json(redacted);
     expect(serialized.find("/opt/fixture") == std::string::npos,
            "redacted report must not expose original process paths");
     expect(serialized.find("198.51.100.10") == std::string::npos
