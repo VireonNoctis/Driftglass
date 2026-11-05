@@ -1,0 +1,36 @@
+name: Native C++ and macOS observer
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  cpp-core:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes cmake g++ libssl-dev nlohmann-json3-dev
+      - name: Configure C++20 core
+        run: cmake -S cpp -B build/cpp -DCMAKE_BUILD_TYPE=Release
+      - name: Build C++ core and CLI
+        run: cmake --build build/cpp --parallel 2
+      - name: Run C++ core tests
+        run: ctest --test-dir build/cpp --output-on-failure
+
+  macos-observer:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Test Swift process-tree logic
+        run: swift test --package-path macos
+      - name: Build macOS observer
+        run: swift build --package-path macos --configuration release
+      - name: Verify observer CLI
+        run: swift run --package-path macos driftglass-macos-observer --help

@@ -1,0 +1,56 @@
+#pragma once
+
+#include <cstddef>
+#include <filesystem>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include <nlohmann/json.hpp>
+
+namespace driftglass {
+
+using Json = nlohmann::json;
+
+class Error : public std::runtime_error {
+public:
+    using std::runtime_error::runtime_error;
+};
+
+struct RuleProfile {
+    std::string profile_id;
+    std::vector<std::string> included_categories;
+    std::vector<std::string> ignored_attributes;
+    std::string sha256;
+
+    [[nodiscard]] Json report_metadata() const;
+};
+
+[[nodiscard]] Json parse_json_strict(std::string_view source);
+[[nodiscard]] Json load_json_file(const std::filesystem::path& path, std::size_t maximum_bytes);
+[[nodiscard]] std::vector<Json> load_jsonl(const std::filesystem::path& path);
+[[nodiscard]] std::string canonical_json(const Json& value);
+[[nodiscard]] std::string sha256_hex(std::string_view value);
+
+void validate_event(const Json& event);
+void validate_manifest(const Json& manifest);
+
+[[nodiscard]] RuleProfile default_rule_profile();
+[[nodiscard]] RuleProfile load_rule_profile(const std::filesystem::path& path);
+
+[[nodiscard]] Json compare_loaded_runs(
+    const Json& baseline_manifest,
+    const Json& candidate_manifest,
+    const std::vector<Json>& baseline_events,
+    const std::vector<Json>& candidate_events,
+    const RuleProfile& profile = default_rule_profile());
+
+[[nodiscard]] Json compare_runs(
+    const std::filesystem::path& baseline_manifest,
+    const std::filesystem::path& candidate_manifest,
+    const std::filesystem::path& baseline_events,
+    const std::filesystem::path& candidate_events,
+    const std::filesystem::path& profile = {});
+
+} // namespace driftglass
