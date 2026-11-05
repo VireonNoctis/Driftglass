@@ -274,6 +274,26 @@ void test_sqlite_history_is_transactional_idempotent_and_explicit() {
     fs::remove_all(directory);
 }
 
+
+void test_html_report_is_standalone_and_escapes_untrusted_content() {
+    auto base = manifest("base-html", "baseline", "1.0", std::string(64, 'a'));
+    auto candidate = manifest("candidate-html", "candidate", "2.0", std::string(64, 'b'));
+    base["application"]["name"] = "<script>alert(1)</script>";
+    candidate["application"]["name"] = "<script>alert(1)</script>";
+    const auto report = driftglass::compare_loaded_runs(
+        base, candidate,
+        {event("html-before", "198.51.100.10", 52000, 100)},
+        {event("html-after", "198.51.100.11", 52000, 100)});
+    const auto html = driftglass::render_html_report(report);
+    expect(html.find("<!doctype html>") != std::string::npos, "HTML export must be a complete document");
+    expect(html.find("&lt;script&gt;alert(1)&lt;/script&gt;") != std::string::npos,
+           "HTML export must escape untrusted application names");
+    expect(html.find("<script>alert(1)</script>") == std::string::npos,
+           "HTML export must not turn report text into executable markup");
+    expect(html.find("https://") == std::string::npos,
+           "HTML export must not load remote assets");
+}
+
 } // namespace
 
 template <typename Function>
@@ -297,6 +317,7 @@ int main() {
         run_test("report_repeat_integrity", test_report_validation_repeat_analysis_and_integrity);
         run_test("report_redaction", test_report_redaction_is_deterministic_and_preserves_source);
         run_test("sqlite_history", test_sqlite_history_is_transactional_idempotent_and_explicit);
+        run_test("html_report", test_html_report_is_standalone_and_escapes_untrusted_content);
         std::cout << "C++ core tests passed\n";
         return 0;
     } catch (const std::exception& error) {

@@ -29,7 +29,7 @@ void print_usage() {
         << "  driftglass-core history delete --database FILE --report-id SHA256 --confirm SHA256\n"
         << "  driftglass-core compare --baseline-manifest FILE --candidate-manifest FILE\n"
         << "      --baseline-events FILE --candidate-events FILE [--profile FILE]\n"
-        << "      [--output FILE] [--overwrite]\n\n"
+        << "      [--output FILE] [--html-output FILE] [--history-db FILE] [--overwrite]\n\n"
         << "The compare command reads existing captures. It never launches the application.\n";
 }
 
@@ -37,7 +37,7 @@ std::map<std::string, std::string> parse_options(int argc, char** argv, int star
     const std::set<std::string> value_options{
         "--baseline-manifest", "--candidate-manifest",
         "--baseline-events", "--candidate-events",
-        "--profile", "--output", "--report", "--manifest", "--history-db", "--database", "--report-id", "--confirm", "--limit"
+        "--profile", "--output", "--report", "--manifest", "--history-db", "--database", "--report-id", "--confirm", "--limit", "--html-output"
     };
     const std::set<std::string> flags{"--overwrite", "--paths", "--network", "--process-names"};
     std::map<std::string, std::string> result;
@@ -282,21 +282,28 @@ int run(int argc, char** argv) {
         const bool overwrite = options.contains("--overwrite");
         const bool store_history = options.contains("--history-db");
 
-        if (overwrite && !options.contains("--output")) throw Error("--overwrite requires --output");
-        if (options.contains("--output")) {
-            const auto output = normalized_path(options.at("--output"));
+        if (overwrite && !options.contains("--output") && !options.contains("--html-output")) throw Error("--overwrite requires an output path");
+        for (const auto* output_option : {"--output", "--html-output"}) {
+            if (!options.contains(output_option)) continue;
+            const auto output = normalized_path(options.at(output_option));
             for (const auto& input : {baseline_manifest, candidate_manifest, baseline_events, candidate_events}) {
                 if (output == normalized_path(input)) throw Error("report output must not replace an input file");
             }
             if (!profile.empty() && output == normalized_path(profile)) throw Error("report output must not replace the rule profile");
+        }
+        if (options.contains("--output") && options.contains("--html-output")
+            && normalized_path(options.at("--output")) == normalized_path(options.at("--html-output"))) {
+            throw Error("JSON and HTML reports must use different output paths");
         }
         if (store_history) {
             const auto history = normalized_path(options.at("--history-db"));
             for (const auto& input : {baseline_manifest, candidate_manifest, baseline_events, candidate_events}) {
                 if (history == normalized_path(input)) throw Error("history database must not replace an input file");
             }
-            if (options.contains("--output") && history == normalized_path(options.at("--output"))) {
-                throw Error("history database and report output must use different paths");
+            for (const auto* output_option : {"--output", "--html-output"}) {
+                if (options.contains(output_option) && history == normalized_path(options.at(output_option))) {
+                    throw Error("history database and report output must use different paths");
+                }
             }
             if (!profile.empty() && history == normalized_path(profile)) throw Error("history database must not replace the rule profile");
         }
@@ -305,11 +312,11 @@ int run(int argc, char** argv) {
             baseline_manifest, candidate_manifest, baseline_events, candidate_events, profile);
         const std::string serialized = report.dump(2, ' ', true, Json::error_handler_t::strict);
         if (store_history) driftglass::save_report(options.at("--history-db"), report);
-        if (options.contains("--output")) {
-            write_output(options.at("--output"), serialized, overwrite);
-        } else {
-            std::cout << serialized << "\n";
+        if (options.contains("--output")) write_output(options.at("--output"), serialized, overwrite);
+        if (options.contains("--html-output")) {
+            write_output(options.at("--html-output"), driftglass::render_html_report(report), overwrite);
         }
+        if (!options.contains("--output")) std::cout << serialized << "\n";
         const auto& summary = report.at("summary");
         std::cerr << "report_id=" << report.at("report_id")
                   << " status=" << report.at("status")

@@ -14,6 +14,7 @@ add_library(driftglass_core
     src/reports.cpp
     src/redaction.cpp
     src/storage.cpp
+    src/html_report.cpp
 )
 target_include_directories(driftglass_core PUBLIC include)
 target_link_libraries(driftglass_core PUBLIC nlohmann_json::nlohmann_json OpenSSL::Crypto SQLite::SQLite3)

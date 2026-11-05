@@ -48,6 +48,7 @@ void validate_manifest(const Json& manifest);
     const RuleProfile& profile = default_rule_profile());
 
 void validate_report(const Json& report);
+[[nodiscard]] std::string render_html_report(const Json& report);
 [[nodiscard]] Json redact_report(const Json& report, bool redact_paths, bool redact_network, bool redact_process_names);
 [[nodiscard]] Json analyze_repeat_reports(const std::vector<Json>& reports);
 void validate_repeat_analysis(const Json& analysis);
