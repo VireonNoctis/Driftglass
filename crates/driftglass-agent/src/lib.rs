@@ -760,7 +760,9 @@ mod tests {
         fs::create_dir_all(&net_dir).expect("create synthetic procfs network directory");
         let header = "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n";
         fs::write(net_dir.join("tcp"), "").expect("write empty headerless TCP table");
-        fs::write(net_dir.join("tcp6"), header).expect("write valid empty TCP6 table");
+        for table in ["tcp6", "udp", "udp6"] {
+            fs::write(net_dir.join(table), header).expect("write valid empty network table");
+        }
 
         let scan = read_network_snapshot(&root, 10);
 
@@ -775,7 +777,8 @@ mod tests {
     #[test]
     fn parses_tcp_metadata_row() {
         let row = "  0: 0100007F:1F90 08080808:01BB 01 00000000:00000000 00:00000000 00000000 1000 0 12345";
-        let parsed = parse_tcp_row(row, false).expect("valid synthetic /proc/net/tcp row");
+        let parsed = parse_socket_row(row, false, "tcp")
+            .expect("valid synthetic /proc/net/tcp row");
         assert_eq!(parsed.local_address, "127.0.0.1");
         assert_eq!(parsed.local_port, 8080);
         assert_eq!(parsed.remote_address, "8.8.8.8");

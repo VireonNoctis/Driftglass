@@ -22,8 +22,9 @@ def capabilities_report() -> dict[str, object]:
                     "short-lived processes may be missed."
                 ),
                 "network": (
-                    "Sampled TCP/TCP6 socket metadata associated with the observed process scope; "
-                    "ownership and network-namespace visibility can be incomplete."
+                    "Sampled TCP/TCP6/UDP/UDP6 socket metadata associated with the observed process scope; "
+                    "ownership and network-namespace visibility can be incomplete. UDP socket state "
+                    "does not reveal individual datagrams or DNS contents."
                 ),
             },
             "unavailable_categories": [

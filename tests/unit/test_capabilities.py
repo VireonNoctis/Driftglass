@@ -22,6 +22,9 @@ def test_capability_summary_matches_the_implemented_observer_scope():
     assert collector["mechanism"] == "procfs polling"
     assert collector["implemented_categories"] == ["process", "network"]
     assert collector["unavailable_categories"] == ["file", "system", "persistence"]
+    assert "TCP/TCP6/UDP/UDP6" in collector["category_scope"]["network"]
+    assert "individual datagrams" in collector["category_scope"]["network"]
+    assert "UDP datagram events and payloads" in collector["not_collected"]
     assert report["platforms"] == [
         {
             "platform": "Linux",

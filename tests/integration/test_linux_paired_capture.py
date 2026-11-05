@@ -55,7 +55,7 @@ def test_paired_captures_observe_a_stable_loopback_listener(tmp_path):
                 manifest_output_path=manifest_path,
                 event_schema_path=EVENT_SCHEMA,
                 manifest_schema_path=MANIFEST_SCHEMA,
-                scenario="keep one loopback TCP listener open during bounded capture",
+                scenario="keep one loopback TCP listener and UDP socket open during bounded capture",
                 package_id="org.driftglass.synthetic-loopback",
             )
             assert result.manifest["capture"]["status"] == "completed"

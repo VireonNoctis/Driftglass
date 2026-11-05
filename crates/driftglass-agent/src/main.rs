@@ -272,7 +272,7 @@ fn run(arguments: impl Iterator<Item = String>) -> Result<(), String> {
         {
             let owners = read_socket_owners(&proc_root, &scope_pids(&current_scope));
             totals.add_owners(&owners);
-            let network = read_tcp_snapshot(&proc_root, network_namespace_pid);
+            let network = read_network_snapshot(&proc_root, network_namespace_pid);
             totals.add_network(&network);
             Some(owned_sockets(
                 &network.sockets,
@@ -775,7 +775,7 @@ mod tests {
 
         let scope = process_scope(&process_scan.processes, pid);
         let owners = read_socket_owners(&proc_root, &scope_pids(&scope));
-        let network = read_tcp_snapshot(&proc_root, pid);
+        let network = read_network_snapshot(&proc_root, pid);
         let socket = network
             .sockets
             .values()

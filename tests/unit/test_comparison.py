@@ -83,6 +83,40 @@ def pair():
     return manifest("baseline", "run-base", "1.0.0", "a" * 64), manifest("candidate", "run-candidate", "1.1.0", "b" * 64)
 
 
+def test_udp_socket_observations_ignore_volatile_local_ports(tmp_path):
+    baseline = manifest("baseline", "run-base", "1.0", "a" * 64)
+    candidate = manifest("candidate", "run-candidate", "2.0", "b" * 64)
+    baseline_event = event(
+        "udp-base",
+        resource={
+            "kind": "network",
+            "identifier": "127.0.0.1:53000",
+            "address": "0.0.0.0",
+            "port": 0,
+            "protocol": "udp",
+        },
+        attributes={"socket_state": "UNCONNECTED", "socket_inode": 12345},
+    )
+    candidate_event = event(
+        "udp-candidate",
+        resource={
+            "kind": "network",
+            "identifier": "127.0.0.1:54000",
+            "address": "0.0.0.0",
+            "port": 0,
+            "protocol": "udp",
+        },
+        attributes={"socket_state": "UNCONNECTED", "socket_inode": 67890},
+    )
+
+    report = compare(tmp_path, baseline, candidate, [baseline_event], [candidate_event])
+
+    assert report["findings"] == []
+    assert report["summary"]["added_count"] == 0
+    assert report["summary"]["removed_count"] == 0
+    assert report["summary"]["changed_count"] == 0
+
+
 def test_equivalent_observations_ignore_timestamps_pids_and_source_refs(tmp_path):
     base, candidate = pair()
     left = event()
