@@ -11,6 +11,7 @@ find_package(nlohmann_json 3.10 REQUIRED)
 add_library(driftglass_core
     src/core.cpp
     src/reports.cpp
+    src/redaction.cpp
 )
 target_include_directories(driftglass_core PUBLIC include)
 target_link_libraries(driftglass_core PUBLIC nlohmann_json::nlohmann_json OpenSSL::Crypto)

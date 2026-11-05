@@ -222,6 +222,29 @@ void test_report_validation_repeat_analysis_and_integrity() {
     fs::remove_all(folder);
 }
 
+
+void test_report_redaction_is_deterministic_and_preserves_source() {
+    const auto source = comparison_report(3);
+    const auto redacted = driftglass::redact_report(source, true, true, true);
+    driftglass::validate_report(redacted);
+    expect(source.at("report_id") != redacted.at("report_id"),
+           "redacted report must receive a new report identity");
+    expect(source.at("findings").at(0).at("finding_id") != redacted.at("findings").at(0).at("finding_id"),
+           "redacted finding must receive a new finding identity");
+    expect(canonical_json(source).find("/opt/fixture") != std::string::npos,
+           "redaction must not mutate the caller's source report");
+    const auto serialized = canonical_json(redacted);
+    expect(serialized.find("/opt/fixture") == std::string::npos,
+           "redacted report must not expose original process paths");
+    expect(serialized.find("198.51.100.10") == std::string::npos
+           && serialized.find("198.51.100.11") == std::string::npos,
+           "redacted report must not expose original network addresses");
+    expect(serialized.find("[REDACTED_PATH_") != std::string::npos,
+           "redacted paths should be replaced with stable tokens");
+    expect_error([&] { (void)driftglass::redact_report(source, false, false, false); },
+                 "redaction without any category must fail");
+}
+
 } // namespace
 
 template <typename Function>
@@ -243,6 +266,7 @@ int main() {
         run_test("deterministic_report_identity", test_deterministic_report_identity);
         run_test("profile_ignored_attributes", test_profile_ignored_attributes_remain_in_evidence);
         run_test("report_repeat_integrity", test_report_validation_repeat_analysis_and_integrity);
+        run_test("report_redaction", test_report_redaction_is_deterministic_and_preserves_source);
         std::cout << "C++ core tests passed\n";
         return 0;
     } catch (const std::exception& error) {

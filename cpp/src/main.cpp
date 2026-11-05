@@ -22,6 +22,7 @@ void print_usage() {
         << "  driftglass-core report validate <report.json>\n"
         << "  driftglass-core report attest --report FILE --output FILE [--overwrite]\n"
         << "  driftglass-core report verify --report FILE --manifest FILE\n"
+        << "  driftglass-core report redact --report FILE --output FILE [--paths] [--network] [--process-names]\n"
         << "  driftglass-core repeat analyze REPORT.json REPORT.json [REPORT.json ...] [--output FILE] [--overwrite]\n"
         << "  driftglass-core compare --baseline-manifest FILE --candidate-manifest FILE\n"
         << "      --baseline-events FILE --candidate-events FILE [--profile FILE]\n"
@@ -35,7 +36,7 @@ std::map<std::string, std::string> parse_options(int argc, char** argv, int star
         "--baseline-events", "--candidate-events",
         "--profile", "--output", "--report", "--manifest"
     };
-    const std::set<std::string> flags{"--overwrite"};
+    const std::set<std::string> flags{"--overwrite", "--paths", "--network", "--process-names"};
     std::map<std::string, std::string> result;
     for (int index = start; index < argc; ++index) {
         const std::string option = argv[index];
@@ -150,6 +151,17 @@ int run(int argc, char** argv) {
             const auto manifest = driftglass::attest_report(report_path);
             write_output(output_path, manifest.dump(2, ' ', true), options.contains("--overwrite"));
             std::cout << manifest.dump(2, ' ', true) << "\n";
+            return 0;
+        }
+        if (operation == "redact") {
+            const auto report_path = normalized_path(need(options, "--report"));
+            const auto output_path = normalized_path(need(options, "--output"));
+            if (report_path == output_path) throw Error("redacted output must not replace the source report");
+            const auto redacted = driftglass::redact_report(
+                driftglass::load_json_file(report_path, 64U * 1024U * 1024U),
+                options.contains("--paths"), options.contains("--network"), options.contains("--process-names"));
+            write_output(output_path, redacted.dump(2, ' ', true), options.contains("--overwrite"));
+            std::cout << redacted.dump(2, ' ', true) << "\n";
             return 0;
         }
         if (operation == "verify") {
