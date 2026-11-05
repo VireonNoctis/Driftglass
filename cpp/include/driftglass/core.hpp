@@ -48,7 +48,6 @@ void validate_manifest(const Json& manifest);
 
 void validate_report(const Json& report);
 [[nodiscard]] Json redact_report(const Json& report, bool redact_paths, bool redact_network, bool redact_process_names);
-[[nodiscard]] Json redact_report(const Json& report, bool redact_paths, bool redact_network, bool redact_process_names);
 [[nodiscard]] Json analyze_repeat_reports(const std::vector<Json>& reports);
 void validate_repeat_analysis(const Json& analysis);
 [[nodiscard]] Json attest_report(const std::filesystem::path& report_path);

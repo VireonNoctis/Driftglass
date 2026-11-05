@@ -9,6 +9,10 @@
 namespace driftglass {
 namespace {
 
+bool has(const Json& value, const char* key) {
+    return value.is_object() && value.contains(key);
+}
+
 using Tokens = std::map<std::string, std::string>;
 
 std::string add_token(Tokens& tokens, const std::string& value, const std::string& label) {
