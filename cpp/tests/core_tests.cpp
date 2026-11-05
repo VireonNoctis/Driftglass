@@ -172,15 +172,24 @@ void test_profile_ignored_attributes_remain_in_evidence() {
 
 } // namespace
 
+template <typename Function>
+void run_test(const char* name, Function&& function) {
+    try {
+        function();
+    } catch (const std::exception& error) {
+        throw std::runtime_error(std::string(name) + ": " + error.what());
+    }
+}
+
 int main() {
     try {
-        test_strict_json();
-        test_event_validation();
-        test_capture_manifest_invariants();
-        test_local_socket_noise_is_ignored_but_evidence_is_preserved();
-        test_remote_endpoint_change_keeps_raw_evidence();
-        test_deterministic_report_identity();
-        test_profile_ignored_attributes_remain_in_evidence();
+        run_test("strict_json", test_strict_json);
+        run_test("event_validation", test_event_validation);
+        run_test("capture_manifest_invariants", test_capture_manifest_invariants);
+        run_test("local_socket_noise", test_local_socket_noise_is_ignored_but_evidence_is_preserved);
+        run_test("remote_endpoint_change", test_remote_endpoint_change_keeps_raw_evidence);
+        run_test("deterministic_report_identity", test_deterministic_report_identity);
+        run_test("profile_ignored_attributes", test_profile_ignored_attributes_remain_in_evidence);
         std::cout << "C++ core tests passed\n";
         return 0;
     } catch (const std::exception& error) {
