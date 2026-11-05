@@ -24,6 +24,9 @@ void print_usage() {
         << "  driftglass-core report verify --report FILE --manifest FILE\n"
         << "  driftglass-core report redact --report FILE --output FILE [--paths] [--network] [--process-names]\n"
         << "  driftglass-core repeat analyze REPORT.json REPORT.json [REPORT.json ...] [--output FILE] [--overwrite]\n"
+        << "  driftglass-core capture --observer FILE --pid PID --experiment-id ID --role baseline|candidate\n"
+        << "      --application-name NAME --application-version VERSION --scenario TEXT\n"
+        << "      --event-output FILE --manifest-output FILE [--duration-seconds N] [--interval-ms N]\n"
         << "  driftglass-core history list --database FILE [--limit N]\n"
         << "  driftglass-core history show --database FILE --report-id SHA256\n"
         << "  driftglass-core history delete --database FILE --report-id SHA256 --confirm SHA256\n"
@@ -37,7 +40,7 @@ std::map<std::string, std::string> parse_options(int argc, char** argv, int star
     const std::set<std::string> value_options{
         "--baseline-manifest", "--candidate-manifest",
         "--baseline-events", "--candidate-events",
-        "--profile", "--output", "--report", "--manifest", "--history-db", "--database", "--report-id", "--confirm", "--limit", "--html-output"
+        "--profile", "--output", "--report", "--manifest", "--history-db", "--database", "--report-id", "--confirm", "--limit", "--html-output", "--observer", "--pid", "--duration-seconds", "--interval-ms", "--experiment-id", "--role", "--application-name", "--application-version", "--scenario", "--event-output", "--manifest-output", "--artifact-sha256", "--package-id", "--profile", "--snapshot-id"
     };
     const std::set<std::string> flags{"--overwrite", "--paths", "--network", "--process-names"};
     std::map<std::string, std::string> result;
@@ -106,6 +109,22 @@ void write_output(const fs::path& path, const std::string& content, bool overwri
         fs::remove(temporary, ignored);
         if (!overwrite && fs::exists(target)) throw Error("output already exists; no file was replaced");
         throw Error("could not publish report output");
+    }
+}
+
+
+std::uint32_t parse_u32(const std::string& value, const std::string& label, std::uint32_t minimum, std::uint32_t maximum) {
+    try {
+        std::size_t consumed = 0;
+        const auto parsed = std::stoull(value, &consumed);
+        if (consumed != value.size() || parsed < minimum || parsed > maximum) {
+            throw Error(label + " is outside the allowed range");
+        }
+        return static_cast<std::uint32_t>(parsed);
+    } catch (const Error&) {
+        throw;
+    } catch (...) {
+        throw Error(label + " must be an integer in the allowed range");
     }
 }
 
@@ -224,6 +243,50 @@ int run(int argc, char** argv) {
                   << " reports=" << analysis.at("report_count")
                   << " patterns=" << analysis.at("patterns").size() << "\n";
         return 0;
+    }
+    if (command == "capture") {
+        const auto options = parse_options(argc, argv, 2);
+        if (options.contains("--overwrite")) throw Error("capture outputs are never overwritten");
+        driftglass::CaptureOptions capture_options;
+        capture_options.observer_path = need(options, "--observer");
+        capture_options.pid = parse_u32(need(options, "--pid"), "pid", 1, 2147483647U);
+        capture_options.duration_seconds = options.contains("--duration-seconds")
+            ? parse_u32(options.at("--duration-seconds"), "duration_seconds", 1, 3600) : 30U;
+        capture_options.interval_ms = options.contains("--interval-ms")
+            ? parse_u32(options.at("--interval-ms"), "interval_ms", 100, 10000) : 250U;
+        capture_options.experiment_id = need(options, "--experiment-id");
+        capture_options.role = need(options, "--role");
+        capture_options.application_name = need(options, "--application-name");
+        capture_options.application_version = need(options, "--application-version");
+        capture_options.scenario = need(options, "--scenario");
+        capture_options.event_output_path = need(options, "--event-output");
+        capture_options.manifest_output_path = need(options, "--manifest-output");
+        capture_options.artifact_sha256 = options.contains("--artifact-sha256")
+            ? std::optional<std::string>(options.at("--artifact-sha256")) : std::nullopt;
+        capture_options.package_id = options.contains("--package-id")
+            ? std::optional<std::string>(options.at("--package-id")) : std::nullopt;
+#if defined(__APPLE__)
+        capture_options.profile = options.contains("--profile") ? options.at("--profile") : "macos-libproc-polling";
+#elif defined(__linux__)
+        capture_options.profile = options.contains("--profile") ? options.at("--profile") : "linux-procfs-polling";
+#else
+        capture_options.profile = options.contains("--profile") ? options.at("--profile") : "native-polling";
+#endif
+        capture_options.snapshot_id = options.contains("--snapshot-id")
+            ? std::optional<std::string>(options.at("--snapshot-id")) : std::nullopt;
+        const auto result = driftglass::capture_run(capture_options);
+        const auto& manifest = result.manifest;
+        std::cout << "capture_status=" << manifest.at("capture").at("status")
+                  << " run_id=" << manifest.at("run_id")
+                  << " role=" << manifest.at("role")
+                  << " events=" << result.event_count
+                  << " coverage_notes=" << manifest.at("coverage").at("errors").size()
+                  << " manifest=" << result.manifest_path.string()
+                  << " events_file=" << result.event_path.string() << "\n";
+        for (const auto& message : manifest.at("coverage").at("errors")) {
+            std::cerr << "coverage: " << message.get<std::string>() << "\n";
+        }
+        return result.completed ? 0 : 1;
     }
     if (command == "history") {
         if (argc < 3) throw Error("usage: driftglass-core history list|show|delete ...");

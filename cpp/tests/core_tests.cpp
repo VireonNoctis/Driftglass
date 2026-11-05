@@ -6,6 +6,9 @@
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
+#if defined(__APPLE__) || defined(__linux__)
+#include <unistd.h>
+#endif
 
 namespace fs = std::filesystem;
 using driftglass::Json;
@@ -294,6 +297,75 @@ void test_html_report_is_standalone_and_escapes_untrusted_content() {
            "HTML export must not load remote assets");
 }
 
+
+#if defined(__APPLE__) || defined(__linux__)
+void write_observer_fixture(const fs::path& path, bool successful_exit) {
+    std::ofstream script(path, std::ios::binary);
+    script << "#!/bin/sh\n"
+           << "PID=''\nOUT=''\n"
+           << "while [ \"$#\" -gt 0 ]; do\n"
+           << "  case \"$1\" in\n"
+           << "    --pid) PID=\"$2\"; shift 2;;\n"
+           << "    --output) OUT=\"$2\"; shift 2;;\n"
+           << "    *) shift;;\n"
+           << "  esac\n"
+           << "done\n"
+           << "printf '{\"schema_version\":1,\"event_id\":\"start\",\"timestamp\":\"2026-01-01T00:00:00Z\",\"category\":\"coverage\",\"action\":\"capture_started\",\"source\":{\"collector\":\"fixture\",\"event_ref\":\"capture:start\"},\"collection_quality\":\"complete\",\"attributes\":{\"target_pid\":%s}}\\n' \"$PID\" > \"$OUT\"\n"
+           << "printf '{\"schema_version\":1,\"event_id\":\"finish\",\"timestamp\":\"2026-01-01T00:00:01Z\",\"category\":\"coverage\",\"action\":\"capture_finished\",\"source\":{\"collector\":\"fixture\",\"event_ref\":\"capture:finish\"},\"collection_quality\":\"complete\",\"attributes\":{\"capture_status\":\"completed\"}}\\n' >> \"$OUT\"\n"
+           << (successful_exit ? "exit 0\n" : "exit 4\n");
+    script.close();
+    fs::permissions(path, fs::perms::owner_read | fs::perms::owner_write | fs::perms::owner_exec,
+                    fs::perm_options::replace);
+}
+
+void test_capture_coordinator_validates_boundaries_and_publishes_manifest() {
+    const auto directory = fs::temp_directory_path()
+        / ("driftglass-capture-test-" + std::to_string(
+            std::chrono::steady_clock::now().time_since_epoch().count()));
+    fs::create_directory(directory);
+    const auto observer = directory / "fixture-observer.sh";
+    write_observer_fixture(observer, true);
+
+    driftglass::CaptureOptions options;
+    options.observer_path = observer;
+    options.pid = static_cast<std::uint32_t>(::getpid());
+    options.duration_seconds = 1;
+    options.interval_ms = 100;
+    options.experiment_id = "capture-test";
+    options.role = "baseline";
+    options.application_name = "Fixture App";
+    options.application_version = "1.0";
+    options.event_output_path = directory / "events.jsonl";
+    options.manifest_output_path = directory / "manifest.json";
+    options.scenario = "synthetic capture contract";
+
+    const auto result = driftglass::capture_run(options);
+    expect(result.completed, "valid observer run should complete");
+    expect(result.event_count == 2, "capture coordinator should count validated event records");
+    expect(result.manifest.at("capture").at("status") == "completed",
+           "completed observer should produce a completed manifest");
+    driftglass::validate_manifest(result.manifest);
+    expect(fs::is_regular_file(result.event_path) && fs::is_regular_file(result.manifest_path),
+           "capture should publish event and manifest output files");
+
+    expect_error([&] { (void)driftglass::capture_run(options); },
+                 "capture outputs must not be overwritten");
+
+    const auto failing_observer = directory / "failing-observer.sh";
+    write_observer_fixture(failing_observer, false);
+    options.observer_path = failing_observer;
+    options.event_output_path = directory / "failed-events.jsonl";
+    options.manifest_output_path = directory / "failed-manifest.json";
+    const auto failed = driftglass::capture_run(options);
+    expect(!failed.completed, "non-zero observer exit must not be reported as completed");
+    expect(failed.manifest.at("capture").at("status") == "incomplete",
+           "a valid stream with a failed observer exit should produce an incomplete manifest");
+    expect(!failed.manifest.at("coverage").at("errors").empty(),
+           "observer exit failure should be visible in manifest coverage errors");
+    fs::remove_all(directory);
+}
+#endif
+
 } // namespace
 
 template <typename Function>
@@ -318,6 +390,9 @@ int main() {
         run_test("report_redaction", test_report_redaction_is_deterministic_and_preserves_source);
         run_test("sqlite_history", test_sqlite_history_is_transactional_idempotent_and_explicit);
         run_test("html_report", test_html_report_is_standalone_and_escapes_untrusted_content);
+#if defined(__APPLE__) || defined(__linux__)
+        run_test("capture_coordinator", test_capture_coordinator_validates_boundaries_and_publishes_manifest);
+#endif
         std::cout << "C++ core tests passed\n";
         return 0;
     } catch (const std::exception& error) {

@@ -34,6 +34,34 @@ struct RuleProfile {
 [[nodiscard]] std::string canonical_json(const Json& value);
 [[nodiscard]] std::string sha256_hex(std::string_view value);
 
+struct CaptureOptions {
+    std::filesystem::path observer_path;
+    std::uint32_t pid{};
+    std::uint32_t duration_seconds{30};
+    std::uint32_t interval_ms{250};
+    std::string experiment_id;
+    std::string role;
+    std::string application_name;
+    std::string application_version;
+    std::filesystem::path event_output_path;
+    std::filesystem::path manifest_output_path;
+    std::string scenario;
+    std::optional<std::string> artifact_sha256;
+    std::optional<std::string> package_id;
+    std::string profile;
+    std::optional<std::string> snapshot_id;
+};
+
+struct CaptureResult {
+    Json manifest;
+    std::size_t event_count{};
+    std::filesystem::path event_path;
+    std::filesystem::path manifest_path;
+    bool completed{};
+};
+
+[[nodiscard]] CaptureResult capture_run(const CaptureOptions& options);
+
 void validate_event(const Json& event);
 void validate_manifest(const Json& manifest);
 
