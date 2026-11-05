@@ -19,7 +19,7 @@ Default schema paths resolve from a source checkout or from the packaged schema 
 python -m driftglass capabilities
 ~~~
 
-This prints versioned JSON describing the implemented Linux procfs observer, its narrow process/TCP metadata scope, unavailable categories, and platforms without a collector. It reports implementation status, not the capabilities or health of a specific running process; real-world Linux coverage remains unverified.
+This prints versioned JSON describing the implemented Linux procfs observer, its narrow process and TCP/UDP socket metadata scope, unavailable categories, and platforms without a collector. It reports implementation status, not the capabilities or health of a specific running process; real-world Linux coverage remains unverified.
 
 ## Validate input files
 
@@ -73,7 +73,7 @@ Use the same experiment ID and equivalent scenarios for the baseline and candida
 
 The wrapper invokes the observer with an argument list, validates the resulting JSONL stream, and writes a schema-validated run manifest. A failed or incomplete capture writes a manifest with its status and then exits non-zero. The optional artifact hash is supplied by the user and is not verified against the running executable. The manifest records the host OS/kernel release and architecture; it does not prove that the process ran in an isolated VM.
 
-The Linux observer samples procfs; it can miss short-lived activity and only reports process and TCP metadata. File, system, and persistence activity are declared unavailable. Inspect coverage records and manifest errors before comparing runs. A completed capture is not evidence of comprehensive collection or application safety.
+The Linux observer samples procfs; it can miss short-lived activity and only reports process and TCP/UDP socket metadata. File, system, and persistence activity are declared unavailable. Inspect coverage records and manifest errors before comparing runs. A completed capture is not evidence of comprehensive collection or application safety.
 
 ## Compare captured runs and optionally persist/export
 

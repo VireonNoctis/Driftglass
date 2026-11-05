@@ -18,7 +18,7 @@ Rather than asking only whether an application has a permission, Driftglass aims
 
 It is intended for security researchers, privacy-conscious users, maintainers, and developers who want to investigate application updates before trusting them.
 
-> **Project status:** Early prototype. Versioned event-record v1, run-manifest v1, and repeat-analysis v1 contracts, plus strict comparison-profile v1 validation, are implemented. The Python CLI compares validated captures, applies canonical rule profiles, exports evidence-linked JSON/HTML reports with per-run coverage snapshots, stores local SQLite history, and aggregates repeat-run patterns. The read-only Svelte viewer supports report evidence, a findings-linked timeline, a partial process relationship view, and opt-in export redaction. Capture remains an experimental Linux `/proc` polling wrapper for an already-running PID; it does not launch the target or manage a VM. Real-world observer coverage across Linux builds remains unverified. The CLI can validate exported reports and verify detached SHA-256 integrity manifests; local SQLite history has explicit database-file, payload, and report-count limits.
+> **Project status:** Early prototype. Event, run-manifest, report, repeat-analysis and capability contracts are versioned. The C++20 CLI now implements strict v1 event/manifest/report validation, deterministic comparison and evidence-linked findings, repeat-pattern analysis, standalone JSON/HTML output, opt-in path/network/process redaction, SHA-256 attestation and verification, bounded transactional SQLite report history, capabilities reporting, and an argument-vector capture coordinator. The C++ coordinator can invoke the Rust Linux observer or the Swift macOS process sampler when its executable path is explicitly supplied. Python remains in the repository as the compatibility implementation while parity, schema-override behavior and cross-platform capture are still being checked; it has not been deleted or declared retired. The Linux Rust observer remains experimental `/proc` polling for process and TCP/TCP6/UDP/UDP6 socket metadata. The macOS Swift observer is experimental process-tree sampling only, without Endpoint Security, file or network telemetry. The Svelte viewer is a read-only report/evidence workspace; it has a responsive monochrome visual refresh, but no local API, collector controls or WebGL scene. File/system/persistence events, Windows collection, VM lifecycle automation and broad real-world coverage remain unavailable.
 
 ---
 
@@ -488,7 +488,7 @@ Progress should be measured by verified capabilities and tests, not the number o
 ### Phase 1 — Small, testable collector
 
 - [x] Build an experimental Rust observer for Linux procfs; coverage remains best-effort.
-- [x] Record sampled process and TCP metadata for a selected process tree.
+- [x] Record sampled process and TCP/UDP socket metadata for a selected process tree.
 - [x] Surface collector status, permission-related gaps, and unavailable categories in capture records/manifests.
 - [x] Add synthetic fixtures and tests for event parsing and malformed input.
 

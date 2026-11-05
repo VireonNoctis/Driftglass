@@ -1,0 +1,79 @@
+name: Native C++ and macOS observer
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  cpp-core:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes cmake g++ libssl-dev nlohmann-json3-dev libsqlite3-dev
+      - name: Configure C++20 core
+        run: cmake -S cpp -B build/cpp -DCMAKE_BUILD_TYPE=Release
+      - name: Build C++ core and CLI
+        run: cmake --build build/cpp --parallel 2
+      - name: Run C++ core tests
+        run: ctest --test-dir build/cpp --output-on-failure
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable snapshot 2026-10-16
+      - name: Build Linux observer for C++ coordinator integration
+        run: cargo build --locked --release -p driftglass-agent
+      - name: Capture an already-running fixture through the C++ coordinator
+        shell: bash
+        run: |
+          set -euo pipefail
+          /bin/sleep 12 &
+          target_pid=$!
+          trap 'kill "$target_pid" 2>/dev/null || true' EXIT
+          build/cpp/driftglass-core capture \
+            --observer "$GITHUB_WORKSPACE/target/release/driftglass-agent" \
+            --pid "$target_pid" --duration-seconds 2 --interval-ms 100 \
+            --experiment-id native-linux-integration --role baseline \
+            --application-name "Synthetic Process Fixture" --application-version 1.0 \
+            --scenario "Native coordinator Linux process/socket smoke test" \
+            --event-output "$RUNNER_TEMP/native-linux-events.jsonl" \
+            --manifest-output "$RUNNER_TEMP/native-linux-manifest.json"
+          build/cpp/driftglass-core events validate "$RUNNER_TEMP/native-linux-events.jsonl"
+          build/cpp/driftglass-core manifest validate "$RUNNER_TEMP/native-linux-manifest.json"
+
+  macos-observer:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Test Swift process-tree logic
+        run: swift test --package-path macos
+      - name: Build macOS observer
+        run: swift build --package-path macos --configuration release
+      - name: Install C++ native build dependencies
+        run: brew install nlohmann-json openssl@3
+      - name: Configure and build C++ coordinator on macOS
+        run: |
+          cmake -S cpp -B build/cpp -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$(brew --prefix)"
+          cmake --build build/cpp --parallel 2
+          ctest --test-dir build/cpp --output-on-failure
+      - name: Capture an already-running fixture through Swift and the C++ coordinator
+        shell: bash
+        run: |
+          set -euo pipefail
+          /bin/sleep 15 &
+          target_pid=$!
+          trap 'kill "$target_pid" 2>/dev/null || true' EXIT
+          build/cpp/driftglass-core capture \
+            --observer "$GITHUB_WORKSPACE/macos/.build/release/driftglass-macos-observer" \
+            --pid "$target_pid" --duration-seconds 2 --interval-ms 100 \
+            --experiment-id native-macos-integration --role baseline \
+            --application-name "Synthetic Process Fixture" --application-version 1.0 \
+            --scenario "Native coordinator macOS process snapshot smoke test" \
+            --event-output "$RUNNER_TEMP/native-macos-events.jsonl" \
+            --manifest-output "$RUNNER_TEMP/native-macos-manifest.json"
+          build/cpp/driftglass-core events validate "$RUNNER_TEMP/native-macos-events.jsonl"
+          build/cpp/driftglass-core manifest validate "$RUNNER_TEMP/native-macos-manifest.json"
+          build/cpp/driftglass-core capabilities > "$RUNNER_TEMP/native-macos-capabilities.json"

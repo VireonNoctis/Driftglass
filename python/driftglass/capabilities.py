@@ -22,8 +22,9 @@ def capabilities_report() -> dict[str, object]:
                     "short-lived processes may be missed."
                 ),
                 "network": (
-                    "Sampled TCP/TCP6 socket metadata associated with the observed process scope; "
-                    "ownership and network-namespace visibility can be incomplete."
+                    "Sampled TCP/TCP6/UDP/UDP6 socket metadata associated with the observed process scope; "
+                    "ownership and network-namespace visibility can be incomplete. UDP socket state "
+                    "does not reveal individual datagrams or DNS contents."
                 ),
             },
             "unavailable_categories": [
@@ -32,7 +33,7 @@ def capabilities_report() -> dict[str, object]:
             "not_collected": [
                 "network packet payloads",
                 "DNS queries",
-                "UDP activity",
+                "UDP datagram events and payloads",
                 "file contents",
                 "file access and modification events",
                 "system configuration and persistence changes",
@@ -41,7 +42,7 @@ def capabilities_report() -> dict[str, object]:
             "known_limitations": [
                 "Polling can miss activity that starts and stops between samples.",
                 "Observation timestamps identify sampling time, not exact action time.",
-                "TCP metadata is limited to the sampled network namespace and observable socket ownership.",
+                "TCP/UDP socket metadata is limited to the sampled network namespace and observable socket ownership; UDP datagrams and DNS contents are not observed.",
                 "Permissions, procfs visibility, and process races can leave coverage gaps.",
                 "A completed capture is not proof of comprehensive observation.",
             ],

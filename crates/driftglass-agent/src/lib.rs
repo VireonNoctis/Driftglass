@@ -33,6 +33,7 @@ pub struct SocketInfo {
     pub key: String,
     pub inode: u64,
     pub family: &'static str,
+    pub protocol: &'static str,
     pub local_address: String,
     pub local_port: u16,
     pub remote_address: String,
@@ -125,7 +126,7 @@ impl From<&SocketInfo> for ResourceContext {
             identifier: Some(format!("{}:{}", socket.local_address, socket.local_port)),
             address: Some(socket.remote_address.clone()),
             port: Some(socket.remote_port),
-            protocol: Some("tcp".to_owned()),
+            protocol: Some(socket.protocol.to_owned()),
         }
     }
 }
@@ -350,7 +351,7 @@ pub fn read_socket_owners(proc_root: &Path, pids: &[u32]) -> SocketOwnerScan {
     scan
 }
 
-fn record_tcp_table_error(scan: &mut NetworkScan, error: &io::Error) {
+fn record_network_table_error(scan: &mut NetworkScan, error: &io::Error) {
     scan.table_errors += 1;
     match error.kind() {
         io::ErrorKind::NotFound => scan.table_not_found += 1,
@@ -359,37 +360,42 @@ fn record_tcp_table_error(scan: &mut NetworkScan, error: &io::Error) {
     }
 }
 
-pub fn read_tcp_snapshot(proc_root: &Path, network_namespace_pid: u32) -> NetworkScan {
+pub fn read_network_snapshot(proc_root: &Path, network_namespace_pid: u32) -> NetworkScan {
     let mut scan = NetworkScan::default();
     let net_root = proc_root.join(network_namespace_pid.to_string()).join("net");
-    for (relative_path, ipv6) in [("tcp", false), ("tcp6", true)] {
+    for (relative_path, ipv6, protocol) in [
+        ("tcp", false, "tcp"),
+        ("tcp6", true, "tcp"),
+        ("udp", false, "udp"),
+        ("udp6", true, "udp"),
+    ] {
         let path = net_root.join(relative_path);
         let contents = match fs::read_to_string(path) {
             Ok(contents) => contents,
             Err(error) => {
-                record_tcp_table_error(&mut scan, &error);
+                record_network_table_error(&mut scan, &error);
                 continue;
             }
         };
 
         let mut rows = contents.lines();
         match rows.next() {
-            Some(header) if is_tcp_table_header(header) => {}
+            Some(header) if is_socket_table_header(header) => {}
             Some(first_row) => {
                 scan.malformed_headers += 1;
-                record_tcp_row(&mut scan, first_row, ipv6);
+                record_socket_row(&mut scan, first_row, ipv6, protocol);
             }
             None => scan.malformed_headers += 1,
         }
 
         for row in rows {
-            record_tcp_row(&mut scan, row, ipv6);
+            record_socket_row(&mut scan, row, ipv6, protocol);
         }
     }
     scan
 }
 
-fn is_tcp_table_header(line: &str) -> bool {
+fn is_socket_table_header(line: &str) -> bool {
     let fields: Vec<&str> = line.split_whitespace().collect();
     fields.len() >= 10
         && fields[0] == "sl"
@@ -399,12 +405,12 @@ fn is_tcp_table_header(line: &str) -> bool {
         && fields.last() == Some(&"inode")
 }
 
-fn record_tcp_row(scan: &mut NetworkScan, row: &str, ipv6: bool) {
+fn record_socket_row(scan: &mut NetworkScan, row: &str, ipv6: bool, protocol: &'static str) {
     if row.trim().is_empty() {
         return;
     }
 
-    match parse_tcp_row(row, ipv6) {
+    match parse_socket_row(row, ipv6, protocol) {
         Some(socket) => {
             scan.sockets.insert(socket.key.clone(), socket);
         }
@@ -412,7 +418,7 @@ fn record_tcp_row(scan: &mut NetworkScan, row: &str, ipv6: bool) {
     }
 }
 
-fn parse_tcp_row(row: &str, ipv6: bool) -> Option<SocketInfo> {
+fn parse_socket_row(row: &str, ipv6: bool, protocol: &'static str) -> Option<SocketInfo> {
     let fields: Vec<&str> = row.split_whitespace().collect();
     if fields.len() < 10 {
         return None;
@@ -423,18 +429,19 @@ fn parse_tcp_row(row: &str, ipv6: bool) -> Option<SocketInfo> {
     let inode = fields[9].parse::<u64>().ok()?;
     let family = if ipv6 { "ipv6" } else { "ipv4" };
     let key = format!(
-        "tcp:{family}:{inode}:{local_address}:{local_port}:{remote_address}:{remote_port}"
+        "{protocol}:{family}:{inode}:{local_address}:{local_port}:{remote_address}:{remote_port}"
     );
 
     Some(SocketInfo {
         key,
         inode,
         family,
+        protocol,
         local_address,
         local_port,
         remote_address,
         remote_port,
-        state: tcp_state(state_code).to_owned(),
+        state: socket_state(state_code, protocol).to_owned(),
     })
 }
 
@@ -475,7 +482,15 @@ pub fn decode_proc_address(value: &str, ipv6: bool) -> Option<String> {
     Some(Ipv6Addr::from(octets).to_string())
 }
 
-fn tcp_state(code: u8) -> &'static str {
+fn socket_state(code: u8, protocol: &str) -> &'static str {
+    if protocol == "udp" {
+        return match code {
+            0x01 => "CONNECTED",
+            0x07 => "UNCONNECTED",
+            _ => "UNKNOWN",
+        };
+    }
+
     match code {
         0x01 => "ESTABLISHED",
         0x02 => "SYN_SENT",
@@ -528,6 +543,29 @@ mod tests {
     }
 
     #[test]
+    fn parses_udp_ipv4_and_ipv6_socket_rows() {
+        let ipv4 = parse_socket_row(
+            "  0: 0100007F:0035 00000000:0000 07 00000000:00000000 00:00000000 00000000 1000 0 12345",
+            false,
+            "udp",
+        ).expect("valid UDP4 row");
+        assert_eq!(ipv4.protocol, "udp");
+        assert_eq!(ipv4.local_address, "127.0.0.1");
+        assert_eq!(ipv4.local_port, 53);
+        assert_eq!(ipv4.remote_port, 0);
+        assert_eq!(ipv4.state, "UNCONNECTED");
+
+        let ipv6 = parse_socket_row(
+            "  0: 00000000000000000000000001000000:0035 00000000000000000000000000000000:0000 07 00000000:00000000 00:00000000 00000000 1000 0 12346",
+            true,
+            "udp",
+        ).expect("valid UDP6 row");
+        assert_eq!(ipv6.protocol, "udp");
+        assert_eq!(ipv6.family, "ipv6");
+        assert_eq!(ipv6.local_address, "::1");
+    }
+
+    #[test]
     fn decodes_procfs_ipv4_little_endian_address() {
         assert_eq!(decode_proc_address("0100007F", false).as_deref(), Some("127.0.0.1"));
     }
@@ -577,7 +615,7 @@ mod tests {
     }
 
     #[test]
-    fn reads_tcp_tables_from_the_requested_pid_namespace_path() {
+    fn reads_tcp_and_udp_tables_from_the_requested_pid_namespace_path() {
         use std::time::{SystemTime, UNIX_EPOCH};
 
         let unique = SystemTime::now()
@@ -589,38 +627,53 @@ mod tests {
             std::process::id()
         ));
         let header = "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n";
-        let row_a = "  0: 0100007F:1F90 08080808:01BB 01 00000000:00000000 00:00000000 00000000 1000 0 12345\n";
-        let row_b = "  0: 0100007F:1F91 08080808:01BB 01 00000000:00000000 00:00000000 00000000 1000 0 67890\n";
+        let tcp_a = "  0: 0100007F:1F90 08080808:01BB 01 00000000:00000000 00:00000000 00000000 1000 0 12345\n";
+        let tcp_b = "  0: 0100007F:1F91 08080808:01BB 01 00000000:00000000 00:00000000 00000000 1000 0 67890\n";
+        let udp_a = "  0: 0100007F:0035 00000000:0000 07 00000000:00000000 00:00000000 00000000 1000 0 12346\n";
+        let udp_b = "  0: 0100007F:0036 00000000:0000 07 00000000:00000000 00:00000000 00000000 1000 0 67891\n";
 
-        for (pid, row) in [(10, row_a), (20, row_b)] {
+        for (pid, tcp_row, udp_row) in [(10, tcp_a, udp_a), (20, tcp_b, udp_b)] {
             let net_dir = root.join(pid.to_string()).join("net");
             fs::create_dir_all(&net_dir).expect("create synthetic per-PID net table");
-            fs::write(net_dir.join("tcp"), format!("{header}{row}"))
+            fs::write(net_dir.join("tcp"), format!("{header}{tcp_row}"))
                 .expect("write synthetic TCP table");
             fs::write(net_dir.join("tcp6"), header).expect("write synthetic TCP6 table");
+            fs::write(net_dir.join("udp"), format!("{header}{udp_row}"))
+                .expect("write synthetic UDP table");
+            fs::write(net_dir.join("udp6"), header).expect("write synthetic UDP6 table");
         }
 
-        let first = read_tcp_snapshot(&root, 10);
-        let second = read_tcp_snapshot(&root, 20);
-        let first_ports: Vec<u16> = first.sockets.values().map(|socket| socket.local_port).collect();
-        let second_ports: Vec<u16> = second.sockets.values().map(|socket| socket.local_port).collect();
+        let first = read_network_snapshot(&root, 10);
+        let second = read_network_snapshot(&root, 20);
+        let first_tcp = first.sockets.values().find(|socket| socket.protocol == "tcp")
+            .expect("TCP socket in first namespace");
+        let first_udp = first.sockets.values().find(|socket| socket.protocol == "udp")
+            .expect("UDP socket in first namespace");
+        let second_tcp = second.sockets.values().find(|socket| socket.protocol == "tcp")
+            .expect("TCP socket in second namespace");
+        let second_udp = second.sockets.values().find(|socket| socket.protocol == "udp")
+            .expect("UDP socket in second namespace");
 
         assert_eq!(first.table_errors, 0);
         assert_eq!(second.table_errors, 0);
         assert_eq!(first.malformed_headers, 0);
         assert_eq!(second.malformed_headers, 0);
-        assert_eq!(first_ports, vec![8080]);
-        assert_eq!(second_ports, vec![8081]);
+        assert_eq!(first_tcp.local_port, 8080);
+        assert_eq!(second_tcp.local_port, 8081);
+        assert_eq!(first_udp.local_port, 53);
+        assert_eq!(second_udp.local_port, 54);
+        assert_eq!(first_udp.remote_port, 0);
+        assert_eq!(first_udp.state, "UNCONNECTED");
 
         fs::remove_dir_all(root).expect("remove synthetic procfs fixture");
     }
 
     #[test]
-    fn classifies_tcp_table_errors_without_confusing_empty_tables_with_failures() {
+    fn classifies_network_table_errors_without_confusing_empty_tables_with_failures() {
         let mut scan = NetworkScan::default();
-        record_tcp_table_error(&mut scan, &io::Error::from(io::ErrorKind::NotFound));
-        record_tcp_table_error(&mut scan, &io::Error::from(io::ErrorKind::PermissionDenied));
-        record_tcp_table_error(&mut scan, &io::Error::from(io::ErrorKind::Other));
+        record_network_table_error(&mut scan, &io::Error::from(io::ErrorKind::NotFound));
+        record_network_table_error(&mut scan, &io::Error::from(io::ErrorKind::PermissionDenied));
+        record_network_table_error(&mut scan, &io::Error::from(io::ErrorKind::Other));
 
         assert_eq!(scan.table_errors, 3);
         assert_eq!(scan.table_not_found, 1);
@@ -630,7 +683,7 @@ mod tests {
     }
 
     #[test]
-    fn empty_tcp_tables_are_not_reported_as_read_errors() {
+    fn empty_network_tables_are_not_reported_as_read_errors() {
         use std::time::{SystemTime, UNIX_EPOCH};
 
         let unique = SystemTime::now()
@@ -644,10 +697,11 @@ mod tests {
         let net_dir = root.join("10").join("net");
         fs::create_dir_all(&net_dir).expect("create synthetic procfs network directory");
         let header = "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n";
-        fs::write(net_dir.join("tcp"), header).expect("write empty TCP table");
-        fs::write(net_dir.join("tcp6"), header).expect("write empty TCP6 table");
+        for table in ["tcp", "tcp6", "udp", "udp6"] {
+            fs::write(net_dir.join(table), header).expect("write empty network table");
+        }
 
-        let scan = read_tcp_snapshot(&root, 10);
+        let scan = read_network_snapshot(&root, 10);
 
         assert!(scan.sockets.is_empty());
         assert_eq!(scan.table_errors, 0);
@@ -660,7 +714,7 @@ mod tests {
     }
 
     #[test]
-    fn headerless_tcp_table_keeps_a_valid_first_socket_row_and_reports_the_gap() {
+    fn headerless_network_table_keeps_a_valid_first_socket_row_and_reports_the_gap() {
         use std::time::{SystemTime, UNIX_EPOCH};
 
         let unique = SystemTime::now()
@@ -676,14 +730,16 @@ mod tests {
         let row = "  0: 0100007F:1F90 08080808:01BB 01 00000000:00000000 00:00000000 00000000 1000 0 12345\n";
         let header = "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n";
         fs::write(net_dir.join("tcp"), row).expect("write headerless TCP table");
-        fs::write(net_dir.join("tcp6"), header).expect("write valid empty TCP6 table");
+        for table in ["tcp6", "udp", "udp6"] {
+            fs::write(net_dir.join(table), header).expect("write valid empty network table");
+        }
 
-        let scan = read_tcp_snapshot(&root, 10);
+        let scan = read_network_snapshot(&root, 10);
 
         assert_eq!(scan.malformed_headers, 1);
         assert_eq!(scan.malformed_rows, 0);
         assert_eq!(scan.table_errors, 0);
-        assert!(scan.sockets.values().any(|socket| socket.local_port == 8080));
+        assert!(scan.sockets.values().any(|socket| socket.protocol == "tcp" && socket.local_port == 8080));
 
         fs::remove_dir_all(root).expect("remove synthetic procfs fixture");
     }
@@ -704,9 +760,11 @@ mod tests {
         fs::create_dir_all(&net_dir).expect("create synthetic procfs network directory");
         let header = "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n";
         fs::write(net_dir.join("tcp"), "").expect("write empty headerless TCP table");
-        fs::write(net_dir.join("tcp6"), header).expect("write valid empty TCP6 table");
+        for table in ["tcp6", "udp", "udp6"] {
+            fs::write(net_dir.join(table), header).expect("write valid empty network table");
+        }
 
-        let scan = read_tcp_snapshot(&root, 10);
+        let scan = read_network_snapshot(&root, 10);
 
         assert_eq!(scan.malformed_headers, 1);
         assert_eq!(scan.malformed_rows, 0);
@@ -719,7 +777,8 @@ mod tests {
     #[test]
     fn parses_tcp_metadata_row() {
         let row = "  0: 0100007F:1F90 08080808:01BB 01 00000000:00000000 00:00000000 00000000 1000 0 12345";
-        let parsed = parse_tcp_row(row, false).expect("valid synthetic /proc/net/tcp row");
+        let parsed = parse_socket_row(row, false, "tcp")
+            .expect("valid synthetic /proc/net/tcp row");
         assert_eq!(parsed.local_address, "127.0.0.1");
         assert_eq!(parsed.local_port, 8080);
         assert_eq!(parsed.remote_address, "8.8.8.8");

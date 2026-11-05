@@ -17,6 +17,11 @@ MANIFEST_SCHEMA = ROOT / "schemas" / "manifests" / "run-manifest-v1.schema.json"
 
 
 def event(event_id, action, *, quality="complete", attributes=None):
+    event_attributes = dict(attributes or {})
+    if action == "capture_started":
+        event_attributes.setdefault("target_pid", 123)
+    elif action == "capture_finished":
+        event_attributes.setdefault("capture_status", "completed")
     return {
         "schema_version": 1,
         "event_id": event_id,
@@ -25,7 +30,7 @@ def event(event_id, action, *, quality="complete", attributes=None):
         "action": action,
         "source": {"collector": "synthetic-agent/1", "event_ref": f"capture:{event_id}"},
         "collection_quality": quality,
-        "attributes": attributes or {},
+        "attributes": event_attributes,
     }
 
 
@@ -323,4 +328,45 @@ def test_invalid_capture_boundary_sequence_is_incomplete(
     manifest = load_manifest(manifest_path, MANIFEST_SCHEMA)
     assert manifest["capture"]["status"] == "incomplete"
     assert any(expected_error in error for error in manifest["coverage"]["errors"])
+
+
+@pytest.mark.parametrize(
+    ("mutation", "expected_error"),
+    [
+        ("wrong_pid", "capture_started target_pid must match the requested PID"),
+        ("missing_pid", "capture_started target_pid must match the requested PID"),
+        ("boolean_pid", "capture_started target_pid must match the requested PID"),
+        ("float_pid", "capture_started target_pid must match the requested PID"),
+        ("string_pid", "capture_started target_pid must match the requested PID"),
+        ("non_completed_finish", "capture_finished capture_status must be 'completed'"),
+        ("missing_finish_status", "capture_finished capture_status must be 'completed'"),
+    ],
+)
+def test_capture_boundary_metadata_matches_requested_run(
+    tmp_path, monkeypatch, mutation, expected_error
+):
+    records = complete_events()
+    if mutation == "wrong_pid":
+        records[0]["attributes"]["target_pid"] = 456
+    elif mutation == "missing_pid":
+        records[0]["attributes"].pop("target_pid")
+    elif mutation == "boolean_pid":
+        records[0]["attributes"]["target_pid"] = True
+    elif mutation == "float_pid":
+        records[0]["attributes"]["target_pid"] = 123.0
+    elif mutation == "string_pid":
+        records[0]["attributes"]["target_pid"] = "123"
+    elif mutation == "non_completed_finish":
+        records[-1]["attributes"]["capture_status"] = "incomplete"
+    else:
+        records[-1]["attributes"].pop("capture_status")
+
+    args, _, _, manifest_path = setup_capture(tmp_path, monkeypatch, records=records)
+
+    with pytest.raises(CaptureError, match="capture status is incomplete"):
+        capture_run(**args)
+
+    manifest = load_manifest(manifest_path, MANIFEST_SCHEMA)
+    assert manifest["capture"]["status"] == "incomplete"
+    assert expected_error in manifest["coverage"]["errors"]
 
