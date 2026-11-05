@@ -503,7 +503,7 @@ Json coverage_summary(const Json& manifest, const std::vector<Json>& events) {
     };
     for (const auto& event : events) {
         const auto category = event.at("category").get<std::string>();
-        if (counts.contains(category)) ++counts[category];
+        if (counts.contains(category)) counts[category] = counts[category].get<std::uint64_t>() + 1U;
     }
 
     Json sources = coverage.at("event_sources");

@@ -1,12 +1,12 @@
 # Decision: defer the native macOS observer
 
-- **Status:** Accepted
+- **Status:** Partially re-opened for a process-only prototype; full macOS observer remains deferred
 - **Date:** 2026-10-26
 - **Scope:** Native macOS event collection for Driftglass
 
 ## Decision
 
-Do not implement or advertise a macOS observer in the current prototype. Keep macOS marked `not_implemented` in the machine-readable capability report. Revisit the platform after the project can test a real macOS build, validate the required permission/entitlement path, and publish a source-by-source coverage matrix.
+A standalone Swift/libproc process-only prototype now exists under `macos/`. It samples an already-running PID and visible descendants, emits process/coverage JSONL, and has a macOS CI build/test job. It is not integrated with the primary capture coordinator and is not a complete macOS observer. Keep macOS marked `not_implemented` in the integrated machine-readable capability report until a source is integrated and its permission/coverage behavior is validated. Full Endpoint Security/network/file collection remains deferred pending a real signed/entitled deployment path and source-by-source coverage matrix.
 
 This is a deliberate deferral, not a claim that macOS collection is impossible.
 
@@ -16,7 +16,7 @@ Apple documents Endpoint Security as a C API for monitoring process and other sy
 
 Network observation has its own constraints: Apple documents Network Extension capabilities and provisioning/signing requirements for certain macOS distribution paths. See [Network Extensions entitlement](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.developer.networking.networkextension).
 
-The current repository has no macOS-native collector, macOS CI runner, signing/entitlement workflow, or macOS event coverage tests. Implementing a stub, or assuming Linux procfs semantics transfer to macOS, would create a false support claim.
+The current process-only prototype uses public libproc snapshots and is explicitly narrower than Endpoint Security. The repository still has no signed System Extension, Endpoint Security entitlement workflow, network/file event source, or integrated macOS capture coordinator. Implementing a stub, or assuming Linux procfs semantics transfer to macOS, would create a false support claim.
 
 ## Re-entry criteria
 

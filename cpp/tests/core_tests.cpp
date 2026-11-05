@@ -143,6 +143,33 @@ void test_deterministic_report_identity() {
     expect(first.at("report_id") == second.at("report_id"), "identical inputs must produce the same report ID");
 }
 
+
+void test_profile_ignored_attributes_remain_in_evidence() {
+    auto base_manifest = manifest("base", "baseline", "1.0", std::string(64, 'a'));
+    auto candidate_manifest = manifest("candidate", "candidate", "2.0", std::string(64, 'b'));
+    base_manifest["application"].erase("package_id");
+    candidate_manifest["application"].erase("package_id");
+
+    auto before = event("base-event", "198.51.100.10", 53000, 12345);
+    auto after = event("candidate-event", "198.51.100.11", 54000, 67890);
+    before["attributes"]["vendor_tag"] = "baseline-only";
+    after["attributes"]["vendor_tag"] = "candidate-only";
+
+    auto profile = driftglass::default_rule_profile();
+    profile.ignored_attributes = {"vendor_tag"};
+
+    const auto report = driftglass::compare_loaded_runs(
+        base_manifest, candidate_manifest, {before}, {after}, profile);
+
+    expect(report.at("summary").at("changed_count") == 1,
+           "remote behavior difference should remain visible when an attribute is ignored");
+    const auto& finding = report.at("findings").at(0);
+    expect(finding.at("baseline_evidence").at(0).at("observed").at("attributes").at("vendor_tag") == "baseline-only",
+           "baseline evidence must preserve attributes ignored for matching");
+    expect(finding.at("candidate_evidence").at(0).at("observed").at("attributes").at("vendor_tag") == "candidate-only",
+           "candidate evidence must preserve attributes ignored for matching");
+}
+
 } // namespace
 
 int main() {
@@ -153,6 +180,7 @@ int main() {
         test_local_socket_noise_is_ignored_but_evidence_is_preserved();
         test_remote_endpoint_change_keeps_raw_evidence();
         test_deterministic_report_identity();
+        test_profile_ignored_attributes_remain_in_evidence();
         std::cout << "C++ core tests passed\n";
         return 0;
     } catch (const std::exception& error) {

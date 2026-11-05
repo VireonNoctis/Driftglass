@@ -250,27 +250,22 @@ private func writeEvents(_ events: [[String: Any]], to output: URL) throws {
     }
 }
 
-@main
-struct DriftglassMacObserver {
-    static func main() {
-        do {
-            guard let options = try Options.parse(Array(CommandLine.arguments.dropFirst())) else {
-                usage()
-                return
-            }
-            let events = try collect(options)
-            try writeEvents(events, to: options.output)
-            let status = events.last?["attributes"] as? [String: Any]
-            let captureStatus = status?["capture_status"] as? String ?? "unknown"
-            print("capture_status=\(captureStatus) events=\(events.count) output=\(options.output.path)")
-            if captureStatus != "completed" { exit(1) }
-        } catch UsageError.invalidArguments {
-            usage()
-            fputs("invalid arguments\n", stderr)
-            exit(2)
-        } catch {
-            fputs("driftglass-macos-observer: \(error)\n", stderr)
-            exit(2)
-        }
+do {
+    guard let options = try Options.parse(Array(CommandLine.arguments.dropFirst())) else {
+        usage()
+        exit(0)
     }
+    let events = try collect(options)
+    try writeEvents(events, to: options.output)
+    let status = events.last?["attributes"] as? [String: Any]
+    let captureStatus = status?["capture_status"] as? String ?? "unknown"
+    print("capture_status=\(captureStatus) events=\(events.count) output=\(options.output.path)")
+    if captureStatus != "completed" { exit(1) }
+} catch UsageError.invalidArguments {
+    usage()
+    fputs("invalid arguments\n", stderr)
+    exit(2)
+} catch {
+    fputs("driftglass-macos-observer: \(error)\n", stderr)
+    exit(2)
 }

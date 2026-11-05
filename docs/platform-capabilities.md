@@ -8,8 +8,10 @@ This matrix describes the collector code currently present in Driftglass, not th
 |---|---|---|---|
 | Linux | Experimental, best-effort | Polls `/proc` for process stat metadata and samples TCP/TCP6/UDP/UDP6 socket metadata associated with a selected PID and observed descendants. | No file activity, system/persistence changes, individual UDP datagrams, DNS queries, packet payloads, command-line arguments, or comprehensive event tracing. Real-world coverage across Linux builds is unverified. |
 | Windows | Not implemented | None. | No native collector or platform coverage tests. |
-| macOS | Not implemented | None. | No native collector or platform coverage tests. |
+| macOS | Experimental process-only helper; not integrated | A Swift/libproc prototype samples the selected, already-running PID and visible descendants, emitting v1 process/coverage JSONL records. A macOS CI job builds it and tests process-tree selection. | No Endpoint Security event stream, network, file, system or persistence events; no run-manifest/capture-coordinator integration, signing/entitlement installation workflow, or real-world coverage claim. |
 | Other | Not implemented | None. | No native collector or platform coverage tests. |
+
+The Swift macOS helper is a separate experimental process-only source, not a complete macOS platform collector. It uses `libproc` snapshots, so short-lived processes between samples can be missed and protected processes may be inaccessible. Its process records and visible gaps are best-effort. Apple Endpoint Security events, network activity, file activity, system/persistence changes, and signed System Extension deployment are not implemented. The main capability JSON continues to describe the integrated collector, not this standalone prototype.
 
 ## What the Linux prototype can observe
 
