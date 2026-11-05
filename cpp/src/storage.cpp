@@ -466,7 +466,7 @@ std::optional<Json> get_report(const std::filesystem::path& database_path, const
     const auto report = parse_json_strict(column_text(query.get(), 0));
     validate_report(report);
     if (report.at("report_id") != report_id) throw Error("stored report ID does not match its history key");
-    return report;
+    return std::optional<Json>{report};
 }
 
 bool delete_report(const std::filesystem::path& database_path, const std::string& report_id) {
