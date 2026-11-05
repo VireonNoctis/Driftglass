@@ -60,6 +60,12 @@ def test_paired_captures_observe_a_stable_loopback_listener(tmp_path):
                 json.loads(line)
                 for line in event_path.read_text(encoding="utf-8").splitlines()
             ]
+            assert events[0]["category"] == "coverage"
+            assert events[0]["action"] == "capture_started"
+            assert events[0]["attributes"]["target_pid"] == os.getpid()
+            assert events[-1]["category"] == "coverage"
+            assert events[-1]["action"] == "capture_finished"
+            assert events[-1]["attributes"]["capture_status"] == "completed"
             observed_listener = [
                 event for event in events
                 if event["category"] == "network"

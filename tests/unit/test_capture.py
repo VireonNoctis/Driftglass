@@ -335,6 +335,9 @@ def test_invalid_capture_boundary_sequence_is_incomplete(
     [
         ("wrong_pid", "capture_started target_pid must match the requested PID"),
         ("missing_pid", "capture_started target_pid must match the requested PID"),
+        ("boolean_pid", "capture_started target_pid must match the requested PID"),
+        ("float_pid", "capture_started target_pid must match the requested PID"),
+        ("string_pid", "capture_started target_pid must match the requested PID"),
         ("non_completed_finish", "capture_finished capture_status must be 'completed'"),
         ("missing_finish_status", "capture_finished capture_status must be 'completed'"),
     ],
@@ -347,6 +350,12 @@ def test_capture_boundary_metadata_matches_requested_run(
         records[0]["attributes"]["target_pid"] = 456
     elif mutation == "missing_pid":
         records[0]["attributes"].pop("target_pid")
+    elif mutation == "boolean_pid":
+        records[0]["attributes"]["target_pid"] = True
+    elif mutation == "float_pid":
+        records[0]["attributes"]["target_pid"] = 123.0
+    elif mutation == "string_pid":
+        records[0]["attributes"]["target_pid"] = "123"
     elif mutation == "non_completed_finish":
         records[-1]["attributes"]["capture_status"] = "incomplete"
     else:
