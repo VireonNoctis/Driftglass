@@ -488,7 +488,7 @@ Progress should be measured by verified capabilities and tests, not the number o
 ### Phase 1 — Small, testable collector
 
 - [x] Build an experimental Rust observer for Linux procfs; coverage remains best-effort.
-- [x] Record sampled process and TCP metadata for a selected process tree.
+- [x] Record sampled process and TCP/UDP socket metadata for a selected process tree.
 - [x] Surface collector status, permission-related gaps, and unavailable categories in capture records/manifests.
 - [x] Add synthetic fixtures and tests for event parsing and malformed input.
 

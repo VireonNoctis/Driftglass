@@ -15,7 +15,7 @@ Validation must establish what the tool captures, what it misses, and whether ea
 | Browser process tree | Long linked chain, reused PID identities with earlier/later start ticks, group exceeding the display-row limit, and depths beyond the visual indentation limit | Nearest valid parent is selected deterministically; full derived counts and actual depth labels remain correct; rendered rows and indentation are bounded and disclosed without recursive call-stack growth |
 | Storage | Insert, reopen, delete, corrupt DB, interrupted write, existing database above the file-size cap, page-limit exhaustion during save | Documented local lifecycle; existing oversized files are rejected and failed growth rolls back without exceeding the configured database-file cap |
 | Privacy | Redacted paths and identifiers | Export matches configured policy and records redaction |
-| Integration | Fixed fixtures, rule versions, and two bounded captures of a known loopback listener | Reproducible output; expected listener observation is present in both captures and equivalent pair yields no findings |
+| Integration | Fixed fixtures, rule versions, and two bounded captures of known loopback TCP and UDP sockets | Reproducible output; expected listener observation is present in both captures and equivalent pair yields no findings |
 | Platform | Each claimed OS/build | Support claims match recorded tests |
 
 ## Synthetic fixtures

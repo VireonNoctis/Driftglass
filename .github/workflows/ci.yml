@@ -106,6 +106,24 @@ jobs:
       - run: cargo build --locked -p driftglass-agent
       - run: python -m pytest -q tests/integration/test_linux_paired_capture.py
 
+  reproducible-release:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable snapshot 2026-10-16
+      - name: Compare release binaries from independent source and target paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          second_source="$RUNNER_TEMP/driftglass-repro-source"
+          mkdir -p "$second_source"
+          git archive "$GITHUB_SHA" | tar -x -C "$second_source"
+          export SOURCE_DATE_EPOCH="$(git show -s --format=%ct "$GITHUB_SHA")"
+          RUSTFLAGS="--remap-path-prefix=$GITHUB_WORKSPACE=/driftglass" CARGO_TARGET_DIR="$RUNNER_TEMP/target-a" cargo build --locked --release -p driftglass-agent
+          RUSTFLAGS="--remap-path-prefix=$second_source=/driftglass" CARGO_TARGET_DIR="$RUNNER_TEMP/target-b" cargo build --locked --release --manifest-path "$second_source/Cargo.toml" -p driftglass-agent
+          cmp "$RUNNER_TEMP/target-a/release/driftglass-agent" "$RUNNER_TEMP/target-b/release/driftglass-agent"
+          sha256sum "$RUNNER_TEMP/target-a/release/driftglass-agent" "$RUNNER_TEMP/target-b/release/driftglass-agent"
+
   web:
     runs-on: ubuntu-latest
     defaults:
