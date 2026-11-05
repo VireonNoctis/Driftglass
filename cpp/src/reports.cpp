@@ -158,7 +158,7 @@ void validate_finding(const Json& finding, const std::string& baseline_run, cons
     Json identity = finding;
     identity.erase("finding_id");
     identity.erase("interpretation");
-    if (sha256_hex(canonical_json(identity)) != finding.at("finding_id")) {
+    if (sha256_hex(canonical_json(identity)) != finding.at("finding_id").get<std::string>()) {
         throw Error("finding_id does not match finding content");
     }
 }
@@ -342,7 +342,7 @@ void validate_report(const Json& report) {
             {"included_categories", included_sorted},
             {"ignored_attributes", ignored_sorted}
         };
-        if (sha256_hex(canonical_json(profile_core)) != profile.at("sha256")) {
+        if (sha256_hex(canonical_json(profile_core)) != profile.at("sha256").get<std::string>()) {
             throw Error("comparison_profile.sha256 does not match its configuration");
         }
     }
@@ -402,11 +402,11 @@ void validate_report(const Json& report) {
     }
 
     const auto expected_status = uncertainties.empty() ? "complete" : "partial";
-    if (report.at("status") != expected_status) throw Error("report.status does not match uncertainty count");
+    if (report.at("status").get<std::string>() != expected_status) throw Error("report.status does not match uncertainty count");
 
     Json core = report;
     core.erase("report_id");
-    if (sha256_hex(canonical_json(core)) != report.at("report_id")) {
+    if (sha256_hex(canonical_json(core)) != report.at("report_id").get<std::string>()) {
         throw Error("report_id does not match report content");
     }
 }
@@ -592,7 +592,7 @@ void validate_repeat_analysis(const Json& analysis) {
     }
     Json core = analysis;
     core.erase("analysis_id");
-    if (sha256_hex(canonical_json(core)) != analysis.at("analysis_id")) throw Error("analysis_id does not match repeat-analysis content");
+    if (sha256_hex(canonical_json(core)) != analysis.at("analysis_id").get<std::string>()) throw Error("analysis_id does not match repeat-analysis content");
 }
 
 Json attest_report(const std::filesystem::path& report_path) {
