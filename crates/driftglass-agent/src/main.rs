@@ -1,5 +1,5 @@
 use driftglass_agent::{
-    event_record, process_scope, read_process_snapshot, read_socket_owners, read_tcp_snapshot,
+    event_record, process_scope, read_process_snapshot, read_socket_owners, read_network_snapshot,
     retain_known_processes, EventRecord, ProcessContext, ProcessInfo, ResourceContext, SocketInfo,
 };
 use serde_json::{json, Value};
@@ -137,7 +137,7 @@ fn run(arguments: impl Iterator<Item = String>) -> Result<(), String> {
     let mut previous_scope = process_scope(&initial_scan.processes, args.pid);
     let initial_owners = read_socket_owners(&proc_root, &scope_pids(&previous_scope));
     totals.add_owners(&initial_owners);
-    let initial_network = read_tcp_snapshot(&proc_root, args.pid);
+    let initial_network = read_network_snapshot(&proc_root, args.pid);
     totals.add_network(&initial_network);
     let mut previous_sockets = owned_sockets(
         &initial_network.sockets,
@@ -387,11 +387,11 @@ fn run(arguments: impl Iterator<Item = String>) -> Result<(), String> {
                 ("fd_permission_denied_reads".to_owned(), json!(totals.fd_permission_denied)),
                 ("fd_read_errors".to_owned(), json!(totals.fd_read_errors)),
                 ("ambiguous_socket_owner_observations".to_owned(), json!(totals.ambiguous_socket_owner_observations)),
-                ("tcp_table_errors".to_owned(), json!(totals.network_table_errors)),
-                ("tcp_table_not_found".to_owned(), json!(totals.network_table_not_found)),
-                ("tcp_table_permission_denied".to_owned(), json!(totals.network_table_permission_denied)),
-                ("tcp_table_read_errors".to_owned(), json!(totals.network_table_read_errors)),
-                ("tcp_table_malformed_headers".to_owned(), json!(totals.network_table_malformed_headers)),
+                ("network_table_errors".to_owned(), json!(totals.network_table_errors)),
+                ("network_table_not_found".to_owned(), json!(totals.network_table_not_found)),
+                ("network_table_permission_denied".to_owned(), json!(totals.network_table_permission_denied)),
+                ("network_table_read_errors".to_owned(), json!(totals.network_table_read_errors)),
+                ("network_table_malformed_headers".to_owned(), json!(totals.network_table_malformed_headers)),
                 ("malformed_rows".to_owned(), json!(totals.network_malformed_rows)),
             ]),
         )?;
@@ -424,7 +424,7 @@ fn run(arguments: impl Iterator<Item = String>) -> Result<(), String> {
             ("target_pid_observed_at_end".to_owned(), json!(previous_scope.contains_key(&args.pid))),
             ("processes_in_scope_at_end".to_owned(), json!(previous_scope.len())),
             (
-                "tcp_sockets_in_scope_at_end".to_owned(),
+                "network_sockets_in_scope_at_end".to_owned(),
                 json!(if network_namespace_anchor_lost {
                     None::<usize>
                 } else {
@@ -432,7 +432,7 @@ fn run(arguments: impl Iterator<Item = String>) -> Result<(), String> {
                 }),
             ),
             (
-                "tcp_snapshot_available_at_end".to_owned(),
+                "network_snapshot_available_at_end".to_owned(),
                 json!(!network_namespace_anchor_lost),
             ),
             ("elapsed_ms".to_owned(), json!(started.elapsed().as_millis())),
@@ -572,7 +572,7 @@ fn emit_socket_event(
         sequence,
         "network",
         action,
-        format!("proc-net-tcp:{}", owned.socket.key),
+        format!("proc-net-socket:{}", owned.socket.key),
         Some(ProcessContext::from(&owned.owner)),
         Some(ResourceContext::from(&owned.socket)),
         socket_collection_quality(owned, quality),

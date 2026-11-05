@@ -2,7 +2,7 @@
 name = "driftglass-agent"
 version = "0.1.0"
 edition = "2021"
-description = "Experimental Linux /proc process and TCP metadata sampler for Driftglass"
+description = "Experimental Linux /proc process and TCP/UDP socket metadata sampler for Driftglass"
 license = "AGPL-3.0-only"
 
 [dependencies]

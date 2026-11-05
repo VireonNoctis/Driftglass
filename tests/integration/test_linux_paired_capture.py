@@ -31,6 +31,9 @@ def test_paired_captures_observe_a_stable_loopback_listener(tmp_path):
     listener.bind(("127.0.0.1", 0))
     listener.listen(1)
     local_port = listener.getsockname()[1]
+    udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    udp_socket.bind(("127.0.0.1", 0))
+    udp_port = udp_socket.getsockname()[1]
 
     event_paths = {}
     manifest_paths = {}
@@ -75,6 +78,15 @@ def test_paired_captures_observe_a_stable_loopback_listener(tmp_path):
             # One long-lived listener should be present at the first sample.
             assert len(observed_listener) == 1
             assert observed_listener[0]["collection_quality"] == "complete"
+            observed_udp_socket = [
+                event for event in events
+                if event["category"] == "network"
+                and event["action"] == "socket_present"
+                and event.get("resource", {}).get("protocol") == "udp"
+                and (event.get("attributes") or {}).get("local_port") == udp_port
+            ]
+            assert len(observed_udp_socket) == 1
+            assert observed_udp_socket[0]["collection_quality"] == "complete"
             event_paths[role] = event_path
             manifest_paths[role] = manifest_path
             manifests[role] = result.manifest
@@ -96,4 +108,5 @@ def test_paired_captures_observe_a_stable_loopback_listener(tmp_path):
         assert report["coverage"]["baseline"]["recorded_event_counts"]["network"] >= 1
         assert report["coverage"]["candidate"]["recorded_event_counts"]["network"] >= 1
     finally:
+        udp_socket.close()
         listener.close()
