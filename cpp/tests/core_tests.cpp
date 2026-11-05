@@ -367,6 +367,31 @@ void test_capture_coordinator_validates_boundaries_and_publishes_manifest() {
 }
 #endif
 
+
+void test_capabilities_contract_describes_mac_process_only_scope() {
+    const auto report = driftglass::capabilities_report();
+    expect(report.at("schema_version") == 1, "capability report schema must be v1");
+    const auto& collector = report.at("collector");
+    expect(collector.at("platform") == "Linux", "integrated procfs collector remains Linux-specific");
+    expect(collector.at("implemented_categories") == Json::array({"process", "network"}),
+           "Linux collector exposes only process and socket metadata categories");
+    const auto& platforms = report.at("platforms");
+    expect(platforms.size() == 4, "capabilities must declare all four platform classes");
+    bool mac_found = false;
+    for (const auto& platform : platforms) {
+        if (platform.at("platform") == "macOS") {
+            mac_found = true;
+            expect(platform.at("collector_status") == "experimental",
+                   "macOS process-only helper must be reported as experimental");
+            const auto status = platform.at("validation_status").get<std::string>();
+            expect(status.find("process-only") != std::string::npos
+                   && status.find("Endpoint Security") != std::string::npos,
+                   "macOS capability status must explain missing Endpoint Security");
+        }
+    }
+    expect(mac_found, "capability report must include macOS");
+}
+
 } // namespace
 
 template <typename Function>

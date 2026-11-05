@@ -32,7 +32,7 @@ void print_usage() {
         << "  driftglass-core history delete --database FILE --report-id SHA256 --confirm SHA256\n"
         << "  driftglass-core compare --baseline-manifest FILE --candidate-manifest FILE\n"
         << "      --baseline-events FILE --candidate-events FILE [--profile FILE]\n"
-        << "      [--output FILE] [--html-output FILE] [--history-db FILE] [--overwrite]\n\n"
+        << "      [--output FILE] [--html-output FILE] [--history-db FILE] [--paths] [--network] [--process-names] [--overwrite]\n\n"
         << "The compare command reads existing captures. It never launches the application.\n";
 }
 
@@ -373,15 +373,20 @@ int run(int argc, char** argv) {
 
         const Json report = driftglass::compare_runs(
             baseline_manifest, candidate_manifest, baseline_events, candidate_events, profile);
-        const std::string serialized = report.dump(2, ' ', true, Json::error_handler_t::strict);
         if (store_history) (void)driftglass::save_report(options.at("--history-db"), report);
+        const bool redact_paths = options.contains("--paths");
+        const bool redact_network = options.contains("--network");
+        const bool redact_processes = options.contains("--process-names");
+        const Json exported_report = (redact_paths || redact_network || redact_processes)
+            ? driftglass::redact_report(report, redact_paths, redact_network, redact_processes) : report;
+        const std::string serialized = exported_report.dump(2, ' ', true, Json::error_handler_t::strict);
         if (options.contains("--output")) write_output(options.at("--output"), serialized, overwrite);
         if (options.contains("--html-output")) {
-            write_output(options.at("--html-output"), driftglass::render_html_report(report), overwrite);
+            write_output(options.at("--html-output"), driftglass::render_html_report(exported_report), overwrite);
         }
         if (!options.contains("--output")) std::cout << serialized << "\n";
-        const auto& summary = report.at("summary");
-        std::cerr << "report_id=" << report.at("report_id")
+        const auto& summary = exported_report.at("summary");
+        std::cerr << "report_id=" << exported_report.at("report_id")
                   << " status=" << report.at("status")
                   << " added=" << summary.at("added_count")
                   << " removed=" << summary.at("removed_count")

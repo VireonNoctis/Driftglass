@@ -28,6 +28,8 @@ struct RuleProfile {
     [[nodiscard]] Json report_metadata() const;
 };
 
+[[nodiscard]] Json capabilities_report();
+
 [[nodiscard]] Json parse_json_strict(std::string_view source);
 [[nodiscard]] Json load_json_file(const std::filesystem::path& path, std::size_t maximum_bytes);
 [[nodiscard]] std::vector<Json> load_jsonl(const std::filesystem::path& path);
