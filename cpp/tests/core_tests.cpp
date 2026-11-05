@@ -112,6 +112,8 @@ void test_local_socket_noise_is_ignored_but_evidence_is_preserved() {
         {event("base-event", "198.51.100.10", 53000, 12345)},
         {event("candidate-event", "198.51.100.10", 54000, 67890)});
 
+    expect(report.is_object(), "comparison output must be a report object");
+    expect(report.contains("report_id"), "comparison output must include report_id");
     expect(report.at("findings").empty(), "changing only local port and socket inode must not add a finding");
     expect(report.at("summary").at("changed_count") == 0, "volatile local socket metadata must not count as a change");
 }

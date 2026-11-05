@@ -991,7 +991,8 @@ Json compare_loaded_runs(
             {"uncertainty_count", uncertainties.size()}
         }}
     };
-    return Json{{"report_id", sha256_hex(canonical_json(core))}, core};
+    core["report_id"] = sha256_hex(canonical_json(core));
+    return core;
 }
 
 Json compare_runs(
