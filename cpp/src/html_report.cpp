@@ -148,7 +148,7 @@ li{margin:.6rem 0}a{color:inherit}
         << "</span></p><p>These findings describe observed differences in supplied records. They do not prove intent or establish that the application is safe.</p></header>";
 
     out << "<h2>Compared runs</h2><table><thead><tr><th>Role</th><th>Version</th><th>Run ID</th><th>Capture status</th></tr></thead><tbody>";
-    for (const auto* pair : {std::pair<const char*, const Json*>{"Baseline", &baseline},
+    for (const auto& pair : {std::pair<const char*, const Json*>{"Baseline", &baseline},
                              std::pair<const char*, const Json*>{"Candidate", &candidate}}) {
         out << "<tr><th>" << pair.first << "</th><td>" << html_escape(pair.second->at("version").get<std::string>())
             << "</td><td class=\"id\">" << html_escape(pair.second->at("run_id").get<std::string>())
@@ -198,7 +198,7 @@ li{margin:.6rem 0}a{color:inherit}
             << "</p><h3>" << html_escape(finding.at("summary").get<std::string>())
             << "</h3><p>" << html_escape(finding.at("observation").get<std::string>())
             << "</p><p class=\"interpretation\">" << html_escape(finding.at("interpretation").get<std::string>())
-            << "</p><p class=\"id\">Finding " << html_escape(finding.at("finding_id").get<std::string()) << "</p>"
+            << "</p><p class=\"id\">Finding " << html_escape(finding.at("finding_id").get<std::string>()) << "</p>"
             << evidence_html("Baseline evidence", finding.at("baseline_evidence"))
             << evidence_html("Candidate evidence", finding.at("candidate_evidence")) << "</article>";
     }
