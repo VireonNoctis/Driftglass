@@ -6,7 +6,7 @@ This document describes what exists in the repository today. It is not a target-
 
 | Component | Location | Actual responsibility | Current boundary |
 |---|---|---|---|
-| Linux observer | `crates/driftglass-agent` | Samples `/proc` process stat and TCP/TCP6 metadata for an already-running PID and observed descendants. | Experimental polling; no file-event collector or comprehensive kernel tracing. |
+| Linux observer | `crates/driftglass-agent` | Samples `/proc` process stat and TCP/TCP6/UDP/UDP6 socket metadata for an already-running PID and observed descendants. | Experimental polling; no file-event collector or comprehensive kernel tracing. |
 | Capture coordinator | `python/driftglass/capture.py` | Invokes only the observer with an argument array, validates JSONL, creates a v1 manifest and returns a failure for incomplete runs. | Does not launch or stop the target, create a VM, or verify artifact identity/isolation. |
 | Validation and comparison | `events.py`, `manifests.py`, `comparison.py`, `profiles.py` | Validates records and manifests, compares behavior with deterministic profiles, preserves source evidence and marks declared gaps. | Input and rule semantics are versioned but not universally semantically equivalent. |
 | Repeat analysis | `repeatability.py` | Aggregates previously created reports and records source report/finding references. | Does not schedule or capture repeated runs; recurrence is not proof of intent. |
