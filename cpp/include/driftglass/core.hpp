@@ -46,6 +46,12 @@ void validate_manifest(const Json& manifest);
     const std::vector<Json>& candidate_events,
     const RuleProfile& profile = default_rule_profile());
 
+void validate_report(const Json& report);
+[[nodiscard]] Json analyze_repeat_reports(const std::vector<Json>& reports);
+void validate_repeat_analysis(const Json& analysis);
+[[nodiscard]] Json attest_report(const std::filesystem::path& report_path);
+[[nodiscard]] Json verify_report_integrity(const std::filesystem::path& report_path, const std::filesystem::path& manifest_path);
+
 [[nodiscard]] Json compare_runs(
     const std::filesystem::path& baseline_manifest,
     const std::filesystem::path& candidate_manifest,

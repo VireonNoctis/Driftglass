@@ -172,6 +172,56 @@ void test_profile_ignored_attributes_remain_in_evidence() {
            "candidate evidence must preserve attributes ignored for matching");
 }
 
+
+Json comparison_report(int index) {
+    const auto suffix = std::to_string(index);
+    const auto baseline = manifest("base-" + suffix, "baseline", "1.0", std::string(64, 'a'));
+    const auto candidate = manifest("candidate-" + suffix, "candidate", "2.0", std::string(64, 'b'));
+    const auto before = event("before-" + suffix, "198.51.100.10", 53000, 12345);
+    const auto after = event("after-" + suffix, "198.51.100.11", 53000, 12345);
+    return driftglass::compare_loaded_runs(baseline, candidate, {before}, {after});
+}
+
+void test_report_validation_repeat_analysis_and_integrity() {
+    const auto first = comparison_report(1);
+    const auto second = comparison_report(2);
+    driftglass::validate_report(first);
+    driftglass::validate_report(second);
+
+    const auto analysis = driftglass::analyze_repeat_reports({first, second});
+    driftglass::validate_repeat_analysis(analysis);
+    expect(analysis.at("report_count") == 2, "repeat analysis must include both source reports");
+    expect(analysis.at("summary").at("recurring_pattern_count") == 1,
+           "same observed difference should recur across the two reports");
+
+    const auto folder = fs::temp_directory_path()
+        / ("driftglass-native-test-" + std::to_string(
+            std::chrono::steady_clock::now().time_since_epoch().count()));
+    fs::create_directory(folder);
+    const auto report_path = folder / "report.json";
+    const auto manifest_path = folder / "report.integrity.json";
+    {
+        std::ofstream output(report_path, std::ios::binary);
+        output << first.dump(2, ' ', true) << "\n";
+    }
+    const auto integrity = driftglass::attest_report(report_path);
+    {
+        std::ofstream output(manifest_path, std::ios::binary);
+        output << integrity.dump(2, ' ', true) << "\n";
+    }
+    const auto verified = driftglass::verify_report_integrity(report_path, manifest_path);
+    expect(verified.at("report_id") == first.at("report_id"),
+           "integrity verification must return the validated report identity");
+
+    {
+        std::ofstream output(report_path, std::ios::binary | std::ios::app);
+        output << " ";
+    }
+    expect_error([&] { (void)driftglass::verify_report_integrity(report_path, manifest_path); },
+                 "integrity verification must detect byte-level report edits");
+    fs::remove_all(folder);
+}
+
 } // namespace
 
 template <typename Function>
@@ -192,6 +242,7 @@ int main() {
         run_test("remote_endpoint_change", test_remote_endpoint_change_keeps_raw_evidence);
         run_test("deterministic_report_identity", test_deterministic_report_identity);
         run_test("profile_ignored_attributes", test_profile_ignored_attributes_remain_in_evidence);
+        run_test("report_repeat_integrity", test_report_validation_repeat_analysis_and_integrity);
         std::cout << "C++ core tests passed\n";
         return 0;
     } catch (const std::exception& error) {

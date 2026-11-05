@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <optional>
 #include <set>
 
 namespace fs = std::filesystem;
@@ -18,6 +19,10 @@ void print_usage() {
         << "Usage:\n"
         << "  driftglass-core events validate <events.jsonl>\n"
         << "  driftglass-core manifest validate <manifest.json>\n"
+        << "  driftglass-core report validate <report.json>\n"
+        << "  driftglass-core report attest --report FILE --output FILE [--overwrite]\n"
+        << "  driftglass-core report verify --report FILE --manifest FILE\n"
+        << "  driftglass-core repeat analyze REPORT.json REPORT.json [REPORT.json ...] [--output FILE] [--overwrite]\n"
         << "  driftglass-core compare --baseline-manifest FILE --candidate-manifest FILE\n"
         << "      --baseline-events FILE --candidate-events FILE [--profile FILE]\n"
         << "      [--output FILE] [--overwrite]\n\n"
@@ -28,7 +33,7 @@ std::map<std::string, std::string> parse_options(int argc, char** argv, int star
     const std::set<std::string> value_options{
         "--baseline-manifest", "--candidate-manifest",
         "--baseline-events", "--candidate-events",
-        "--profile", "--output"
+        "--profile", "--output", "--report", "--manifest"
     };
     const std::set<std::string> flags{"--overwrite"};
     std::map<std::string, std::string> result;
@@ -125,6 +130,84 @@ int run(int argc, char** argv) {
                   << " role=" << manifest.at("role")
                   << " capture=" << manifest.at("capture").at("status")
                   << " dropped_events=" << manifest.at("coverage").at("dropped_events") << "\n";
+        return 0;
+    }
+    if (command == "report") {
+        if (argc < 3) throw Error("usage: driftglass-core report validate|attest|verify ...");
+        const std::string operation = argv[2];
+        if (operation == "validate") {
+            if (argc != 4) throw Error("usage: driftglass-core report validate <report.json>");
+            const auto report = driftglass::load_json_file(argv[3], 64U * 1024U * 1024U);
+            driftglass::validate_report(report);
+            std::cout << "valid report: report_id=" << report.at("report_id") << "\n";
+            return 0;
+        }
+        const auto options = parse_options(argc, argv, 3);
+        if (operation == "attest") {
+            const auto report_path = normalized_path(need(options, "--report"));
+            const auto output_path = normalized_path(need(options, "--output"));
+            if (report_path == output_path) throw Error("integrity manifest output must not replace the report");
+            const auto manifest = driftglass::attest_report(report_path);
+            write_output(output_path, manifest.dump(2, ' ', true), options.contains("--overwrite"));
+            std::cout << manifest.dump(2, ' ', true) << "\n";
+            return 0;
+        }
+        if (operation == "verify") {
+            if (options.contains("--output") || options.contains("--overwrite")) {
+                throw Error("report verify does not accept output options");
+            }
+            const auto report_path = normalized_path(need(options, "--report"));
+            const auto manifest_path = normalized_path(need(options, "--manifest"));
+            const auto manifest = driftglass::verify_report_integrity(report_path, manifest_path);
+            std::cout << manifest.dump(2, ' ', true) << "\n";
+            std::cerr << "integrity_status=verified report_id=" << manifest.at("report_id") << "\n";
+            return 0;
+        }
+        throw Error("unknown report operation: " + operation);
+    }
+    if (command == "repeat") {
+        if (argc < 3 || std::string(argv[2]) != "analyze") {
+            throw Error("usage: driftglass-core repeat analyze REPORT.json REPORT.json [REPORT.json ...]");
+        }
+        std::vector<std::filesystem::path> paths;
+        std::optional<std::filesystem::path> output;
+        bool overwrite = false;
+        for (int index = 3; index < argc; ++index) {
+            const std::string argument = argv[index];
+            if (argument == "--overwrite") {
+                if (overwrite) throw Error("--overwrite was supplied more than once");
+                overwrite = true;
+            } else if (argument == "--output") {
+                if (output || index + 1 >= argc) throw Error("--output requires one value and may be supplied once");
+                output = normalized_path(argv[++index]);
+            } else if (argument.starts_with("--")) {
+                throw Error("unknown repeat option: " + argument);
+            } else {
+                paths.emplace_back(normalized_path(argument));
+            }
+        }
+        if (paths.size() < 2U || paths.size() > 500U) throw Error("repeat analyze requires between 2 and 500 report files");
+        if (overwrite && !output) throw Error("--overwrite requires --output");
+        std::uint64_t total_bytes = 0;
+        std::vector<Json> reports;
+        reports.reserve(paths.size());
+        for (const auto& path : paths) {
+            std::error_code error;
+            const auto size = std::filesystem::file_size(path, error);
+            if (error) throw Error("could not inspect repeat-analysis report file");
+            if (size > 64U * 1024U * 1024U) throw Error("a repeat-analysis report exceeds the 64 MiB file limit");
+            total_bytes += size;
+            if (total_bytes > 256U * 1024U * 1024U) throw Error("combined repeat-analysis input exceeds the 256 MiB limit");
+            reports.push_back(driftglass::load_json_file(path, 64U * 1024U * 1024U));
+        }
+        const auto analysis = driftglass::analyze_repeat_reports(reports);
+        driftglass::validate_repeat_analysis(analysis);
+        const auto serialized = analysis.dump(2, ' ', true);
+        if (output) write_output(*output, serialized, overwrite);
+        else std::cout << serialized << "\n";
+        std::cerr << "analysis_id=" << analysis.at("analysis_id")
+                  << " reports=" << analysis.at("report_count")
+                  << " patterns=" << analysis.at("patterns").size() << "\n";
         return 0;
     }
     if (command == "compare") {
