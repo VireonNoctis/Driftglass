@@ -62,6 +62,9 @@ def _signature(event: dict[str, Any], profile: RuleProfile) -> str:
     # pointers, not behaviour identity. The current network observer also
     # puts the local socket endpoint in resource.identifier; that endpoint is
     # preserved in evidence but is volatile across otherwise equivalent runs.
+    # Local endpoints and procfs inode values identify the local socket, not
+    # its remote behavior. Keep them in evidence while excluding them from
+    # equivalence matching across otherwise identical runs.
     details = _details(event, profile)
     resource = details.get("resource")
     if event["category"] == "network" and isinstance(resource, dict) and resource.get("kind") == "network":
