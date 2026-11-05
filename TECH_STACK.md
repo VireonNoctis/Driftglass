@@ -6,12 +6,15 @@
 
 | Language | Bytes | Share |
 | --- | ---: | ---: |
-| Python | 281,077 | 57.0% |
-| JavaScript | 86,051 | 17.5% |
-| Rust | 54,708 | 11.1% |
-| Svelte | 36,402 | 7.4% |
-| CSS | 29,638 | 6.0% |
-| TypeScript | 4,404 | 0.9% |
+| Python | 288,460 | 39.5% |
+| C++ | 205,084 | 28.0% |
+| JavaScript | 86,051 | 11.8% |
+| Rust | 57,423 | 7.9% |
+| Svelte | 36,402 | 5.0% |
+| CSS | 36,272 | 5.0% |
+| Swift | 15,374 | 2.1% |
+| TypeScript | 4,404 | 0.6% |
+| CMake | 1,243 | 0.2% |
 | HTML | 445 | 0.1% |
 
 _Language source: GitHub Linguist. Percentages describe repository composition, not individual authorship._
