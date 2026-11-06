@@ -21,6 +21,17 @@ python -m driftglass capabilities
 
 This prints versioned JSON describing the implemented Linux procfs observer, its narrow process and TCP/UDP socket metadata scope, unavailable categories, and platforms without a collector. It reports implementation status, not the capabilities or health of a specific running process; real-world Linux coverage remains unverified.
 
+The native C++20 CLI exposes the same versioned capability contract:
+
+~~~bash
+cmake -S cpp -B build/cpp
+cmake --build build/cpp --parallel
+./build/cpp/driftglass-core capabilities
+ctest --test-dir build/cpp --output-on-failure
+~~~
+
+Install the C++ build dependencies required by `cpp/CMakeLists.txt` (OpenSSL, SQLite3, and nlohmann-json) before configuring. The native command prints the compiled-in collector/platform scope; it does not probe the current host's permissions or measure real-world collection coverage. The C++ core tests validate the capability contract, and CTest includes a CLI smoke test.
+
 ## Validate input files
 
 ~~~bash
