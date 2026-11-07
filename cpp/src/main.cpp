@@ -186,18 +186,23 @@ int run(int argc, char** argv) {
         return 0;
     }
     if (command == "events") {
-        if (argc != 4 || std::string(argv[2]) != "validate") {
-            throw Error("usage: driftglass-core events validate <events.jsonl>");
+        if (argc < 4 || std::string(argv[2]) != "validate") {
+            throw Error("usage: driftglass-core events validate <events.jsonl> [--event-schema FILE]");
         }
-        const auto events = driftglass::load_jsonl(argv[3]);
+        const auto options = parse_options(argc, argv, 4);
+        const auto schema = selected_schema(options, "--event-schema", "events/event-v1.schema.json", argv[0]);
+        const auto events = driftglass::load_jsonl(argv[3], schema);
         std::cout << "valid event stream: " << events.size() << " record(s)\n";
         return 0;
     }
     if (command == "manifest") {
-        if (argc != 4 || std::string(argv[2]) != "validate") {
-            throw Error("usage: driftglass-core manifest validate <manifest.json>");
+        if (argc < 4 || std::string(argv[2]) != "validate") {
+            throw Error("usage: driftglass-core manifest validate <manifest.json> [--manifest-schema FILE]");
         }
+        const auto options = parse_options(argc, argv, 4);
+        const auto schema = selected_schema(options, "--manifest-schema", "manifests/run-manifest-v1.schema.json", argv[0]);
         const auto manifest = driftglass::load_json_file(argv[3], 4U * 1024U * 1024U);
+        driftglass::validate_json_schema_file(manifest, schema);
         driftglass::validate_manifest(manifest);
         std::cout << "valid run manifest: run_id=" << manifest.at("run_id")
                   << " role=" << manifest.at("role")
