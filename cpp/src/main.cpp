@@ -1,6 +1,7 @@
 #include "driftglass/core.hpp"
 
 #include <chrono>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -17,10 +18,10 @@ void print_usage() {
     std::cout
         << "Driftglass C++ comparison core\n\n"
         << "Usage:\n"
-        << "  driftglass-core events validate <events.jsonl>\n"
-        << "  driftglass-core manifest validate <manifest.json>\n"
+        << "  driftglass-core events validate <events.jsonl> [--event-schema FILE]\n"
+        << "  driftglass-core manifest validate <manifest.json> [--manifest-schema FILE]\n"
         << "  driftglass-core capabilities\n"
-        << "  driftglass-core report validate <report.json>\n"
+        << "  driftglass-core report validate <report.json> [--report-schema FILE]\n"
         << "  driftglass-core report attest --report FILE --output FILE [--overwrite]\n"
         << "  driftglass-core report verify --report FILE --manifest FILE\n"
         << "  driftglass-core report redact --report FILE --output FILE [--paths] [--network] [--process-names]\n"
@@ -28,12 +29,14 @@ void print_usage() {
         << "  driftglass-core capture --observer FILE --pid PID --experiment-id ID --role baseline|candidate\n"
         << "      --application-name NAME --application-version VERSION --scenario TEXT\n"
         << "      --event-output FILE --manifest-output FILE [--duration-seconds N] [--interval-ms N]\n"
+        << "      [--event-schema FILE] [--manifest-schema FILE]\n"
         << "  driftglass-core history list --database FILE [--limit N]\n"
         << "  driftglass-core history show --database FILE --report-id SHA256\n"
         << "  driftglass-core history export --database FILE --report-id SHA256 --format json|html --output FILE [--paths] [--network] [--process-names] [--overwrite]\n"
         << "  driftglass-core history delete --database FILE --report-id SHA256 --confirm SHA256\n"
         << "  driftglass-core compare --baseline-manifest FILE --candidate-manifest FILE\n"
         << "      --baseline-events FILE --candidate-events FILE [--profile FILE]\n"
+        << "      [--event-schema FILE] [--manifest-schema FILE] [--report-schema FILE] [--profile-schema FILE]\n"
         << "      [--output FILE] [--html-output FILE] [--history-db FILE] [--paths] [--network] [--process-names] [--overwrite]\n\n"
         << "The compare command reads existing captures. It never launches the application.\n";
 }
