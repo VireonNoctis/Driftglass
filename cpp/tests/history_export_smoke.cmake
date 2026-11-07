@@ -169,4 +169,63 @@ if(NOT original_report STREQUAL source_after_overwrite_attempt)
     message(FATAL_ERROR "a refused overwrite changed the existing export")
 endif()
 
-message(STATUS "native history export, redaction and overwrite checks passed")
+set(CUSTOM_SCHEMA "${WORK_DIR}/strict-event-schema.json")
+file(WRITE "${CUSTOM_SCHEMA}" [=[
+{
+  "type": "object",
+  "required": ["event_id"],
+  "properties": {
+    "event_id": {"type": "string", "minLength": 100}
+  }
+}
+]=])
+execute_process(
+    COMMAND "${DRIFTGLASS_CLI}" events validate "${BASELINE_EVENTS}" --event-schema "${CUSTOM_SCHEMA}"
+    RESULT_VARIABLE custom_schema_result
+    ERROR_VARIABLE custom_schema_error
+)
+if(custom_schema_result EQUAL 0)
+    message(FATAL_ERROR "custom event schema override was not enforced")
+endif()
+
+set(INSTALL_PREFIX "${WORK_DIR}/install")
+execute_process(
+    COMMAND "${CMAKE_COMMAND}" --install "${BUILD_DIR}" --prefix "${INSTALL_PREFIX}"
+    RESULT_VARIABLE install_result
+    ERROR_VARIABLE install_error
+)
+if(NOT install_result EQUAL 0)
+    message(FATAL_ERROR "native install step failed: ${install_error}")
+endif()
+
+set(INSTALLED_CLI "${INSTALL_PREFIX}/bin/driftglass-core")
+if(NOT EXISTS "${INSTALLED_CLI}")
+    message(FATAL_ERROR "native CLI was not installed")
+endif()
+if(NOT EXISTS "${INSTALL_PREFIX}/share/driftglass/schemas/events/event-v1.schema.json")
+    message(FATAL_ERROR "event schema was not installed with the native CLI")
+endif()
+execute_process(
+    COMMAND "${INSTALLED_CLI}" events validate "${BASELINE_EVENTS}"
+    RESULT_VARIABLE installed_cli_result
+    ERROR_VARIABLE installed_cli_error
+)
+if(NOT installed_cli_result EQUAL 0)
+    message(FATAL_ERROR "installed CLI could not resolve its packaged schema: ${installed_cli_error}")
+endif()
+
+execute_process(
+    COMMAND "${CMAKE_COMMAND}" --build "${BUILD_DIR}" --target package
+    RESULT_VARIABLE package_result
+    ERROR_VARIABLE package_error
+)
+if(NOT package_result EQUAL 0)
+    message(FATAL_ERROR "native package archive creation failed: ${package_error}")
+endif()
+file(GLOB package_archives "${BUILD_DIR}/driftglass-*.tar.gz")
+if(NOT package_archives)
+    message(FATAL_ERROR "native package archive was not produced")
+endif()
+
+message(STATUS "native history export, redaction, schema overrides and package checks passed")
+
