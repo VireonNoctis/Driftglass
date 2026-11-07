@@ -346,6 +346,8 @@ int run(int argc, char** argv) {
         capture_options.scenario = need(options, "--scenario");
         capture_options.event_output_path = need(options, "--event-output");
         capture_options.manifest_output_path = need(options, "--manifest-output");
+        capture_options.event_schema_path = selected_schema(options, "--event-schema", "events/event-v1.schema.json", argv[0]);
+        capture_options.manifest_schema_path = selected_schema(options, "--manifest-schema", "manifests/run-manifest-v1.schema.json", argv[0]);
         capture_options.artifact_sha256 = options.contains("--artifact-sha256")
             ? std::optional<std::string>(options.at("--artifact-sha256")) : std::nullopt;
         capture_options.package_id = options.contains("--package-id")
@@ -405,6 +407,8 @@ int run(int argc, char** argv) {
         if (operation == "show") {
             const auto report = driftglass::get_report(database, need(options, "--report-id"));
             if (!report) throw Error("report not found in local history");
+            const auto report_schema = selected_schema(options, "--report-schema", "reports/report-v1.schema.json", argv[0]);
+            driftglass::validate_json_schema_file(*report, report_schema);
             std::cout << report->dump(2, ' ', true) << "\n";
             return 0;
         }
@@ -420,6 +424,8 @@ int run(int argc, char** argv) {
             }
             const auto report = driftglass::get_report(database, report_id);
             if (!report) throw Error("report not found in local history");
+            const auto report_schema = selected_schema(options, "--report-schema", "reports/report-v1.schema.json", argv[0]);
+            driftglass::validate_json_schema_file(*report, report_schema);
             const bool redact_paths = options.contains("--paths");
             const bool redact_network = options.contains("--network");
             const bool redact_processes = options.contains("--process-names");
@@ -486,8 +492,14 @@ int run(int argc, char** argv) {
             if (!profile.empty() && history == normalized_path(profile)) throw Error("history database must not replace the rule profile");
         }
 
+        const auto event_schema = selected_schema(options, "--event-schema", "events/event-v1.schema.json", argv[0]);
+        const auto manifest_schema = selected_schema(options, "--manifest-schema", "manifests/run-manifest-v1.schema.json", argv[0]);
+        const auto report_schema = selected_schema(options, "--report-schema", "reports/report-v1.schema.json", argv[0]);
+        const auto profile_schema = selected_schema(options, "--profile-schema", "rules/rule-profile-v1.schema.json", argv[0]);
         const Json report = driftglass::compare_runs(
-            baseline_manifest, candidate_manifest, baseline_events, candidate_events, profile);
+            baseline_manifest, candidate_manifest, baseline_events, candidate_events, profile,
+            event_schema, manifest_schema, profile_schema);
+        driftglass::validate_json_schema_file(report, report_schema);
         if (store_history) (void)driftglass::save_report(options.at("--history-db"), report);
         const bool redact_paths = options.contains("--paths");
         const bool redact_network = options.contains("--network");
