@@ -228,7 +228,13 @@ int run(int argc, char** argv) {
             const auto report_path = normalized_path(need(options, "--report"));
             const auto output_path = normalized_path(need(options, "--output"));
             if (report_path == output_path) throw Error("integrity manifest output must not replace the report");
+            const auto report_schema = selected_schema(options, "--report-schema", "reports/report-v1.schema.json", argv[0]);
+            const auto export_schema = selected_schema(options, "--manifest-schema", "reports/export-manifest-v1.schema.json", argv[0]);
+            const auto source_report = driftglass::load_json_file(report_path, 64U * 1024U * 1024U);
+            driftglass::validate_json_schema_file(source_report, report_schema);
+            driftglass::validate_report(source_report);
             const auto manifest = driftglass::attest_report(report_path);
+            driftglass::validate_json_schema_file(manifest, export_schema);
             write_output(output_path, manifest.dump(2, ' ', true), options.contains("--overwrite"));
             std::cout << manifest.dump(2, ' ', true) << "\n";
             return 0;
@@ -237,9 +243,13 @@ int run(int argc, char** argv) {
             const auto report_path = normalized_path(need(options, "--report"));
             const auto output_path = normalized_path(need(options, "--output"));
             if (report_path == output_path) throw Error("redacted output must not replace the source report");
+            const auto report_schema = selected_schema(options, "--report-schema", "reports/report-v1.schema.json", argv[0]);
+            const auto source_report = driftglass::load_json_file(report_path, 64U * 1024U * 1024U);
+            driftglass::validate_json_schema_file(source_report, report_schema);
+            driftglass::validate_report(source_report);
             const auto redacted = driftglass::redact_report(
-                driftglass::load_json_file(report_path, 64U * 1024U * 1024U),
-                options.contains("--paths"), options.contains("--network"), options.contains("--process-names"));
+                source_report, options.contains("--paths"), options.contains("--network"), options.contains("--process-names"));
+            driftglass::validate_json_schema_file(redacted, report_schema);
             write_output(output_path, redacted.dump(2, ' ', true), options.contains("--overwrite"));
             std::cout << redacted.dump(2, ' ', true) << "\n";
             return 0;
@@ -250,6 +260,12 @@ int run(int argc, char** argv) {
             }
             const auto report_path = normalized_path(need(options, "--report"));
             const auto manifest_path = normalized_path(need(options, "--manifest"));
+            const auto report_schema = selected_schema(options, "--report-schema", "reports/report-v1.schema.json", argv[0]);
+            const auto export_schema = selected_schema(options, "--manifest-schema", "reports/export-manifest-v1.schema.json", argv[0]);
+            const auto report = driftglass::load_json_file(report_path, 64U * 1024U * 1024U);
+            const auto export_manifest = driftglass::load_json_file(manifest_path, 1024U * 1024U);
+            driftglass::validate_json_schema_file(report, report_schema);
+            driftglass::validate_json_schema_file(export_manifest, export_schema);
             const auto manifest = driftglass::verify_report_integrity(report_path, manifest_path);
             std::cout << manifest.dump(2, ' ', true) << "\n";
             std::cerr << "integrity_status=verified report_id=" << manifest.at("report_id") << "\n";
