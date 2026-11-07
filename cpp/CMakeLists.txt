@@ -7,6 +7,8 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+set(DRIFTGLASS_AGENT_EXECUTABLE "" CACHE FILEPATH "Path to the built Rust observer for Linux paired-capture tests")
+
 find_package(OpenSSL REQUIRED)
 find_package(SQLite3 REQUIRED)
 find_package(nlohmann_json 3.10 REQUIRED)
@@ -46,10 +48,24 @@ if(BUILD_TESTING)
         COMMAND ${CMAKE_COMMAND}
             -DDRIFTGLASS_CLI=$<TARGET_FILE:driftglass-core>
             -DBUILD_DIR=${CMAKE_CURRENT_BINARY_DIR}
-            -DBUILD_DIR=${CMAKE_CURRENT_BINARY_DIR}
             -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/history-export-smoke
             -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/history_export_smoke.cmake
     )
+
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND DRIFTGLASS_AGENT_EXECUTABLE)
+        if(NOT EXISTS "${DRIFTGLASS_AGENT_EXECUTABLE}")
+            message(FATAL_ERROR "DRIFTGLASS_AGENT_EXECUTABLE does not exist: ${DRIFTGLASS_AGENT_EXECUTABLE}")
+        endif()
+        add_executable(driftglass-loopback-fixture tests/loopback_fixture.cpp)
+        add_test(
+            NAME driftglass-core-paired-capture
+            COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/tests/run_paired_capture.sh
+                $<TARGET_FILE:driftglass-core>
+                ${DRIFTGLASS_AGENT_EXECUTABLE}
+                $<TARGET_FILE:driftglass-loopback-fixture>
+                ${CMAKE_CURRENT_BINARY_DIR}/paired-capture
+        )
+    endif()
 endif()
 
 install(TARGETS driftglass-core
