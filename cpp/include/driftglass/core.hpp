@@ -32,7 +32,9 @@ struct RuleProfile {
 
 [[nodiscard]] Json parse_json_strict(std::string_view source);
 [[nodiscard]] Json load_json_file(const std::filesystem::path& path, std::size_t maximum_bytes);
-[[nodiscard]] std::vector<Json> load_jsonl(const std::filesystem::path& path);
+[[nodiscard]] std::vector<Json> load_jsonl(const std::filesystem::path& path, const std::filesystem::path& schema_path = {});
+void validate_json_schema(const Json& instance, const Json& schema);
+void validate_json_schema_file(const Json& instance, const std::filesystem::path& schema_path);
 [[nodiscard]] std::string canonical_json(const Json& value);
 [[nodiscard]] std::string sha256_hex(std::string_view value);
 
@@ -52,6 +54,8 @@ struct CaptureOptions {
     std::optional<std::string> package_id;
     std::string profile;
     std::optional<std::string> snapshot_id;
+    std::filesystem::path event_schema_path;
+    std::filesystem::path manifest_schema_path;
 };
 
 struct CaptureResult {
@@ -68,7 +72,7 @@ void validate_event(const Json& event);
 void validate_manifest(const Json& manifest);
 
 [[nodiscard]] RuleProfile default_rule_profile();
-[[nodiscard]] RuleProfile load_rule_profile(const std::filesystem::path& path);
+[[nodiscard]] RuleProfile load_rule_profile(const std::filesystem::path& path, const std::filesystem::path& schema_path = {});
 
 [[nodiscard]] Json compare_loaded_runs(
     const Json& baseline_manifest,
@@ -94,6 +98,9 @@ void validate_repeat_analysis(const Json& analysis);
     const std::filesystem::path& candidate_manifest,
     const std::filesystem::path& baseline_events,
     const std::filesystem::path& candidate_events,
-    const std::filesystem::path& profile = {});
+    const std::filesystem::path& profile = {},
+    const std::filesystem::path& event_schema = {},
+    const std::filesystem::path& manifest_schema = {},
+    const std::filesystem::path& profile_schema = {});
 
 } // namespace driftglass
