@@ -1,5 +1,7 @@
 #include "driftglass/core.hpp"
 
+#include <algorithm>
+
 #include <cmath>
 #include <regex>
 #include <set>
