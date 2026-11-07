@@ -4,13 +4,13 @@
 [![Code quality](https://github.com/VireonNoctis/Driftglass/actions/workflows/repository-health.yml/badge.svg?branch=main)](https://github.com/VireonNoctis/Driftglass/actions/workflows/repository-health.yml)
 [![Top language](https://img.shields.io/github/languages/top/VireonNoctis/Driftglass?style=flat-square)](https://github.com/VireonNoctis/Driftglass)
 [![Languages](https://img.shields.io/github/languages/count/VireonNoctis/Driftglass?style=flat-square)](https://github.com/VireonNoctis/Driftglass)
-[![Automated tech stack](https://img.shields.io/badge/tech_stack-auto--detected-64748b?style=flat-square)](TECH_STACK.md)
+[![Implemented technology stack](https://img.shields.io/badge/tech_stack-native-64748b?style=flat-square)](TECH_STACK.md)
 <!-- REPOSITORY-HEALTH:END -->
 
 
 > **Every update leaves a trace. Find it.**
 
-Driftglass is a planned, open-source, privacy-first application update auditor. It is designed to compare the observable behaviour of two application versions in controlled, isolated environments, then turn their differences into a reproducible report with evidence a person can inspect.
+Driftglass is an open-source, privacy-first application update auditor. It is designed to compare the observable behaviour of two application versions in controlled, isolated environments, then turn their differences into a reproducible report with evidence a person can inspect.
 
 Rather than asking only whether an application has a permission, Driftglass aims to answer a more useful question:
 
@@ -30,7 +30,7 @@ It is intended for security researchers, privacy-conscious users, maintainers, a
 - [Planned capabilities](#planned-capabilities)
 - [How a comparison should work](#how-a-comparison-should-work)
 - [Architecture](#architecture)
-- [Planned technology stack](#planned-technology-stack)
+- [Implemented technology stack](#implemented-technology-stack)
 - [Evidence and comparison model](#evidence-and-comparison-model)
 - [Event schema](docs/event-schema.md)
 - [Run manifest](docs/run-manifest.md)
@@ -453,10 +453,9 @@ Driftglass/
 ├── web/
 │   └── src/
 ├── Cargo.toml
-├── CMakeLists.txt
 └── README.md
 
-This is a target structure, not a description of files already present. The layout should be simplified if early prototypes show that a directory or component is unnecessary. Tests and documentation should be added alongside the code they describe.
+This reflects the current repository layout. Tests and documentation live alongside the implementation they describe.
 
 ---
 
