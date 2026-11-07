@@ -30,6 +30,7 @@ void print_usage() {
         << "      --event-output FILE --manifest-output FILE [--duration-seconds N] [--interval-ms N]\n"
         << "  driftglass-core history list --database FILE [--limit N]\n"
         << "  driftglass-core history show --database FILE --report-id SHA256\n"
+        << "  driftglass-core history export --database FILE --report-id SHA256 --format json|html --output FILE [--paths] [--network] [--process-names] [--overwrite]\n"
         << "  driftglass-core history delete --database FILE --report-id SHA256 --confirm SHA256\n"
         << "  driftglass-core compare --baseline-manifest FILE --candidate-manifest FILE\n"
         << "      --baseline-events FILE --candidate-events FILE [--profile FILE]\n"
@@ -41,7 +42,7 @@ std::map<std::string, std::string> parse_options(int argc, char** argv, int star
     const std::set<std::string> value_options{
         "--baseline-manifest", "--candidate-manifest",
         "--baseline-events", "--candidate-events",
-        "--profile", "--output", "--report", "--manifest", "--history-db", "--database", "--report-id", "--confirm", "--limit", "--html-output", "--observer", "--pid", "--duration-seconds", "--interval-ms", "--experiment-id", "--role", "--application-name", "--application-version", "--scenario", "--event-output", "--manifest-output", "--artifact-sha256", "--package-id", "--profile", "--snapshot-id"
+        "--profile", "--output", "--report", "--manifest", "--history-db", "--database", "--report-id", "--confirm", "--limit", "--format", "--html-output", "--observer", "--pid", "--duration-seconds", "--interval-ms", "--experiment-id", "--role", "--application-name", "--application-version", "--scenario", "--event-output", "--manifest-output", "--artifact-sha256", "--package-id", "--profile", "--snapshot-id"
     };
     const std::set<std::string> flags{"--overwrite", "--paths", "--network", "--process-names"};
     std::map<std::string, std::string> result;
@@ -327,6 +328,36 @@ int run(int argc, char** argv) {
             const auto report = driftglass::get_report(database, need(options, "--report-id"));
             if (!report) throw Error("report not found in local history");
             std::cout << report->dump(2, ' ', true) << "\n";
+            return 0;
+        }
+        if (operation == "export") {
+            const auto report_id = need(options, "--report-id");
+            const auto format = need(options, "--format");
+            if (format != "json" && format != "html") {
+                throw Error("history export format must be json or html");
+            }
+            const auto output = normalized_path(need(options, "--output"));
+            if (output == database) {
+                throw Error("history export output must not replace the history database");
+            }
+            const auto report = driftglass::get_report(database, report_id);
+            if (!report) throw Error("report not found in local history");
+            const bool redact_paths = options.contains("--paths");
+            const bool redact_network = options.contains("--network");
+            const bool redact_processes = options.contains("--process-names");
+            const Json exported = (redact_paths || redact_network || redact_processes)
+                ? driftglass::redact_report(*report, redact_paths, redact_network, redact_processes)
+                : *report;
+            const std::string serialized = format == "json"
+                ? exported.dump(2, ' ', true, Json::error_handler_t::strict)
+                : driftglass::render_html_report(exported);
+            write_output(output, serialized, options.contains("--overwrite"));
+            if (redact_paths || redact_network || redact_processes) {
+                std::cout << "exported redacted report " << exported.at("report_id")
+                          << " (source report " << report_id << ") to " << output.string() << "\n";
+            } else {
+                std::cout << "exported report " << report_id << " to " << output.string() << "\n";
+            }
             return 0;
         }
         if (operation == "delete") {
