@@ -45,6 +45,7 @@ if(BUILD_TESTING)
         NAME driftglass-core-history-export
         COMMAND ${CMAKE_COMMAND}
             -DDRIFTGLASS_CLI=$<TARGET_FILE:driftglass-core>
+            -DBUILD_DIR=${CMAKE_CURRENT_BINARY_DIR}
             -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/history-export-smoke
             -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/history_export_smoke.cmake
     )
