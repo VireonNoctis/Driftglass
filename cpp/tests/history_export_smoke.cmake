@@ -206,7 +206,9 @@ if(NOT EXISTS "${INSTALL_PREFIX}/share/driftglass/schemas/events/event-v1.schema
     message(FATAL_ERROR "event schema was not installed with the native CLI")
 endif()
 execute_process(
-    COMMAND "${INSTALLED_CLI}" events validate "${BASELINE_EVENTS}"
+    COMMAND "${CMAKE_COMMAND}" -E env
+        "DRIFTGLASS_SCHEMA_DIR=${INSTALL_PREFIX}/share/driftglass/schemas"
+        "${INSTALLED_CLI}" events validate "${BASELINE_EVENTS}"
     RESULT_VARIABLE installed_cli_result
     ERROR_VARIABLE installed_cli_error
 )
