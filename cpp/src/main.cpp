@@ -42,7 +42,7 @@ std::map<std::string, std::string> parse_options(int argc, char** argv, int star
     const std::set<std::string> value_options{
         "--baseline-manifest", "--candidate-manifest",
         "--baseline-events", "--candidate-events",
-        "--profile", "--output", "--report", "--manifest", "--history-db", "--database", "--report-id", "--confirm", "--limit", "--format", "--html-output", "--observer", "--pid", "--duration-seconds", "--interval-ms", "--experiment-id", "--role", "--application-name", "--application-version", "--scenario", "--event-output", "--manifest-output", "--artifact-sha256", "--package-id", "--profile", "--snapshot-id"
+        "--profile", "--output", "--report", "--manifest", "--history-db", "--database", "--report-id", "--confirm", "--limit", "--format", "--html-output", "--observer", "--pid", "--duration-seconds", "--interval-ms", "--experiment-id", "--role", "--application-name", "--application-version", "--scenario", "--event-output", "--manifest-output", "--artifact-sha256", "--package-id", "--profile", "--snapshot-id", "--event-schema", "--manifest-schema", "--report-schema", "--analysis-schema", "--profile-schema"
     };
     const std::set<std::string> flags{"--overwrite", "--paths", "--network", "--process-names"};
     std::map<std::string, std::string> result;
@@ -114,6 +114,49 @@ void write_output(const fs::path& path, const std::string& content, bool overwri
     }
 }
 
+
+
+fs::path default_schema_path(const std::string& relative, const std::string& executable) {
+    std::vector<fs::path> candidates;
+    if (const char* configured = std::getenv("DRIFTGLASS_SCHEMA_DIR"); configured && *configured) {
+        candidates.emplace_back(fs::path(configured) / relative);
+    }
+#ifdef DRIFTGLASS_SCHEMA_SOURCE_DIR
+    candidates.emplace_back(fs::path(DRIFTGLASS_SCHEMA_SOURCE_DIR) / relative);
+#endif
+    std::error_code error;
+    const auto executable_path = fs::absolute(fs::path(executable), error);
+    if (!error) {
+        candidates.emplace_back(executable_path.parent_path().parent_path()
+            / "share" / "driftglass" / "schemas" / relative);
+    }
+    candidates.emplace_back(fs::current_path() / "schemas" / relative);
+    candidates.emplace_back(fs::current_path() / "share" / "driftglass" / "schemas" / relative);
+    for (const auto& candidate : candidates) {
+        if (fs::is_regular_file(candidate, error) && !error) {
+            const auto resolved = fs::weakly_canonical(candidate, error);
+            return error ? candidate : resolved;
+        }
+        error.clear();
+    }
+    return {};
+}
+
+fs::path selected_schema(
+    const std::map<std::string, std::string>& options,
+    const std::string& option,
+    const std::string& relative,
+    const std::string& executable
+) {
+    fs::path path;
+    const auto supplied = options.find(option);
+    if (supplied != options.end()) path = normalized_path(supplied->second);
+    else path = default_schema_path(relative, executable);
+    if (path.empty() || !fs::is_regular_file(path)) {
+        throw Error("schema file could not be located; supply " + option + " explicitly");
+    }
+    return path;
+}
 
 std::uint32_t parse_u32(const std::string& value, const std::string& label, std::uint32_t minimum, std::uint32_t maximum) {
     try {
