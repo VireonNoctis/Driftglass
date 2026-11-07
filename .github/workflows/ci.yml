@@ -9,83 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: "3.11"
-      - run: python -m pip install -e ".[test]"
-      - run: python -m pytest
-      - name: Verify schema contracts are included in the wheel
-        run: |
-          python -m pip wheel --no-deps --wheel-dir "$RUNNER_TEMP/dist" .
-          python - "$RUNNER_TEMP"/dist/*.whl <<'PY'
-          import sys
-          import zipfile
-          with zipfile.ZipFile(sys.argv[1]) as wheel:
-              names = wheel.namelist()
-          required = (
-              "/share/driftglass/schemas/events/event-v1.schema.json",
-              "/share/driftglass/schemas/manifests/run-manifest-v1.schema.json",
-              "/share/driftglass/schemas/reports/report-v1.schema.json",
-              "/share/driftglass/schemas/reports/repeat-analysis-v1.schema.json",
-              "/share/driftglass/schemas/reports/export-manifest-v1.schema.json",
-              "/share/driftglass/schemas/rules/rule-profile-v1.schema.json",
-              "/share/driftglass/schemas/capabilities/capabilities-v1.schema.json",
-          )
-          missing = [suffix for suffix in required if not any(name.endswith(suffix) for name in names)]
-          if missing:
-              raise SystemExit(f"wheel is missing schema assets: {missing}")
-          PY
-      - name: Smoke-test the installed wheel CLI and its packaged schemas
-        run: |
-          python -m venv "$RUNNER_TEMP/driftglass-wheel-venv"
-          "$RUNNER_TEMP/driftglass-wheel-venv/bin/python" -m pip install "$RUNNER_TEMP"/dist/*.whl
-          "$RUNNER_TEMP/driftglass-wheel-venv/bin/python" - "$RUNNER_TEMP/wheel-event.jsonl" <<'PY'
-          import json
-          import pathlib
-          import sys
-          event = {
-              "schema_version": 1,
-              "event_id": "wheel-smoke-event",
-              "timestamp": "2026-01-01T00:00:00Z",
-              "category": "coverage",
-              "action": "capture_started",
-              "source": {"collector": "wheel-smoke-test", "event_ref": "capture:start"},
-              "collection_quality": "complete"
-          }
-          pathlib.Path(sys.argv[1]).write_text(json.dumps(event) + "\n", encoding="utf-8")
-          PY
-          "$RUNNER_TEMP/driftglass-wheel-venv/bin/driftglass" events validate "$RUNNER_TEMP/wheel-event.jsonl"
-          "$RUNNER_TEMP/driftglass-wheel-venv/bin/driftglass" capabilities > "$RUNNER_TEMP/wheel-capabilities.json"
-          "$RUNNER_TEMP/driftglass-wheel-venv/bin/python" - "$RUNNER_TEMP/wheel-capabilities.json" <<'PY'
-          import json
-          import sys
-          import sysconfig
-          from pathlib import Path
-          from jsonschema import Draft202012Validator
-          schema_path = Path(sysconfig.get_path("data")) / "share/driftglass/schemas/capabilities/capabilities-v1.schema.json"
-          schema = json.loads(schema_path.read_text(encoding="utf-8"))
-          report = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-          Draft202012Validator(schema).validate(report)
-          print("valid installed collector capability report")
-          PY
-      - name: Install Rust toolchain when a workspace exists
-        if: ${{ hashFiles('Cargo.toml') != '' }}
-        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable snapshot 2026-10-16
-      - name: Test Rust workspace when present
-        if: ${{ hashFiles('Cargo.toml') != '' }}
-        run: cargo test --locked --workspace
-      - name: Build observer for controlled paired-capture smoke test
-        if: ${{ hashFiles('Cargo.toml') != '' }}
-        run: cargo build --locked -p driftglass-agent
-      - name: Run controlled paired-capture integration test
-        if: ${{ hashFiles('Cargo.toml') != '' }}
-        run: python -m pytest -q tests/integration/test_linux_paired_capture.py
-
-  linux-observer-matrix:
+  native-linux:
     strategy:
       fail-fast: false
       matrix:
@@ -93,18 +17,23 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: "3.11"
-      - run: python -m pip install -e ".[test]"
-      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable snapshot 2026-10-16
-      - name: Record runner OS and kernel
+      - name: Install native build dependencies
         run: |
-          cat /etc/os-release
-          uname -a
-      - run: cargo test --locked --workspace
-      - run: cargo build --locked -p driftglass-agent
-      - run: python -m pytest -q tests/integration/test_linux_paired_capture.py
+          sudo apt-get update
+          sudo apt-get install --yes cmake g++ libssl-dev nlohmann-json3-dev libsqlite3-dev jq
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable snapshot 2026-10-16
+      - name: Test Rust observer
+        run: cargo test --locked --workspace
+      - name: Build Linux observer
+        run: cargo build --locked --release -p driftglass-agent
+      - name: Configure C++20 CLI and paired-capture integration
+        run: |
+          cmake -S cpp -B build/cpp -DCMAKE_BUILD_TYPE=Release \
+            -DDRIFTGLASS_AGENT_EXECUTABLE="$GITHUB_WORKSPACE/target/release/driftglass-agent"
+      - name: Build native CLI and fixtures
+        run: cmake --build build/cpp --parallel 2
+      - name: Run native unit, export, schema, package and live paired-capture tests
+        run: ctest --test-dir build/cpp --output-on-failure
 
   reproducible-release:
     runs-on: ubuntu-22.04
