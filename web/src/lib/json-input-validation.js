@@ -73,7 +73,7 @@ export function hasDuplicateJsonObjectKeys(source) {
 
 /**
  * Detect numeric values that JSON.parse converted to Infinity from otherwise
- * valid exponent notation, such as 1e400. Python's strict JSON loader rejects
+ * valid exponent notation, such as 1e400. the native strict JSON parser rejects
  * these values instead of silently changing their representation.
  * @param {unknown} value
  * @returns {boolean}
