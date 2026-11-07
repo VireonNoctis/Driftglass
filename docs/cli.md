@@ -134,4 +134,18 @@ python -m driftglass history show --database ./driftglass-history.db --report-id
 python -m driftglass history export --database ./driftglass-history.db --report-id REPORT_ID --format html --output ./saved-report.html
 ~~~
 
+The native C++20 CLI provides the same local history operations, including JSON and standalone HTML export:
+
+~~~bash
+./build/cpp/driftglass-core history list --database ./driftglass-history.db
+./build/cpp/driftglass-core history show --database ./driftglass-history.db --report-id REPORT_ID
+./build/cpp/driftglass-core history export \
+  --database ./driftglass-history.db \
+  --report-id REPORT_ID \
+  --format html \
+  --output ./saved-report.html
+~~~
+
+For a redacted export, add one or more of `--paths`, `--network`, and `--process-names`. The stored SQLite report is not modified. Existing output files are refused unless `--overwrite` is supplied. The output path must not be the history database itself.
+
 The capture command is experimental and coordinates one bounded observer session; it does not create the test environment, launch the application, or automate baseline/candidate workflows. Automatic VM lifecycle management, target launch coordination, and broader platform collection remain unimplemented or unverified. The repeat command summarizes previously generated reports only; it does not schedule captures or automate test runs.
