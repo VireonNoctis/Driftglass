@@ -57,11 +57,9 @@ file(WRITE "${CANDIDATE_MANIFEST}" [=[
 }
 ]=])
 
-file(WRITE "${BASELINE_EVENTS}" [=[
-{"schema_version":1,"event_id":"history-before","timestamp":"2026-01-01T00:00:01Z","category":"network","action":"socket_observed","source":{"collector":"fixture","event_ref":"fixture:before"},"process":{"pid":10,"parent_pid":1,"executable":"/opt/fixture"},"resource":{"kind":"network","identifier":"127.0.0.1:53000","address":"198.51.100.10","port":443,"protocol":"tcp"},"collection_quality":"complete","attributes":{"local_port":53000,"socket_inode":12345}}
+file(WRITE "${BASELINE_EVENTS}" [=[{"schema_version":1,"event_id":"history-before","timestamp":"2026-01-01T00:00:01Z","category":"network","action":"socket_observed","source":{"collector":"fixture","event_ref":"fixture:before"},"process":{"pid":10,"parent_pid":1,"executable":"/opt/fixture"},"resource":{"kind":"network","identifier":"127.0.0.1:53000","address":"198.51.100.10","port":443,"protocol":"tcp"},"collection_quality":"complete","attributes":{"local_port":53000,"socket_inode":12345}}
 ]=])
-file(WRITE "${CANDIDATE_EVENTS}" [=[
-{"schema_version":1,"event_id":"history-after","timestamp":"2026-01-01T00:00:01Z","category":"network","action":"socket_observed","source":{"collector":"fixture","event_ref":"fixture:after"},"process":{"pid":10,"parent_pid":1,"executable":"/opt/fixture"},"resource":{"kind":"network","identifier":"127.0.0.1:54000","address":"198.51.100.11","port":443,"protocol":"tcp"},"collection_quality":"complete","attributes":{"local_port":54000,"socket_inode":67890}}
+file(WRITE "${CANDIDATE_EVENTS}" [=[{"schema_version":1,"event_id":"history-after","timestamp":"2026-01-01T00:00:01Z","category":"network","action":"socket_observed","source":{"collector":"fixture","event_ref":"fixture:after"},"process":{"pid":10,"parent_pid":1,"executable":"/opt/fixture"},"resource":{"kind":"network","identifier":"127.0.0.1:54000","address":"198.51.100.11","port":443,"protocol":"tcp"},"collection_quality":"complete","attributes":{"local_port":54000,"socket_inode":67890}}
 ]=])
 
 execute_process(
