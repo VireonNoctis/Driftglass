@@ -24,7 +24,7 @@ add_library(driftglass_core
     src/capabilities.cpp
 )
 target_include_directories(driftglass_core PUBLIC include)
-target_link_libraries(driftglass_core PUBLIC nlohmann_json::nlohmann_json OpenSSL::Crypto SQLite3::SQLite3)
+target_link_libraries(driftglass_core PUBLIC nlohmann_json::nlohmann_json OpenSSL::Crypto SQLite::SQLite3)
 target_compile_features(driftglass_core PUBLIC cxx_std_20)
 target_compile_definitions(driftglass_core PUBLIC DRIFTGLASS_SCHEMA_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../schemas")
 
