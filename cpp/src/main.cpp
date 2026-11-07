@@ -214,8 +214,11 @@ int run(int argc, char** argv) {
         if (argc < 3) throw Error("usage: driftglass-core report validate|attest|verify ...");
         const std::string operation = argv[2];
         if (operation == "validate") {
-            if (argc != 4) throw Error("usage: driftglass-core report validate <report.json>");
+            if (argc < 4) throw Error("usage: driftglass-core report validate <report.json> [--report-schema FILE]");
+            const auto options = parse_options(argc, argv, 4);
+            const auto schema = selected_schema(options, "--report-schema", "reports/report-v1.schema.json", argv[0]);
             const auto report = driftglass::load_json_file(argv[3], 64U * 1024U * 1024U);
+            driftglass::validate_json_schema_file(report, schema);
             driftglass::validate_report(report);
             std::cout << "valid report: report_id=" << report.at("report_id") << "\n";
             return 0;
