@@ -1,84 +1,31 @@
-# Automated technology stack
+# Implemented technology stack
 
-> Generated from this repository's tracked files and dependency manifests. Do not edit by hand.
+This inventory reflects implementation files and build manifests currently in this repository. It is not a product support or platform-coverage claim.
 
-## Language composition
+## Core and native components
 
-| Language | Bytes | Share |
-| --- | ---: | ---: |
-| Python | 288,460 | 38.8% |
-| C++ | 208,812 | 28.1% |
-| JavaScript | 86,051 | 11.6% |
-| Rust | 57,423 | 7.7% |
-| Svelte | 36,402 | 4.9% |
-| CSS | 36,272 | 4.9% |
-| Swift | 15,374 | 2.1% |
-| CMake | 9,184 | 1.2% |
-| TypeScript | 4,404 | 0.6% |
-| HTML | 445 | 0.1% |
+- **C++20** — local CLI, schema validation, capture coordination, deterministic comparison, report generation, redaction, integrity, repeat-run analysis, and SQLite report history.
+- **Rust** — experimental Linux `/proc` observer for process and TCP/UDP socket metadata.
+- **Swift** — experimental macOS process-tree sampler using libproc.
+- **CMake** — native build, install rules, CTest integration, and tarball packaging.
+- **Cargo** — Rust workspace and reproducible observer build.
 
-_Language source: GitHub Linguist. Percentages describe repository composition, not individual authorship._
+## Dashboard
 
-## Frameworks and libraries
+- **Svelte + TypeScript** — read-only report and evidence viewer.
+- **CSS** — responsive monochrome dashboard styling and reduced-motion support.
+- **npm / Vite** — frontend dependency and build tooling.
 
-- AWS SDK for Python (Boto3)
-- Axum
-- Azure AI Inference SDK
-- Beautiful Soup
-- Chi
-- DataStax Cassandra Driver
-- Django
-- DuckDB
-- Express
-- FastAPI
-- Flask
-- Framer Motion
-- GORM
-- Gin
-- Hypothesis
-- Jetpack Compose
-- Kotlin
-- Ktor
-- Next.js
-- Pillow
-- Polars
-- PostgreSQL
-- PostgreSQL client
-- PyYAML
-- Pydantic
-- React
-- React DOM
-- Reqwest
-- Ruff
-- SQLAlchemy
-- SQLite
-- Scrapy
-- Sinatra
-- Spring Boot
-- Svelte
-- Tailwind CSS
-- Three.js
-- Tokio
-- TypeScript
-- Vite
-- Vue
-- discord.js
-- discord.py
-- pytest
+## Data and contracts
 
-## Build and repository tooling
+- **SQLite** — local report history.
+- **JSONL** — event interchange.
+- **JSON Schema** — versioned event, manifest, report, repeat-analysis, profile, capability, and export-integrity contracts.
 
-- Cargo
-- Python project metadata
-- npm
+## Automation
 
-## Declared runtimes
+- **GitHub Actions** — native, Rust, Swift, frontend, reproducible-build, and repository-quality checks.
 
-- Python >=3.11
+## Explicit non-claims
 
-## Detection policy
-
-- Language composition comes from GitHub Linguist when its repository API is available; otherwise tracked source-file extensions are used.
-- Frameworks are listed only when found in committed manifests, build files, or source imports.
-- Names mentioned only in README plans or roadmaps are not treated as installed dependencies.
-- This report describes the repository as a whole and does not estimate any contributor's personal code share.
+The presence of a language, build target, or schema does not establish collector coverage. Linux sampling remains experimental, macOS sampling is process-only, and Windows, file-system, persistence, VM lifecycle, and local API functionality remain unavailable or deferred.
