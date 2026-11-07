@@ -182,7 +182,7 @@ function isFinding(value) {
 }
 
 /**
- * Defensive browser-side shape validation, not a replacement for the Python schema validator.
+ * Defensive browser-side shape validation, not a replacement for the native C++ schema validator.
  * @param {unknown} value
  * @returns {{ok: true, report: ReportV1} | {ok: false, message: string}}
  */
