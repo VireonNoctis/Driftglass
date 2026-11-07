@@ -185,6 +185,34 @@ Json comparison_report(int index) {
     return driftglass::compare_loaded_runs(baseline, candidate, {before}, {after});
 }
 
+void test_digest_and_status_fields_require_strings() {
+    auto finding_report = comparison_report(10);
+    finding_report["findings"][0]["finding_id"] = 7;
+    expect_error([&] { driftglass::validate_report(finding_report); },
+                 "finding IDs must reject non-string JSON values");
+
+    auto profile_report = comparison_report(11);
+    profile_report["comparison_profile"]["sha256"] = 7;
+    expect_error([&] { driftglass::validate_report(profile_report); },
+                 "comparison profile digests must reject non-string JSON values");
+
+    auto report_id = comparison_report(12);
+    report_id["report_id"] = 7;
+    expect_error([&] { driftglass::validate_report(report_id); },
+                 "report IDs must reject non-string JSON values");
+
+    auto status_report = comparison_report(13);
+    status_report["status"] = 7;
+    expect_error([&] { driftglass::validate_report(status_report); },
+                 "report status must reject non-string JSON values");
+
+    auto analysis = driftglass::analyze_repeat_reports({comparison_report(14), comparison_report(15)});
+    analysis["analysis_id"] = 7;
+    expect_error([&] { driftglass::validate_repeat_analysis(analysis); },
+                 "repeat-analysis IDs must reject non-string JSON values");
+}
+
+
 void test_report_validation_repeat_analysis_and_integrity() {
     const auto first = comparison_report(1);
     const auto second = comparison_report(2);
@@ -412,6 +440,7 @@ int main() {
         run_test("remote_endpoint_change", test_remote_endpoint_change_keeps_raw_evidence);
         run_test("deterministic_report_identity", test_deterministic_report_identity);
         run_test("profile_ignored_attributes", test_profile_ignored_attributes_remain_in_evidence);
+        run_test("digest_and_status_string_types", test_digest_and_status_fields_require_strings);
         run_test("report_repeat_integrity", test_report_validation_repeat_analysis_and_integrity);
         run_test("report_redaction", test_report_redaction_is_deterministic_and_preserves_source);
         run_test("sqlite_history", test_sqlite_history_is_transactional_idempotent_and_explicit);

@@ -19,6 +19,7 @@ void print_usage() {
         << "Usage:\n"
         << "  driftglass-core events validate <events.jsonl>\n"
         << "  driftglass-core manifest validate <manifest.json>\n"
+        << "  driftglass-core capabilities\n"
         << "  driftglass-core report validate <report.json>\n"
         << "  driftglass-core report attest --report FILE --output FILE [--overwrite]\n"
         << "  driftglass-core report verify --report FILE --manifest FILE\n"
@@ -135,6 +136,11 @@ int run(int argc, char** argv) {
     }
 
     const std::string command = argv[1];
+    if (command == "capabilities") {
+        if (argc != 2) throw Error("usage: driftglass-core capabilities");
+        std::cout << driftglass::capabilities_report().dump(2, ' ', true) << "\n";
+        return 0;
+    }
     if (command == "events") {
         if (argc != 4 || std::string(argv[2]) != "validate") {
             throw Error("usage: driftglass-core events validate <events.jsonl>");
