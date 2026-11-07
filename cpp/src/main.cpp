@@ -279,6 +279,7 @@ int run(int argc, char** argv) {
         }
         std::vector<std::filesystem::path> paths;
         std::optional<std::filesystem::path> output;
+        std::map<std::string, std::string> schema_options;
         bool overwrite = false;
         for (int index = 3; index < argc; ++index) {
             const std::string argument = argv[index];
@@ -288,6 +289,11 @@ int run(int argc, char** argv) {
             } else if (argument == "--output") {
                 if (output || index + 1 >= argc) throw Error("--output requires one value and may be supplied once");
                 output = normalized_path(argv[++index]);
+            } else if (argument == "--report-schema" || argument == "--analysis-schema") {
+                if (index + 1 >= argc || schema_options.contains(argument)) {
+                    throw Error(argument + " requires one value and may be supplied once");
+                }
+                schema_options.emplace(argument, argv[++index]);
             } else if (argument.starts_with("--")) {
                 throw Error("unknown repeat option: " + argument);
             } else {
@@ -296,6 +302,8 @@ int run(int argc, char** argv) {
         }
         if (paths.size() < 2U || paths.size() > 500U) throw Error("repeat analyze requires between 2 and 500 report files");
         if (overwrite && !output) throw Error("--overwrite requires --output");
+        const auto report_schema = selected_schema(schema_options, "--report-schema", "reports/report-v1.schema.json", argv[0]);
+        const auto analysis_schema = selected_schema(schema_options, "--analysis-schema", "reports/repeat-analysis-v1.schema.json", argv[0]);
         std::uint64_t total_bytes = 0;
         std::vector<Json> reports;
         reports.reserve(paths.size());
@@ -306,9 +314,12 @@ int run(int argc, char** argv) {
             if (size > 64U * 1024U * 1024U) throw Error("a repeat-analysis report exceeds the 64 MiB file limit");
             total_bytes += size;
             if (total_bytes > 256U * 1024U * 1024U) throw Error("combined repeat-analysis input exceeds the 256 MiB limit");
-            reports.push_back(driftglass::load_json_file(path, 64U * 1024U * 1024U));
+            const auto report = driftglass::load_json_file(path, 64U * 1024U * 1024U);
+            driftglass::validate_json_schema_file(report, report_schema);
+            reports.push_back(report);
         }
         const auto analysis = driftglass::analyze_repeat_reports(reports);
+        driftglass::validate_json_schema_file(analysis, analysis_schema);
         driftglass::validate_repeat_analysis(analysis);
         const auto serialized = analysis.dump(2, ' ', true);
         if (output) write_output(*output, serialized, overwrite);
