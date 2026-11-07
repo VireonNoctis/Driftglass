@@ -9,11 +9,11 @@ The intended pipeline is capture → validate → normalize → compare → expl
 | Area | Technology | Responsibility |
 |---|---|---|
 | OS-facing observer | Rust | Bounded, explicit collection through platform adapters |
-| Orchestration and analysis | Python 3.13+ | Run coordination, validation, comparison, report generation |
+| Orchestration and analysis | C++20 | Run coordination, JSON Schema validation, comparison, report generation, integrity and local history |
 | Read-only report viewer | Svelte + TypeScript | Evidence-linked timeline and finding inspection |
 | Local report history | SQLite | Report metadata and explicit deletion |
 | Interchange | JSON, JSONL, versioned JSON Schema | Inspectable event and manifest contracts |
-| Tests and CI | pytest, Cargo tests, GitHub Actions | Contract, regression, and supported-platform checks |
+| Tests and CI | CTest, Cargo tests, SwiftPM tests, npm tests, GitHub Actions | Contract, regression, and supported-platform checks |
 | Isolation | Disposable virtual machine where feasible | Keep untrusted targets away from the main host |
 
 This describes the intended broader architecture. Existing experimental features and limitations remain as stated in the root README.
