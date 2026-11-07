@@ -126,7 +126,7 @@ void test_json_schema_validation_and_custom_references() {
         / "events" / "event-v1.schema.json";
     auto valid_event = event("schema-event", "198.51.100.12", 53001, 12346);
     driftglass::validate_json_schema_file(valid_event, event_schema);
-    valid_event["category"] = "coverage";
+    valid_event["category"] = "telemetry_unknown";
     expect_error([&] {
         driftglass::validate_json_schema_file(valid_event, event_schema);
     }, "checked-in event schema must reject categories outside its contract");
