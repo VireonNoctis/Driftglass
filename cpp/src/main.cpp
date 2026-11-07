@@ -435,6 +435,7 @@ int run(int argc, char** argv) {
             const Json exported = (redact_paths || redact_network || redact_processes)
                 ? driftglass::redact_report(*report, redact_paths, redact_network, redact_processes)
                 : *report;
+            driftglass::validate_json_schema_file(exported, report_schema);
             const std::string serialized = format == "json"
                 ? exported.dump(2, ' ', true, Json::error_handler_t::strict)
                 : driftglass::render_html_report(exported);
