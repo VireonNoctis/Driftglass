@@ -1,6 +1,6 @@
 # Run manifest v1
 
-The authoritative contract is **schemas/manifests/run-manifest-v1.schema.json**. The Python **load_manifest** utility validates the JSON structure and cross-field invariants. The manifest describes one baseline or candidate run; it does not launch an application or collect OS events.
+The authoritative contract is **schemas/manifests/run-manifest-v1.schema.json**. The native C++ CLI validates the JSON Schema and the additional cross-field invariants. The manifest describes one baseline or candidate run; it does not launch an application or collect OS events.
 
 ## What it records
 
@@ -10,7 +10,7 @@ The authoritative contract is **schemas/manifests/run-manifest-v1.schema.json**.
 - **Capture:** status, start/end times, test scenario, and capture profile.
 - **Coverage:** the configured event sources, each source's state and event categories, unavailable categories, dropped-event count, and collection errors.
 
-The manifest should be produced by the future run coordinator. The Python contract validator is implemented, but no coordinator produces this manifest yet; the separate experimental Linux observer emits event JSONL only. It does not create run manifests or orchestrate application launches.
+The native C++ capture coordinator writes and validates this manifest after invoking an explicitly selected observer. It does not launch the target application, orchestrate baseline/candidate scheduling, manage VM snapshots, or verify the user-supplied artifact hash.
 
 ## Consistency rules
 
