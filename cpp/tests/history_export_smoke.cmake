@@ -78,7 +78,7 @@ if(NOT compare_result EQUAL 0)
 endif()
 
 string(JSON report_id ERROR_VARIABLE report_id_error GET "${compare_output}" report_id)
-if(report_id_error OR NOT report_id MATCHES "^[0-9a-f]{64}$")
+if(NOT report_id_error STREQUAL "NOTFOUND" OR NOT report_id MATCHES "^[0-9a-f]{64}$")
     message(FATAL_ERROR "compare did not return a valid report ID: ${report_id_error}")
 endif()
 
