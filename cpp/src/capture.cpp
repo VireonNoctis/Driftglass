@@ -314,7 +314,7 @@ CaptureResult capture_run(const CaptureOptions& options) {
         if (status_error || std::filesystem::is_symlink(status) || !std::filesystem::is_regular_file(status)) {
             stream_error = "observer did not create a regular event stream";
         } else {
-            records = load_jsonl(event_path);
+            records = load_jsonl(event_path, options.event_schema_path);
             stream_error = capture_boundary_error(records, options.pid);
         }
     } catch (const Error&) {
@@ -397,6 +397,7 @@ CaptureResult capture_run(const CaptureOptions& options) {
         ? "The observer did not produce a valid capture stream."
         : "The observer did not complete the capture contract; review coverage errors and event records.";
 
+    validate_json_schema_file(manifest, options.manifest_schema_path);
     validate_manifest(manifest);
     publish_new_file(manifest_path, manifest.dump(2, ' ', true, Json::error_handler_t::strict) + "\n");
     return CaptureResult{manifest, records.size(), event_path, manifest_path, completed};
