@@ -37,4 +37,11 @@ if(BUILD_TESTING)
     target_link_libraries(driftglass-core-tests PRIVATE driftglass_core)
     add_test(NAME driftglass-core-tests COMMAND driftglass-core-tests)
     add_test(NAME driftglass-core-capabilities COMMAND driftglass-core capabilities)
+    add_test(
+        NAME driftglass-core-history-export
+        COMMAND ${CMAKE_COMMAND}
+            -DDRIFTGLASS_CLI=$<TARGET_FILE:driftglass-core>
+            -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/history-export-smoke
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/history_export_smoke.cmake
+    )
 endif()
