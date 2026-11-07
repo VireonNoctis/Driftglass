@@ -215,10 +215,9 @@ flowchart TD
     G --> H["Schema validation · C++20"]
     H --> I["Comparison and rule engine · C++20"]
     I --> J["Evidence-linked findings"]
-    J --> K["Local storage · SQLite + JSONL"]
-    K --> L["Local API"]
-    L --> M["Dashboard · Svelte + TypeScript"]
-    K --> N["JSON / HTML report export"]
+    J --> K["Local storage · SQLite"]
+    J --> N["JSON / HTML report export"]
+    N --> M["Dashboard · Svelte + TypeScript · user-selected report"]
 ```
 
 The diagram summarizes the implemented local workflow and its current observer boundaries.
