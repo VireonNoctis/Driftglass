@@ -1,6 +1,6 @@
 # Platform capability matrix
 
-This matrix describes the collector code currently present in Driftglass, not the long-term design. The machine-readable implementation summary is available with `python -m driftglass capabilities`.
+This matrix describes the collector code currently present in Driftglass, not the long-term design. The machine-readable implementation summary is available with `build/cpp/driftglass-core capabilities`.
 
 ## Native collector status
 
@@ -34,6 +34,6 @@ This is two observed hosted-runner configurations, not exhaustive distribution/k
 
 ## Validation status
 
-Automated CI runs synthetic Python and Rust tests and a live paired-capture test using the test process and a loopback TCP listener. A separate CI matrix runs the Rust tests and paired-capture test on Ubuntu 22.04 and 24.04 runner images and records each image's OS/kernel metadata. This is a limited CI matrix, not a general Linux support guarantee. This smoke test validates visibility for that CI environment; it does not measure event loss, prove coverage on every Linux distribution/kernel, or establish a production false-positive rate. Windows and macOS collector support must remain unclaimed until implementations and platform-specific tests exist.
+Automated CI runs native C++ contract/regression tests, Rust observer tests, and a live paired-capture test using a synthetic loopback TCP listener and UDP socket fixture. The CI matrix runs these checks on Ubuntu 22.04 and 24.04 runner images. This is a limited CI matrix, not a general Linux support guarantee. This smoke test validates visibility for that CI environment; it does not measure event loss, prove coverage on every Linux distribution/kernel, or establish a production false-positive rate. Windows and macOS collector support must remain unclaimed until implementations and platform-specific tests exist.
 
 Driftglass does not launch the target application, create or validate VM isolation, capture packet payloads, collect file contents, or automatically block/remediate an application. Reports are evidence for investigation, not safety verdicts.

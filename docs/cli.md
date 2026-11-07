@@ -1,72 +1,74 @@
-# Developer CLI
+# Native developer CLI
 
-The CLI is a local developer interface for existing captured data and an experimental wrapper around the Linux observer. Its capture command starts only the observer for a user-supplied PID that is already running; it does not launch or stop the target application, elevate privileges, manage a VM, or initiate network requests itself.
+The C++20 command-line application validates event streams and run manifests, coordinates one bounded observer session for an already-running process, compares baseline/candidate runs, exports reports, and manages local SQLite history. It does not launch or stop the target application, create a virtual machine, elevate privileges, or upload telemetry.
 
-## Install
+## Build and install
 
-From a repository checkout with Python 3.11+:
+Install CMake 3.20+, a C++20 compiler, OpenSSL development files, SQLite3 development files, and nlohmann-json 3.10+.
 
-~~~bash
-python -m pip install -e ".[test]"
-python -m driftglass --help
-~~~
-
-Default schema paths resolve from a source checkout or from the packaged schema data in a wheel installation. Schema path options can be overridden when validating or comparing inputs.
-
-## Inspect collector capabilities
+From the repository root:
 
 ~~~bash
-python -m driftglass capabilities
-~~~
-
-This prints versioned JSON describing the implemented Linux procfs observer, its narrow process and TCP/UDP socket metadata scope, unavailable categories, and platforms without a collector. It reports implementation status, not the capabilities or health of a specific running process; real-world Linux coverage remains unverified.
-
-The native C++20 CLI exposes the same versioned capability contract:
-
-~~~bash
-cmake -S cpp -B build/cpp
+cmake -S cpp -B build/cpp -DCMAKE_BUILD_TYPE=Release
 cmake --build build/cpp --parallel
-./build/cpp/driftglass-core capabilities
 ctest --test-dir build/cpp --output-on-failure
+cmake --install build/cpp --prefix "$HOME/.local"
 ~~~
 
-Install the C++ build dependencies required by `cpp/CMakeLists.txt` (OpenSSL, SQLite3, and nlohmann-json) before configuring. The native command prints the compiled-in collector/platform scope; it does not probe the current host's permissions or measure real-world collection coverage. The C++ core tests validate the capability contract, and CTest includes a CLI smoke test.
+The build installs driftglass-core and versioned JSON Schema files under share/driftglass/schemas. Create a tar.gz package with:
+
+~~~bash
+cmake --build build/cpp --target package
+~~~
+
+The CLI resolves schemas from DRIFTGLASS_SCHEMA_DIR, the build-time source schema directory, its installation prefix, or the current working directory. Commands that accept a schema path also accept an explicit override. Local JSON Pointer references such as #/$defs/name are supported.
+
+## Capabilities
+
+~~~bash
+build/cpp/driftglass-core capabilities
+~~~
+
+The versioned capability document describes implemented and unavailable collector categories. It describes implementation status, not the permissions or coverage of a particular run. Linux observation remains experimental /proc polling; macOS observation remains a process-only Swift sampler.
 
 ## Validate input files
 
 ~~~bash
-python -m driftglass report validate ./comparison.json
+build/cpp/driftglass-core events validate ./run-events.jsonl
+build/cpp/driftglass-core manifest validate ./run-manifest.json
+build/cpp/driftglass-core report validate ./comparison.json
 ~~~
 
-Report validation checks the v1 schema, cross-field evidence/run relationships, comparison-profile digest, and content-derived report ID. A valid content hash detects changes relative to the report contents; it is not a digital signature and does not prove that the original capture was complete.
+Optional schema overrides are --event-schema FILE, --manifest-schema FILE, and --report-schema FILE respectively. Event streams are limited to 64 MiB, 1 MiB per record, and 250,000 records. Run manifests are limited to 4 MiB; reports are limited to 64 MiB. Blank JSONL records, duplicate event IDs, duplicate JSON object keys, malformed records, and empty event streams are rejected.
 
-### Detached report integrity manifest
+Report validation checks the v1 schema, evidence/run relationships, content-derived finding/report IDs, comparison-profile fingerprint, and cross-field counts. A content hash detects inconsistency relative to the content; it is not a signature and does not prove that capture was complete.
+
+## Detached report integrity
 
 ~~~bash
-python -m driftglass report attest ./comparison.json --manifest-output ./comparison.integrity.json
-python -m driftglass report verify ./comparison.json --manifest ./comparison.integrity.json
+build/cpp/driftglass-core report attest \
+  --report ./comparison.json \
+  --output ./comparison.integrity.json
+
+build/cpp/driftglass-core report verify \
+  --report ./comparison.json \
+  --manifest ./comparison.integrity.json
 ~~~
 
-The sidecar records the exact report-file SHA-256, byte size and validated report ID. Keep the sidecar separately if it is used as a reference. It is not signed: anyone able to replace both report and sidecar can recompute the hash, so it detects changes relative to the saved sidecar but does not authenticate the author or prove collection completeness. Imported comparison JSON is limited to 64 MiB per file. Repeat analysis also caps the combined source-report input at 256 MiB and at 500 reports; the per-file and aggregate limits are checked while reading. Run manifests are limited to 4 MiB and comparison rule profiles to 1 MiB.
+The sidecar records the report file SHA-256, byte size, and validated report ID. It is not signed. Anyone able to replace both report and sidecar can recompute the hash, so it does not authenticate the author or prove collection completeness. Optional overrides are --report-schema FILE and --manifest-schema FILE.
+
+## Capture an already-running process
+
+Build the experimental observer:
 
 ~~~bash
-python -m driftglass events validate ./run-events.jsonl
-python -m driftglass manifest validate ./run-manifest.json
+cargo build --locked --release -p driftglass-agent
 ~~~
 
-
-## Capture an already-running Linux process
-
-Build the experimental observer first:
+Inside an appropriately isolated test environment, start the application yourself and pass its PID:
 
 ~~~bash
-cargo build --release -p driftglass-agent
-~~~
-
-Then run the capture wrapper inside the intended test environment, supplying the PID of an application that is already running:
-
-~~~bash
-python -m driftglass capture \
+build/cpp/driftglass-core capture \
   --observer ./target/release/driftglass-agent \
   --pid 1234 \
   --duration-seconds 30 \
@@ -80,72 +82,55 @@ python -m driftglass capture \
   --manifest-output ./baseline-manifest.json
 ~~~
 
-Use the same experiment ID and equivalent scenarios for the baseline and candidate runs, changing the role, application version, PID, output paths, and other metadata as appropriate. Repeat the capture command for the candidate version. Output files must be new, their parent directories must already exist, and the command refuses to overwrite an existing file.
+For custom contracts, pass --event-schema FILE and --manifest-schema FILE. Repeat with the same experiment ID and equivalent scenario for the candidate version, changing the role, version, PID and output paths.
 
-The wrapper invokes the observer with an argument list, validates the resulting JSONL stream, and writes a schema-validated run manifest. A failed or incomplete capture writes a manifest with its status and then exits non-zero. The optional artifact hash is supplied by the user and is not verified against the running executable. The manifest records the host OS/kernel release and architecture; it does not prove that the process ran in an isolated VM.
+Output files must be new and their parent directories must already exist. The coordinator uses an argument vector rather than shell command construction, enforces duration/output limits, checks capture boundary records and PID identity, validates the event stream, and writes a manifest even when the result is incomplete where possible. The optional artifact hash is user-supplied and is not verified against the running executable. Capture does not prove that a process ran inside a VM.
 
-The Linux observer samples procfs; it can miss short-lived activity and only reports process and TCP/UDP socket metadata. File, system, and persistence activity are declared unavailable. Inspect coverage records and manifest errors before comparing runs. A completed capture is not evidence of comprehensive collection or application safety.
+The Linux observer samples process and TCP/UDP socket metadata. It can miss short-lived activity; file, system and persistence categories remain unavailable. A completed capture means the observer completed its declared bounded contract, not that coverage was comprehensive.
 
-## Compare captured runs and optionally persist/export
+## Compare baseline and candidate runs
 
 ~~~bash
-python -m driftglass compare \
+build/cpp/driftglass-core compare \
   --baseline-manifest ./baseline-manifest.json \
   --candidate-manifest ./candidate-manifest.json \
   --baseline-events ./baseline-events.jsonl \
   --candidate-events ./candidate-events.jsonl \
-  --json-output ./comparison.json \
+  --output ./comparison.json \
   --html-output ./comparison.html \
-  --history-db ./driftglass-history.db
+  --history-db ./driftglass-history.sqlite
 ~~~
 
-When no output or history option is passed, the complete report JSON is printed to stdout. Exported files refuse to overwrite existing files unless the explicit overwrite option is supplied. A history database is local and may contain sensitive process and network metadata.
+Optional inputs are --profile FILE, --event-schema FILE, --manifest-schema FILE, --profile-schema FILE, and --report-schema FILE. Without --output, the complete report JSON is printed to stdout. The local SQLite store keeps the unredacted source report.
 
+For an exported copy, enable only the required redaction categories using --paths, --network, and/or --process-names. Redaction is best-effort, recalculates finding/report IDs, and does not modify the source report. Existing output files are refused unless --overwrite is explicitly supplied.
 
-### Redact an export before sharing
-
-The compare and history export commands accept these opt-in flags:
-
-- --redact-paths
-- --redact-network
-- --redact-process-names
-
-Use only the categories you need. Redaction returns a separate report copy, replaces repeated values with consistent tokens, and recalculates the finding/report IDs. If a report is also saved to SQLite during compare, history retains the unredacted source. Redaction flags require a JSON or HTML file export.
-
-The report v1 JSON schema has no redaction-provenance field. The CLI reports the redacted export ID and source report ID; keep that output and label the exported file clearly. Redaction is best-effort, so inspect the result for remaining sensitive data before sharing.
-
-
-## Delete one local history report
+## Repeat-run analysis
 
 ~~~bash
-python -m driftglass history delete \
-  --database ./driftglass-history.db \
+build/cpp/driftglass-core repeat analyze \
+  ./comparison-1.json ./comparison-2.json \
+  --output ./repeat-analysis.json
+~~~
+
+The command accepts 2–500 previously generated report files, limits each to 64 MiB and aggregate input to 256 MiB, and supports --report-schema FILE and --analysis-schema FILE. It summarizes supplied reports; it does not schedule or capture repeated experiments. Recurrence is not evidence of malicious intent.
+
+## Local history
+
+~~~bash
+build/cpp/driftglass-core history list --database ./driftglass-history.sqlite
+build/cpp/driftglass-core history show --database ./driftglass-history.sqlite --report-id REPORT_ID
+build/cpp/driftglass-core history export \
+  --database ./driftglass-history.sqlite \
+  --report-id REPORT_ID \
+  --format html \
+  --output ./saved-report.html
+build/cpp/driftglass-core history delete \
+  --database ./driftglass-history.sqlite \
   --report-id REPORT_ID \
   --confirm REPORT_ID
 ~~~
 
-The confirmation value must exactly match the full report ID. This irreversibly removes that report and its finding/report-run index rows from the selected SQLite database, then removes only run metadata no longer referenced by another report. It does not delete source JSONL, manifest, or exported files, and does not securely erase backups or storage media. No automatic cleanup is performed.
+History export supports JSON and standalone HTML, optional --report-schema FILE, --paths, --network, --process-names, and --overwrite. Redacted exports are copies; stored history is unchanged. Deletion requires an exact report-ID confirmation and affects only the selected SQLite database. It does not delete original JSONL/manifests, exported files, backups, or securely erase storage media.
 
-## Browse local history
-
-~~~bash
-python -m driftglass history list --database ./driftglass-history.db
-python -m driftglass history show --database ./driftglass-history.db --report-id REPORT_ID
-python -m driftglass history export --database ./driftglass-history.db --report-id REPORT_ID --format html --output ./saved-report.html
-~~~
-
-The native C++20 CLI provides the same local history operations, including JSON and standalone HTML export:
-
-~~~bash
-./build/cpp/driftglass-core history list --database ./driftglass-history.db
-./build/cpp/driftglass-core history show --database ./driftglass-history.db --report-id REPORT_ID
-./build/cpp/driftglass-core history export \
-  --database ./driftglass-history.db \
-  --report-id REPORT_ID \
-  --format html \
-  --output ./saved-report.html
-~~~
-
-For a redacted export, add one or more of `--paths`, `--network`, and `--process-names`. The stored SQLite report is not modified. Existing output files are refused unless `--overwrite` is supplied. The output path must not be the history database itself.
-
-The capture command is experimental and coordinates one bounded observer session; it does not create the test environment, launch the application, or automate baseline/candidate workflows. Automatic VM lifecycle management, target launch coordination, and broader platform collection remain unimplemented or unverified. The repeat command summarizes previously generated reports only; it does not schedule captures or automate test runs.
+Driftglass has no daemon, local HTTP API, remote backend, VM lifecycle manager, automatic target launch, scheduler, or automatic remediation.

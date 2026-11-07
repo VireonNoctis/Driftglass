@@ -100,6 +100,39 @@ void test_event_validation() {
     expect_error([&] { driftglass::validate_event(valid); }, "invalid event attribute names must fail");
 }
 
+
+void test_json_schema_validation_and_custom_references() {
+    const auto schema = Json{
+        {"type", "object"},
+        {"additionalProperties", false},
+        {"required", {"label"}},
+        {"properties", {
+            {"label", {{"$ref", "#/$defs/shortText"}}}
+        }},
+        {"$defs", {
+            {"shortText", {{"type", "string"}, {"minLength", 3}, {"maxLength", 12}}}
+        }}
+    };
+    driftglass::validate_json_schema(Json{{"label", "Driftglass"}}, schema);
+    expect_error([&] {
+        driftglass::validate_json_schema(Json{{"label", "ok"}}, schema);
+    }, "custom schema references and string bounds must be enforced");
+    expect_error([&] {
+        driftglass::validate_json_schema(Json{{"label", "Driftglass"}, {"extra", true}}, schema);
+    }, "custom schema additionalProperties=false must be enforced");
+
+#ifdef DRIFTGLASS_SCHEMA_SOURCE_DIR
+    const auto event_schema = fs::path(DRIFTGLASS_SCHEMA_SOURCE_DIR)
+        / "events" / "event-v1.schema.json";
+    auto valid_event = event("schema-event", "198.51.100.12", 53001, 12346);
+    driftglass::validate_json_schema_file(valid_event, event_schema);
+    valid_event["category"] = "telemetry_unknown";
+    expect_error([&] {
+        driftglass::validate_json_schema_file(valid_event, event_schema);
+    }, "checked-in event schema must reject categories outside its contract");
+#endif
+}
+
 void test_capture_manifest_invariants() {
     auto valid = manifest("base", "baseline", "1.0", std::string(64, 'a'));
     driftglass::validate_manifest(valid);
@@ -435,6 +468,7 @@ int main() {
     try {
         run_test("strict_json", test_strict_json);
         run_test("event_validation", test_event_validation);
+        run_test("json_schema_validation", test_json_schema_validation_and_custom_references);
         run_test("capture_manifest_invariants", test_capture_manifest_invariants);
         run_test("local_socket_noise", test_local_socket_noise_is_ignored_but_evidence_is_preserved);
         run_test("remote_endpoint_change", test_remote_endpoint_change_keeps_raw_evidence);

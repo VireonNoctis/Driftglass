@@ -59,7 +59,7 @@ function isPattern(value) {
 }
 
 /**
- * Serialize the integer-and-string-only repeat-analysis schema using Python's
+ * Serialize the integer-and-string-only repeat-analysis schema using Driftglass's
  * canonical_json rules (sorted keys, compact separators, ASCII escapes).
  * @param {unknown} value
  * @returns {string}
@@ -86,7 +86,7 @@ function canonicalRepeatAnalysisJson(value) {
 }
 
 /**
- * Verify the repeat-analysis content ID created by Python's canonical_json.
+ * Verify the repeat-analysis content ID using Driftglass's canonical JSON rules.
  * @param {import("../types").RepeatAnalysisV1} analysis
  * @returns {Promise<{ok: true} | {ok: false, message: string}>}
  */
@@ -126,7 +126,7 @@ function isSummary(value) {
 
 /**
  * Browser-side defensive checks for repeat-analysis-v1.
- * Python remains authoritative for full JSON Schema validation; the content ID is also verified here.
+ * Full JSON Schema validation is performed by the native C++ CLI; the content ID is also verified here.
  * @param {unknown} value
  * @returns {{ok: true, analysis: import("../types").RepeatAnalysisV1} | {ok: false, message: string}}
  */

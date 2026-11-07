@@ -1,51 +1,44 @@
 # Local report export
 
-The reporting module accepts a comparison report object, validates it against the versioned report schema, and verifies that the deterministic report ID matches its content before writing anything.
+The native C++20 CLI validates the report-v1 JSON Schema and cross-field invariants before writing JSON or standalone HTML. A report can only describe stopped captures: running is not a valid final-report status. A run marked incomplete or failed makes the report partial and must have a capture_not_completed uncertainty linked to that same run ID.
 
-A report can only describe stopped captures: `running` is not a valid final-report run status. A run marked `incomplete` or `failed` makes the report `partial` and must have a `capture_not_completed` uncertainty linked to that same run ID. The Python validator and browser viewer both check this relationship so a failed run cannot be presented as a complete comparison. A report that includes the optional per-run coverage snapshot must also keep its run-linked uncertainty codes consistent with declared unavailable categories, inactive sources, dropped events, collection errors, undeclared coverage categories, and missing artifact hashes. Older v1 reports without the optional coverage snapshot remain readable. The sum of each snapshot's recorded event counts must also equal that run's event count in the report summary; mismatches are rejected rather than silently displayed. When the comparison-profile metadata is present, each run's behaviour-event count must equal the sum of recorded counts for that profile's included categories.
+When present, the optional per-run coverage snapshot must remain consistent with declared unavailable categories, inactive sources, dropped events, collection errors, undeclared coverage categories, missing artifact hashes, recorded input counts and the comparison profile. Older report-v1 files without the optional coverage snapshot remain readable.
 
-## Python API
+## Native CLI
 
-The exporter is available as a Python library and through the local developer CLI (driftglass compare and driftglass history export).
-
-~~~python
-from driftglass.reporting import export_html_report, export_json_report
-
-export_json_report(report, "schemas/reports/report-v1.schema.json", "audit-report.json")
-export_html_report(report, "schemas/reports/report-v1.schema.json", "audit-report.html")
+~~~bash
+build/cpp/driftglass-core compare \
+  --baseline-manifest ./baseline-manifest.json \
+  --candidate-manifest ./candidate-manifest.json \
+  --baseline-events ./baseline-events.jsonl \
+  --candidate-events ./candidate-events.jsonl \
+  --output ./comparison.json \
+  --html-output ./comparison.html
 ~~~
 
-Output directories must already exist. Exports refuse to overwrite existing files by default. Pass overwrite=True only when replacing a report is intended. Files created by the default path use owner-only permissions where the platform supports them. Replacements use a temporary file in the destination directory and atomic replacement where supported.
-
-HTML output is standalone: CSS is embedded, no scripts or remote resources are added, and untrusted finding text and evidence JSON are HTML-escaped. Reports may still contain sensitive hostnames, paths, process names, and attributes. Review before sharing.
-
-Report export is a local file operation initiated explicitly by the caller; it does not transmit data over a network.
+The C++ exporter refuses to overwrite existing files unless --overwrite is explicitly supplied. HTML output is standalone: CSS is embedded, no scripts or remote resources are added, and untrusted finding text and evidence JSON are HTML-escaped.
 
 ## Per-run coverage snapshot
 
-New comparison reports include an optional per-run coverage snapshot: source names/states and declared categories, explicitly unavailable categories, the collector-reported dropped-event count, declared errors, and the number of records actually supplied to comparison by event category. The standalone HTML exporter displays the same source declarations and input counts. Older report-v1 files without this optional property remain valid.
+New comparison reports include each run's source names/states and categories, unavailable categories, collector-reported dropped-event count, declared errors, and the number of records actually supplied to comparison by event category. The standalone HTML exporter displays the same declarations and input counts.
 
-A zero input record count does not establish that no activity occurred. An active source declaration is not proof that all relevant activity was observed; inspect errors, dropped counts, unavailable categories, and the limits of each collector. A zero dropped-event count means only that the manifest reported zero drops, not that no observations were missed.
+A zero input record count does not establish that no activity occurred. An active source declaration is not proof that all relevant activity was observed; inspect errors, dropped counts, unavailable categories and collector limitations. A zero dropped-event count means only that the manifest reported zero drops, not that no observations were missed.
 
 ## Explicit privacy redaction
 
-For exports only, the CLI accepts optional --redact-paths, --redact-network, and --redact-process-names flags. For example:
+For exported copies, use the opt-in --paths, --network, and --process-names flags:
 
 ~~~bash
-python -m driftglass compare \
+build/cpp/driftglass-core compare \
   --baseline-manifest ./baseline-manifest.json \
   --candidate-manifest ./candidate-manifest.json \
   --baseline-events ./baseline-events.jsonl \
   --candidate-events ./candidate-events.jsonl \
   --json-output ./comparison-redacted.json \
   --html-output ./comparison-redacted.html \
-  --redact-paths \
-  --redact-network \
-  --redact-process-names
+  --paths --network --process-names
 ~~~
 
-Redaction replaces detected absolute paths, values associated with network evidence, and executable names with stable tokens within one exported report. It recomputes finding and report IDs so the redacted JSON remains valid under report schema v1. It does not modify the in-memory source report or a report already stored in SQLite; when comparison and history storage are used together, the database retains the unredacted source.
+Redaction replaces detected absolute paths, values associated with network evidence, and executable names with stable tokens within one exported report. It recomputes finding and report IDs so the redacted JSON remains valid under report schema v1. It does not modify the stored or source report; when comparison and history storage are used together, SQLite retains the unredacted source.
 
 Redaction is a best-effort privacy aid, not proof that every sensitive value has been removed. Report v1 does not carry a redaction-provenance field, so keep the CLI output and label the exported file clearly. Inspect the copy before sharing.
-
-

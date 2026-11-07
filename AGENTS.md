@@ -25,16 +25,15 @@ Report differences, not unsupported verdicts. A new host, file access, or proces
 Follow this stack unless code or a documented decision gives a concrete reason to change it:
 
 - **Rust:** Linux native observer and OS-specific collector work where appropriate.
-- **C++20:** target implementation for orchestration, normalization, comparison rules, schema-boundary validation, report generation, integrity, redaction, repeat analysis and SQLite history. Maintain parity before retiring each Python path.
+- **C++20:** native CLI and core for capture coordination, schema-boundary validation, comparison rules, report generation, integrity, redaction, repeat analysis, native packaging and SQLite history.
 - **Swift:** macOS-native collectors using platform APIs; expose precise source-level coverage and permission gaps.
-- **Python:** transitional compatibility implementation only until the corresponding C++ workflow is implemented and regression-tested; do not add new core features here.
 - **Svelte + TypeScript:** local dashboard and evidence exploration.
 - **SQLite:** local run metadata and findings.
 - **JSONL + versioned JSON schemas:** portable event records and component contracts.
 - **CSS and GitHub Actions:** purposeful UI motion, styling, tests, checks, and builds.
 - **Disposable VMs:** preferred isolation for untrusted software. Containers alone are not a strong hostile-code boundary.
 
-Rust, C++, and Swift form the native/core direction; TypeScript is for the browser UI. Keep Python as a temporary compatibility layer only while the feature-parity migration is underway. Do not add Go, Kotlin, cloud services, remote databases, WebGL/Three.js, or another frontend framework without a concrete UX or engineering need.
+Rust, C++, and Swift form the native/core direction; TypeScript is for the browser UI. Python is not part of the runtime or development toolchain. Do not add Go, Kotlin, cloud services, remote databases, WebGL/Three.js, or another frontend framework without a concrete UX or engineering need.
 
 ## Architecture and evidence
 

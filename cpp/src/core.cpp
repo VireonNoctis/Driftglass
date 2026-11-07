@@ -686,7 +686,7 @@ Json load_json_file(const std::filesystem::path& path, std::size_t maximum_bytes
     }
 }
 
-std::vector<Json> load_jsonl(const std::filesystem::path& path) {
+std::vector<Json> load_jsonl(const std::filesystem::path& path, const std::filesystem::path& schema_path) {
     std::error_code error;
     const auto size = std::filesystem::file_size(path, error);
     if (error) throw Error("could not inspect event file '" + path.string() + "'");
@@ -715,6 +715,7 @@ std::vector<Json> load_jsonl(const std::filesystem::path& path) {
         Json event;
         try {
             event = parse_json_strict(line);
+            validate_json_schema_file(event, schema_path);
             validate_event(event);
         } catch (const Error& error_value) {
             throw Error(path.string() + ":" + std::to_string(line_number) + ": " + error_value.what());
@@ -874,8 +875,9 @@ RuleProfile default_rule_profile() {
     };
 }
 
-RuleProfile load_rule_profile(const std::filesystem::path& path) {
+RuleProfile load_rule_profile(const std::filesystem::path& path, const std::filesystem::path& schema_path) {
     const Json value = load_json_file(path, 1024U * 1024U);
+    validate_json_schema_file(value, schema_path);
     allowed_keys(value, {"schema_version", "profile_id", "included_categories", "ignored_attributes"}, "rule profile");
     if (required(value, "schema_version", "rule profile") != 1) throw Error("rule profile schema_version must equal 1");
     const auto profile_id = string_value(required(value, "profile_id", "rule profile"), "rule profile.profile_id", 1, 64);
@@ -1000,14 +1002,19 @@ Json compare_runs(
     const std::filesystem::path& candidate_manifest_path,
     const std::filesystem::path& baseline_events_path,
     const std::filesystem::path& candidate_events_path,
-    const std::filesystem::path& profile_path) {
+    const std::filesystem::path& profile_path,
+    const std::filesystem::path& event_schema,
+    const std::filesystem::path& manifest_schema,
+    const std::filesystem::path& profile_schema) {
     Json baseline = load_json_file(baseline_manifest_path, kManifestLimit);
     Json candidate = load_json_file(candidate_manifest_path, kManifestLimit);
+    validate_json_schema_file(baseline, manifest_schema);
+    validate_json_schema_file(candidate, manifest_schema);
     validate_manifest(baseline);
     validate_manifest(candidate);
-    auto baseline_events = load_jsonl(baseline_events_path);
-    auto candidate_events = load_jsonl(candidate_events_path);
-    const auto profile = profile_path.empty() ? default_rule_profile() : load_rule_profile(profile_path);
+    auto baseline_events = load_jsonl(baseline_events_path, event_schema);
+    auto candidate_events = load_jsonl(candidate_events_path, event_schema);
+    const auto profile = profile_path.empty() ? default_rule_profile() : load_rule_profile(profile_path, profile_schema);
     return compare_loaded_runs(baseline, candidate, baseline_events, candidate_events, profile);
 }
 

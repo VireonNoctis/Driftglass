@@ -4,13 +4,13 @@
 [![Code quality](https://github.com/VireonNoctis/Driftglass/actions/workflows/repository-health.yml/badge.svg?branch=main)](https://github.com/VireonNoctis/Driftglass/actions/workflows/repository-health.yml)
 [![Top language](https://img.shields.io/github/languages/top/VireonNoctis/Driftglass?style=flat-square)](https://github.com/VireonNoctis/Driftglass)
 [![Languages](https://img.shields.io/github/languages/count/VireonNoctis/Driftglass?style=flat-square)](https://github.com/VireonNoctis/Driftglass)
-[![Automated tech stack](https://img.shields.io/badge/tech_stack-auto--detected-64748b?style=flat-square)](TECH_STACK.md)
+[![Implemented technology stack](https://img.shields.io/badge/tech_stack-native-64748b?style=flat-square)](TECH_STACK.md)
 <!-- REPOSITORY-HEALTH:END -->
 
 
 > **Every update leaves a trace. Find it.**
 
-Driftglass is a planned, open-source, privacy-first application update auditor. It is designed to compare the observable behaviour of two application versions in controlled, isolated environments, then turn their differences into a reproducible report with evidence a person can inspect.
+Driftglass is an open-source, privacy-first application update auditor. It is designed to compare the observable behaviour of two application versions in controlled, isolated environments, then turn their differences into a reproducible report with evidence a person can inspect.
 
 Rather than asking only whether an application has a permission, Driftglass aims to answer a more useful question:
 
@@ -18,7 +18,7 @@ Rather than asking only whether an application has a permission, Driftglass aims
 
 It is intended for security researchers, privacy-conscious users, maintainers, and developers who want to investigate application updates before trusting them.
 
-> **Project status:** Early prototype. Event, run-manifest, report, repeat-analysis and capability contracts are versioned. The C++20 CLI now implements strict v1 event/manifest/report validation, deterministic comparison and evidence-linked findings, repeat-pattern analysis, standalone JSON/HTML output, opt-in path/network/process redaction, SHA-256 attestation and verification, bounded transactional SQLite report history, capabilities reporting, and an argument-vector capture coordinator. The C++ coordinator can invoke the Rust Linux observer or the Swift macOS process sampler when its executable path is explicitly supplied. Python remains in the repository as the compatibility implementation while parity, schema-override behavior and cross-platform capture are still being checked; it has not been deleted or declared retired. The Linux Rust observer remains experimental `/proc` polling for process and TCP/TCP6/UDP/UDP6 socket metadata. The macOS Swift observer is experimental process-tree sampling only, without Endpoint Security, file or network telemetry. The Svelte viewer is a read-only report/evidence workspace; it has a responsive monochrome visual refresh, but no local API, collector controls or WebGL scene. File/system/persistence events, Windows collection, VM lifecycle automation and broad real-world coverage remain unavailable.
+> **Project status:** Early prototype. Event, run-manifest, report, repeat-analysis and capability contracts are versioned. The C++20 CLI now implements strict v1 event/manifest/report validation, deterministic comparison and evidence-linked findings, repeat-pattern analysis, standalone JSON/HTML output, opt-in path/network/process redaction, SHA-256 attestation and verification, bounded transactional SQLite report history, capabilities reporting, and an argument-vector capture coordinator. The C++ coordinator can invoke the Rust Linux observer or the Swift macOS process sampler when its executable path is explicitly supplied. The Python compatibility package, wheel metadata, and Python-only tests have been retired. The C++20 CLI is now the only orchestration, validation, comparison, reporting, integrity, redaction, repeat-analysis and local-history implementation. The Linux Rust observer remains experimental `/proc` polling for process and TCP/TCP6/UDP/UDP6 socket metadata. The macOS Swift observer is experimental process-tree sampling only, without Endpoint Security, file or network telemetry. The Svelte viewer is a read-only report/evidence workspace; it has a responsive monochrome visual refresh, but no local API, collector controls or WebGL scene. File/system/persistence events, Windows collection, VM lifecycle automation and broad real-world coverage remain unavailable.
 
 ---
 
@@ -30,7 +30,7 @@ It is intended for security researchers, privacy-conscious users, maintainers, a
 - [Planned capabilities](#planned-capabilities)
 - [How a comparison should work](#how-a-comparison-should-work)
 - [Architecture](#architecture)
-- [Planned technology stack](#planned-technology-stack)
+- [Implemented technology stack](#implemented-technology-stack)
 - [Evidence and comparison model](#evidence-and-comparison-model)
 - [Event schema](docs/event-schema.md)
 - [Run manifest](docs/run-manifest.md)
@@ -201,45 +201,44 @@ The tool should preserve both **raw observations** and **normalized comparisons*
 
 ## Architecture
 
-The proposed design separates platform-specific collection from comparison logic and presentation.
+The implemented design separates platform-specific collection, native analysis, local storage, and presentation.
 
 ```mermaid
 flowchart TD
-    A["Experiment definition"] --> B["Run coordinator · Python"]
+    A["Experiment definition"] --> B["Capture coordinator · C++20"]
     B --> C["Isolated baseline environment"]
     B --> D["Isolated candidate environment"]
     C --> E["Platform observer · Rust"]
     D --> F["Platform observer · Rust"]
     E --> G["Versioned event records"]
     F --> G
-    G --> H["Normalization and validation · Python"]
-    H --> I["Comparison and rule engine · Python"]
+    G --> H["Schema validation · C++20"]
+    H --> I["Comparison and rule engine · C++20"]
     I --> J["Evidence-linked findings"]
-    J --> K["Local storage · SQLite + JSONL"]
-    K --> L["Local API"]
-    L --> M["Dashboard · Svelte + TypeScript"]
-    K --> N["JSON / HTML report export"]
+    J --> K["Local storage · SQLite"]
+    J --> N["JSON / HTML report export"]
+    N --> M["Dashboard · Svelte + TypeScript · user-selected report"]
 ```
 
-The diagram is the target architecture. Boundaries and interfaces may change as prototypes reveal what each operating system can reliably expose.
+The diagram summarizes the implemented local workflow and its current observer boundaries.
 
 ### Component responsibilities
 
-**Run coordinator — Python**
+**Capture coordinator and native CLI — C++20**
 
-Owns experiment configuration, coordinates the capture lifecycle, validates run manifests, handles repeated runs, and keeps the comparison workflow understandable. It should not silently elevate privileges or execute an unknown application outside the configured isolation boundary.
+Coordinates a bounded observer process for an already-running PID, validates event and run-manifest schemas, enforces capture boundaries and output constraints, and reports failed/incomplete captures. It does not launch or stop the observed application, create a VM, or silently elevate privileges.
 
 **Platform observer — Rust**
 
-Provides the low-level collection layer and platform-specific adapters. Its interfaces should report which event sources are active, what permissions they require, and whether events were dropped or unavailable. Rust is a proposed choice for a small, efficient native component; the exact APIs will be selected and validated per operating system.
+Provides the low-level collection layer and platform-specific adapters. Its interfaces should report which event sources are active, what permissions they require, and whether events were dropped or unavailable. The Linux Rust observer and macOS Swift process sampler are experimental; their platform-specific limitations are documented in the capability matrix.
 
-**Normalization and rule engine — Python**
+**Schema validation, comparison and rules — C++20**
 
-Validates incoming records, maps platform events into common categories, matches related baseline and candidate activity, applies documented rules, and creates findings with evidence references. Platform-specific information should not be discarded when it helps explain a result.
+Validates versioned JSON Schema contracts and cross-field invariants, matches related baseline and candidate activity, applies deterministic profiles, and creates findings with source evidence and uncertainty. Platform-specific information is retained when it helps explain a result.
 
 **Local storage — SQLite and JSONL**
 
-SQLite is intended for run metadata, indexes, findings, and report history. JSON Lines (JSONL) is intended as a convenient append-friendly format for event streams and portable evidence exchange. The storage design must define retention and cleanup behaviour before routine use.
+SQLite stores bounded local report history and its indexes. JSON Lines (JSONL) is the append-friendly event interchange format. History deletion is explicit and does not remove original capture files.
 
 **Dashboard — Svelte and TypeScript**
 
@@ -261,14 +260,14 @@ Produces portable reports that include summary counts, experiment metadata, find
 
 ---
 
-## Planned technology stack
+## Implemented technology stack
 
 The stack is selected around the languages and tools listed in the [Vireon Noctis toolkit](https://github.com/VireonNoctis/VireonNoctis). It deliberately avoids using a different language for every component.
 
 | Layer | Technology | Role |
 |---|---|---|
 | Native observer | **Rust** | Event collection, system integration, process metadata, and platform adapters |
-| Orchestration and analysis | **Python** | Experiment lifecycle, normalization, comparison rules, validation, and reporting |
+| Orchestration and analysis | **C++20** | Capture coordination, schema validation, normalization, comparison rules, integrity, redaction, reporting and SQLite history |
 | Web interface | **Svelte + TypeScript** | Local dashboard and interactive evidence review |
 | UI styling | CSS | A restrained, technical interface with readable dense data views |
 | Local metadata store | **SQLite** | Runs, findings, indexes, configuration, and report history |
@@ -279,15 +278,15 @@ The stack is selected around the languages and tools listed in the [Vireon Nocti
 ### Why this split?
 
 - **Rust** belongs at the system boundary, where the project needs a native collector and clearly defined platform interfaces.
-- **Python** keeps experiment orchestration, data normalization, rule development, and report generation easy to test and iterate on.
+- **C++20** provides the native orchestration, contract validation, comparison, export and local-history pipeline without a separate runtime.
 - **Svelte + TypeScript** supports a focused dashboard without making the frontend responsible for collecting or interpreting privileged system events.
 - **SQLite and JSONL** provide local persistence and portable evidence without making a remote database a requirement.
 
-Svelte is an intentional planned choice, not a claim that the existing repository already contains a Svelte app. Rust and Python will remain the core implementation languages; TypeScript is for the interface. Go, Kotlin, and other languages in the wider toolkit are not required for the initial architecture. Additional languages should be introduced only when they solve a concrete platform or maintenance problem.
+Svelte + TypeScript is the implemented read-only dashboard. Rust, C++20 and Swift are the native/core languages; TypeScript is for the browser interface. Python is not part of the runtime or development toolchain.
 
 ### Proposed tooling
 
-The exact dependencies should be chosen when the first implementation is designed and tested. Candidate tools include Cargo for Rust builds, Python virtual environments and a lockfile-based dependency workflow, a TypeScript package manager for the frontend, SQLite migrations, JSON Schema for event validation, and GitHub Actions for CI.
+The current toolchain uses Cargo for the Rust observer, CMake/CTest for the C++20 CLI and core, SwiftPM for the macOS sampler, npm/Vite for the viewer, SQLite for local history, JSON Schema for contracts, and GitHub Actions for CI.
 
 Dependency choices should be documented with their purpose, licensing, maintenance status, and security implications. Avoid pinning a collection of libraries before the architecture requires them.
 
@@ -428,49 +427,34 @@ The order can change after prototypes. A platform should only be described as su
 
 ## Planned repository layout
 
-The following is a proposed organization to keep the system modular as implementation begins:
+The repository is organized around the implemented native components:
 
-```text
+~~~text
 Driftglass/
-├── README.md
-├── LICENSE
-├── docs/
-│   ├── architecture.md
-│   ├── threat-model.md
-│   ├── privacy-model.md
-│   ├── event-schema.md
-│   ├── supported-platforms.md
-│   ├── comparison-method.md
-│   └── decisions/
-├── schemas/
-│   ├── events/
-│   └── reports/
-├── crates/
-│   ├── driftglass-agent/
-│   └── driftglass-schema/
-├── python/
-│   └── driftglass/
-│       ├── orchestration/
-│       ├── normalization/
-│       ├── comparison/
-│       ├── rules/
-│       ├── reporting/
-│       └── storage/
-├── web/
+├── .github/
+│   ├── scripts/
+│   └── workflows/
+├── cpp/
+│   ├── include/driftglass/
 │   ├── src/
-│   └── static/
-├── tests/
-│   ├── unit/
-│   ├── integration/
-│   ├── fixtures/
-│   ├── schemas/
-│   └── platform/
-├── scripts/
-└── .github/
-    └── workflows/
-```
+│   └── tests/
+├── crates/driftglass-agent/
+├── macos/
+│   ├── Sources/
+│   └── Tests/
+├── schemas/
+│   ├── capabilities/
+│   ├── events/
+│   ├── manifests/
+│   ├── reports/
+│   └── rules/
+├── docs/
+├── web/
+│   └── src/
+├── Cargo.toml
+└── README.md
 
-This is a target structure, not a description of files already present. The layout should be simplified if early prototypes show that a directory or component is unnecessary. Tests and documentation should be added alongside the code they describe.
+This reflects the current repository layout. Tests and documentation live alongside the implementation they describe.
 
 ---
 
@@ -536,14 +520,18 @@ Development should proceed in small increments: schema first, a minimal collecto
 
 ### Test the current prototype
 
-With Python 3.11+ installed, run:
+Build and run the native observer and C++ core from the repository root:
 
-```bash
-python -m pip install -e ".[test]"
-python -m pytest
-```
+~~~bash
+cargo test --locked --workspace
+cargo build --locked --release -p driftglass-agent
+cmake -S cpp -B build/cpp -DCMAKE_BUILD_TYPE=Release \
+  -DDRIFTGLASS_AGENT_EXECUTABLE="$PWD/target/release/driftglass-agent"
+cmake --build build/cpp --parallel
+ctest --test-dir build/cpp --output-on-failure
+~~~
 
-The Python suite covers event/run-manifest validation (including stream, line and record limits), bounded event, manifest, rule-profile and comparison-report file loading, deterministic comparison and versioned profiles, repeat-run aggregation, report export, SQLite history/cleanup, CLI behaviour, capability-report schema validation, synthetic capture coordination, and schema-validated redacted exports. Capture tests mock the observer; they do not prove actual OS event coverage. Cargo tests cover synthetic procfs parsing and live procfs checks; CI also performs two bounded captures of a synthetic loopback listener and compares their output. This is a narrow regression fixture, not a general event-loss-rate estimate or broad Linux coverage claim.
+CTest covers strict JSON parsing, native schema validation (including local references and malformed/custom contracts), capture boundaries, deterministic comparison, report integrity, redaction, SQLite transactions, standalone HTML escaping, history export, native installation/packaging, and a live paired capture of a synthetic loopback TCP listener and UDP socket. The live fixture checks one known observer path; it is not a general event-loss-rate estimate or broad Linux coverage claim. CI separately runs the viewer's tests, type checks, and production build.
 
 ### Testing priorities
 
@@ -576,8 +564,8 @@ Tests should make clear whether they validate the observer, the event schema, th
 The CLI can capture metadata from an application that is already running, then compare the resulting baseline and candidate event streams. The capture wrapper does not launch or stop the target application, create a VM, or verify isolation.
 
 ~~~bash
-cargo build --release -p driftglass-agent
-python -m driftglass capture \
+cargo build --locked --release -p driftglass-agent
+build/cpp/driftglass-core capture \
   --observer ./target/release/driftglass-agent \
   --pid 1234 \
   --duration-seconds 30 \
@@ -590,12 +578,12 @@ python -m driftglass capture \
   --event-output ./baseline-events.jsonl \
   --manifest-output ./baseline-manifest.json
 
-python -m driftglass compare \
+build/cpp/driftglass-core compare \
   --baseline-manifest ./baseline-manifest.json \
   --candidate-manifest ./candidate-manifest.json \
   --baseline-events ./baseline-events.jsonl \
   --candidate-events ./candidate-events.jsonl \
-  --json-output ./comparison.json \
+  --output ./comparison.json \
   --html-output ./comparison.html
 ~~~
 

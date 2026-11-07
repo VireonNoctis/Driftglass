@@ -1,6 +1,7 @@
 #include "driftglass/core.hpp"
 
 #include <chrono>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -17,10 +18,10 @@ void print_usage() {
     std::cout
         << "Driftglass C++ comparison core\n\n"
         << "Usage:\n"
-        << "  driftglass-core events validate <events.jsonl>\n"
-        << "  driftglass-core manifest validate <manifest.json>\n"
+        << "  driftglass-core events validate <events.jsonl> [--event-schema FILE]\n"
+        << "  driftglass-core manifest validate <manifest.json> [--manifest-schema FILE]\n"
         << "  driftglass-core capabilities\n"
-        << "  driftglass-core report validate <report.json>\n"
+        << "  driftglass-core report validate <report.json> [--report-schema FILE]\n"
         << "  driftglass-core report attest --report FILE --output FILE [--overwrite]\n"
         << "  driftglass-core report verify --report FILE --manifest FILE\n"
         << "  driftglass-core report redact --report FILE --output FILE [--paths] [--network] [--process-names]\n"
@@ -28,12 +29,14 @@ void print_usage() {
         << "  driftglass-core capture --observer FILE --pid PID --experiment-id ID --role baseline|candidate\n"
         << "      --application-name NAME --application-version VERSION --scenario TEXT\n"
         << "      --event-output FILE --manifest-output FILE [--duration-seconds N] [--interval-ms N]\n"
+        << "      [--event-schema FILE] [--manifest-schema FILE]\n"
         << "  driftglass-core history list --database FILE [--limit N]\n"
         << "  driftglass-core history show --database FILE --report-id SHA256\n"
         << "  driftglass-core history export --database FILE --report-id SHA256 --format json|html --output FILE [--paths] [--network] [--process-names] [--overwrite]\n"
         << "  driftglass-core history delete --database FILE --report-id SHA256 --confirm SHA256\n"
         << "  driftglass-core compare --baseline-manifest FILE --candidate-manifest FILE\n"
         << "      --baseline-events FILE --candidate-events FILE [--profile FILE]\n"
+        << "      [--event-schema FILE] [--manifest-schema FILE] [--report-schema FILE] [--profile-schema FILE]\n"
         << "      [--output FILE] [--html-output FILE] [--history-db FILE] [--paths] [--network] [--process-names] [--overwrite]\n\n"
         << "The compare command reads existing captures. It never launches the application.\n";
 }
@@ -42,7 +45,7 @@ std::map<std::string, std::string> parse_options(int argc, char** argv, int star
     const std::set<std::string> value_options{
         "--baseline-manifest", "--candidate-manifest",
         "--baseline-events", "--candidate-events",
-        "--profile", "--output", "--report", "--manifest", "--history-db", "--database", "--report-id", "--confirm", "--limit", "--format", "--html-output", "--observer", "--pid", "--duration-seconds", "--interval-ms", "--experiment-id", "--role", "--application-name", "--application-version", "--scenario", "--event-output", "--manifest-output", "--artifact-sha256", "--package-id", "--profile", "--snapshot-id"
+        "--profile", "--output", "--report", "--manifest", "--history-db", "--database", "--report-id", "--confirm", "--limit", "--format", "--html-output", "--observer", "--pid", "--duration-seconds", "--interval-ms", "--experiment-id", "--role", "--application-name", "--application-version", "--scenario", "--event-output", "--manifest-output", "--artifact-sha256", "--package-id", "--profile", "--snapshot-id", "--event-schema", "--manifest-schema", "--report-schema", "--analysis-schema", "--profile-schema"
     };
     const std::set<std::string> flags{"--overwrite", "--paths", "--network", "--process-names"};
     std::map<std::string, std::string> result;
@@ -115,6 +118,49 @@ void write_output(const fs::path& path, const std::string& content, bool overwri
 }
 
 
+
+fs::path default_schema_path(const std::string& relative, const std::string& executable) {
+    std::vector<fs::path> candidates;
+    if (const char* configured = std::getenv("DRIFTGLASS_SCHEMA_DIR"); configured && *configured) {
+        candidates.emplace_back(fs::path(configured) / relative);
+    }
+#ifdef DRIFTGLASS_SCHEMA_SOURCE_DIR
+    candidates.emplace_back(fs::path(DRIFTGLASS_SCHEMA_SOURCE_DIR) / relative);
+#endif
+    std::error_code error;
+    const auto executable_path = fs::absolute(fs::path(executable), error);
+    if (!error) {
+        candidates.emplace_back(executable_path.parent_path().parent_path()
+            / "share" / "driftglass" / "schemas" / relative);
+    }
+    candidates.emplace_back(fs::current_path() / "schemas" / relative);
+    candidates.emplace_back(fs::current_path() / "share" / "driftglass" / "schemas" / relative);
+    for (const auto& candidate : candidates) {
+        if (fs::is_regular_file(candidate, error) && !error) {
+            const auto resolved = fs::weakly_canonical(candidate, error);
+            return error ? candidate : resolved;
+        }
+        error.clear();
+    }
+    return {};
+}
+
+fs::path selected_schema(
+    const std::map<std::string, std::string>& options,
+    const std::string& option,
+    const std::string& relative,
+    const std::string& executable
+) {
+    fs::path path;
+    const auto supplied = options.find(option);
+    if (supplied != options.end()) path = normalized_path(supplied->second);
+    else path = default_schema_path(relative, executable);
+    if (path.empty() || !fs::is_regular_file(path)) {
+        throw Error("schema file could not be located; supply " + option + " explicitly");
+    }
+    return path;
+}
+
 std::uint32_t parse_u32(const std::string& value, const std::string& label, std::uint32_t minimum, std::uint32_t maximum) {
     try {
         std::size_t consumed = 0;
@@ -143,18 +189,23 @@ int run(int argc, char** argv) {
         return 0;
     }
     if (command == "events") {
-        if (argc != 4 || std::string(argv[2]) != "validate") {
-            throw Error("usage: driftglass-core events validate <events.jsonl>");
+        if (argc < 4 || std::string(argv[2]) != "validate") {
+            throw Error("usage: driftglass-core events validate <events.jsonl> [--event-schema FILE]");
         }
-        const auto events = driftglass::load_jsonl(argv[3]);
+        const auto options = parse_options(argc, argv, 4);
+        const auto schema = selected_schema(options, "--event-schema", "events/event-v1.schema.json", argv[0]);
+        const auto events = driftglass::load_jsonl(argv[3], schema);
         std::cout << "valid event stream: " << events.size() << " record(s)\n";
         return 0;
     }
     if (command == "manifest") {
-        if (argc != 4 || std::string(argv[2]) != "validate") {
-            throw Error("usage: driftglass-core manifest validate <manifest.json>");
+        if (argc < 4 || std::string(argv[2]) != "validate") {
+            throw Error("usage: driftglass-core manifest validate <manifest.json> [--manifest-schema FILE]");
         }
+        const auto options = parse_options(argc, argv, 4);
+        const auto schema = selected_schema(options, "--manifest-schema", "manifests/run-manifest-v1.schema.json", argv[0]);
         const auto manifest = driftglass::load_json_file(argv[3], 4U * 1024U * 1024U);
+        driftglass::validate_json_schema_file(manifest, schema);
         driftglass::validate_manifest(manifest);
         std::cout << "valid run manifest: run_id=" << manifest.at("run_id")
                   << " role=" << manifest.at("role")
@@ -166,8 +217,11 @@ int run(int argc, char** argv) {
         if (argc < 3) throw Error("usage: driftglass-core report validate|attest|verify ...");
         const std::string operation = argv[2];
         if (operation == "validate") {
-            if (argc != 4) throw Error("usage: driftglass-core report validate <report.json>");
+            if (argc < 4) throw Error("usage: driftglass-core report validate <report.json> [--report-schema FILE]");
+            const auto options = parse_options(argc, argv, 4);
+            const auto schema = selected_schema(options, "--report-schema", "reports/report-v1.schema.json", argv[0]);
             const auto report = driftglass::load_json_file(argv[3], 64U * 1024U * 1024U);
+            driftglass::validate_json_schema_file(report, schema);
             driftglass::validate_report(report);
             std::cout << "valid report: report_id=" << report.at("report_id") << "\n";
             return 0;
@@ -177,7 +231,13 @@ int run(int argc, char** argv) {
             const auto report_path = normalized_path(need(options, "--report"));
             const auto output_path = normalized_path(need(options, "--output"));
             if (report_path == output_path) throw Error("integrity manifest output must not replace the report");
+            const auto report_schema = selected_schema(options, "--report-schema", "reports/report-v1.schema.json", argv[0]);
+            const auto export_schema = selected_schema(options, "--manifest-schema", "reports/export-manifest-v1.schema.json", argv[0]);
+            const auto source_report = driftglass::load_json_file(report_path, 64U * 1024U * 1024U);
+            driftglass::validate_json_schema_file(source_report, report_schema);
+            driftglass::validate_report(source_report);
             const auto manifest = driftglass::attest_report(report_path);
+            driftglass::validate_json_schema_file(manifest, export_schema);
             write_output(output_path, manifest.dump(2, ' ', true), options.contains("--overwrite"));
             std::cout << manifest.dump(2, ' ', true) << "\n";
             return 0;
@@ -186,9 +246,13 @@ int run(int argc, char** argv) {
             const auto report_path = normalized_path(need(options, "--report"));
             const auto output_path = normalized_path(need(options, "--output"));
             if (report_path == output_path) throw Error("redacted output must not replace the source report");
+            const auto report_schema = selected_schema(options, "--report-schema", "reports/report-v1.schema.json", argv[0]);
+            const auto source_report = driftglass::load_json_file(report_path, 64U * 1024U * 1024U);
+            driftglass::validate_json_schema_file(source_report, report_schema);
+            driftglass::validate_report(source_report);
             const auto redacted = driftglass::redact_report(
-                driftglass::load_json_file(report_path, 64U * 1024U * 1024U),
-                options.contains("--paths"), options.contains("--network"), options.contains("--process-names"));
+                source_report, options.contains("--paths"), options.contains("--network"), options.contains("--process-names"));
+            driftglass::validate_json_schema_file(redacted, report_schema);
             write_output(output_path, redacted.dump(2, ' ', true), options.contains("--overwrite"));
             std::cout << redacted.dump(2, ' ', true) << "\n";
             return 0;
@@ -199,6 +263,12 @@ int run(int argc, char** argv) {
             }
             const auto report_path = normalized_path(need(options, "--report"));
             const auto manifest_path = normalized_path(need(options, "--manifest"));
+            const auto report_schema = selected_schema(options, "--report-schema", "reports/report-v1.schema.json", argv[0]);
+            const auto export_schema = selected_schema(options, "--manifest-schema", "reports/export-manifest-v1.schema.json", argv[0]);
+            const auto report = driftglass::load_json_file(report_path, 64U * 1024U * 1024U);
+            const auto export_manifest = driftglass::load_json_file(manifest_path, 1024U * 1024U);
+            driftglass::validate_json_schema_file(report, report_schema);
+            driftglass::validate_json_schema_file(export_manifest, export_schema);
             const auto manifest = driftglass::verify_report_integrity(report_path, manifest_path);
             std::cout << manifest.dump(2, ' ', true) << "\n";
             std::cerr << "integrity_status=verified report_id=" << manifest.at("report_id") << "\n";
@@ -212,6 +282,7 @@ int run(int argc, char** argv) {
         }
         std::vector<std::filesystem::path> paths;
         std::optional<std::filesystem::path> output;
+        std::map<std::string, std::string> schema_options;
         bool overwrite = false;
         for (int index = 3; index < argc; ++index) {
             const std::string argument = argv[index];
@@ -221,6 +292,11 @@ int run(int argc, char** argv) {
             } else if (argument == "--output") {
                 if (output || index + 1 >= argc) throw Error("--output requires one value and may be supplied once");
                 output = normalized_path(argv[++index]);
+            } else if (argument == "--report-schema" || argument == "--analysis-schema") {
+                if (index + 1 >= argc || schema_options.contains(argument)) {
+                    throw Error(argument + " requires one value and may be supplied once");
+                }
+                schema_options.emplace(argument, argv[++index]);
             } else if (argument.starts_with("--")) {
                 throw Error("unknown repeat option: " + argument);
             } else {
@@ -229,6 +305,8 @@ int run(int argc, char** argv) {
         }
         if (paths.size() < 2U || paths.size() > 500U) throw Error("repeat analyze requires between 2 and 500 report files");
         if (overwrite && !output) throw Error("--overwrite requires --output");
+        const auto report_schema = selected_schema(schema_options, "--report-schema", "reports/report-v1.schema.json", argv[0]);
+        const auto analysis_schema = selected_schema(schema_options, "--analysis-schema", "reports/repeat-analysis-v1.schema.json", argv[0]);
         std::uint64_t total_bytes = 0;
         std::vector<Json> reports;
         reports.reserve(paths.size());
@@ -239,9 +317,12 @@ int run(int argc, char** argv) {
             if (size > 64U * 1024U * 1024U) throw Error("a repeat-analysis report exceeds the 64 MiB file limit");
             total_bytes += size;
             if (total_bytes > 256U * 1024U * 1024U) throw Error("combined repeat-analysis input exceeds the 256 MiB limit");
-            reports.push_back(driftglass::load_json_file(path, 64U * 1024U * 1024U));
+            const auto report = driftglass::load_json_file(path, 64U * 1024U * 1024U);
+            driftglass::validate_json_schema_file(report, report_schema);
+            reports.push_back(report);
         }
         const auto analysis = driftglass::analyze_repeat_reports(reports);
+        driftglass::validate_json_schema_file(analysis, analysis_schema);
         driftglass::validate_repeat_analysis(analysis);
         const auto serialized = analysis.dump(2, ' ', true);
         if (output) write_output(*output, serialized, overwrite);
@@ -268,6 +349,8 @@ int run(int argc, char** argv) {
         capture_options.scenario = need(options, "--scenario");
         capture_options.event_output_path = need(options, "--event-output");
         capture_options.manifest_output_path = need(options, "--manifest-output");
+        capture_options.event_schema_path = selected_schema(options, "--event-schema", "events/event-v1.schema.json", argv[0]);
+        capture_options.manifest_schema_path = selected_schema(options, "--manifest-schema", "manifests/run-manifest-v1.schema.json", argv[0]);
         capture_options.artifact_sha256 = options.contains("--artifact-sha256")
             ? std::optional<std::string>(options.at("--artifact-sha256")) : std::nullopt;
         capture_options.package_id = options.contains("--package-id")
@@ -327,6 +410,8 @@ int run(int argc, char** argv) {
         if (operation == "show") {
             const auto report = driftglass::get_report(database, need(options, "--report-id"));
             if (!report) throw Error("report not found in local history");
+            const auto report_schema = selected_schema(options, "--report-schema", "reports/report-v1.schema.json", argv[0]);
+            driftglass::validate_json_schema_file(*report, report_schema);
             std::cout << report->dump(2, ' ', true) << "\n";
             return 0;
         }
@@ -342,12 +427,15 @@ int run(int argc, char** argv) {
             }
             const auto report = driftglass::get_report(database, report_id);
             if (!report) throw Error("report not found in local history");
+            const auto report_schema = selected_schema(options, "--report-schema", "reports/report-v1.schema.json", argv[0]);
+            driftglass::validate_json_schema_file(*report, report_schema);
             const bool redact_paths = options.contains("--paths");
             const bool redact_network = options.contains("--network");
             const bool redact_processes = options.contains("--process-names");
             const Json exported = (redact_paths || redact_network || redact_processes)
                 ? driftglass::redact_report(*report, redact_paths, redact_network, redact_processes)
                 : *report;
+            driftglass::validate_json_schema_file(exported, report_schema);
             const std::string serialized = format == "json"
                 ? exported.dump(2, ' ', true, Json::error_handler_t::strict)
                 : driftglass::render_html_report(exported);
@@ -408,8 +496,14 @@ int run(int argc, char** argv) {
             if (!profile.empty() && history == normalized_path(profile)) throw Error("history database must not replace the rule profile");
         }
 
+        const auto event_schema = selected_schema(options, "--event-schema", "events/event-v1.schema.json", argv[0]);
+        const auto manifest_schema = selected_schema(options, "--manifest-schema", "manifests/run-manifest-v1.schema.json", argv[0]);
+        const auto report_schema = selected_schema(options, "--report-schema", "reports/report-v1.schema.json", argv[0]);
+        const auto profile_schema = selected_schema(options, "--profile-schema", "rules/rule-profile-v1.schema.json", argv[0]);
         const Json report = driftglass::compare_runs(
-            baseline_manifest, candidate_manifest, baseline_events, candidate_events, profile);
+            baseline_manifest, candidate_manifest, baseline_events, candidate_events, profile,
+            event_schema, manifest_schema, profile_schema);
+        driftglass::validate_json_schema_file(report, report_schema);
         if (store_history) (void)driftglass::save_report(options.at("--history-db"), report);
         const bool redact_paths = options.contains("--paths");
         const bool redact_network = options.contains("--network");
