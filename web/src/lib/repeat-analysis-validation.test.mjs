@@ -142,7 +142,7 @@ function integrityFixture() {
   };
 }
 
-test("verifies Python-compatible repeat-analysis content IDs including Unicode text", async () => {
+test("verifies native repeat-analysis content IDs including Unicode text", async () => {
   const value = integrityFixture();
   assert.equal((await verifyRepeatAnalysisContentId(value)).ok, true);
 
