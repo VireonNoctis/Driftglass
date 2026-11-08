@@ -371,7 +371,7 @@ void write_observer_fixture(const fs::path& path, bool successful_exit) {
            << "    *) shift;;\n"
            << "  esac\n"
            << "done\n"
-           << "printf '%s\\\\n' \"$0\" > \"$OUT.argv0\"\n"
+           << "printf '%s\\n' \"$0\" > \"$OUT.argv0\"\n"
            << "printf '{\"schema_version\":1,\"event_id\":\"start\",\"timestamp\":\"2026-01-01T00:00:00Z\",\"category\":\"coverage\",\"action\":\"capture_started\",\"source\":{\"collector\":\"fixture\",\"event_ref\":\"capture:start\"},\"collection_quality\":\"complete\",\"attributes\":{\"target_pid\":%s}}\\n' \"$PID\" > \"$OUT\"\n"
            << "printf '{\"schema_version\":1,\"event_id\":\"finish\",\"timestamp\":\"2026-01-01T00:00:01Z\",\"category\":\"coverage\",\"action\":\"capture_finished\",\"source\":{\"collector\":\"fixture\",\"event_ref\":\"capture:finish\"},\"collection_quality\":\"complete\",\"attributes\":{\"capture_status\":\"completed\"}}\\n' >> \"$OUT\"\n"
            << (successful_exit ? "exit 0\n" : "exit 4\n");
