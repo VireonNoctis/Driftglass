@@ -134,6 +134,7 @@ struct ObserverResult {
     std::optional<int> return_code;
     bool timed_out{false};
     std::string launch_error;
+    std::string cleanup_error;
 };
 
 #if defined(__linux__)
@@ -216,24 +217,33 @@ ObserverResult run_observer(const CaptureOptions& options,
     }
 
     int status = 0;
-    const auto reap_child = [&]() {
-        while (::waitpid(child, &status, 0) < 0 && errno == EINTR) {}
+    std::string cleanup_error;
+    const auto append_cleanup_error = [&](const std::string& message) {
+        if (!cleanup_error.empty()) cleanup_error += "; ";
+        cleanup_error += message;
     };
     const auto terminate_group = [&](std::chrono::milliseconds grace) {
-        (void)::kill(-child, SIGTERM);
-        const auto terminate_deadline = std::chrono::steady_clock::now() + grace;
-        while (std::chrono::steady_clock::now() < terminate_deadline) {
-            siginfo_t child_info{};
-            const int observed = ::waitid(P_PID, static_cast<id_t>(child), &child_info,
-                                          WEXITED | WNOHANG | WNOWAIT);
-            if (observed == 0) {
-                if (child_info.si_pid == child) break;
-            } else if (errno != EINTR) {
-                break;
-            }
-            std::this_thread::sleep_for(std::chrono::milliseconds(25));
+        if (::kill(-child, SIGTERM) != 0 && errno != ESRCH) {
+            append_cleanup_error(std::string("SIGTERM failed: ") + std::strerror(errno));
         }
-        (void)::kill(-child, SIGKILL);
+        if (grace.count() > 0) std::this_thread::sleep_for(grace);
+        if (::kill(-child, SIGKILL) != 0 && errno != ESRCH) {
+            append_cleanup_error(std::string("SIGKILL failed: ") + std::strerror(errno));
+        }
+    };
+    const auto reap_child = [&]() {
+        const auto reap_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
+        while (std::chrono::steady_clock::now() < reap_deadline) {
+            const pid_t waited = ::waitpid(child, &status, WNOHANG);
+            if (waited == child) return true;
+            if (waited < 0 && errno != EINTR) {
+                append_cleanup_error(std::string("waitpid failed: ") + std::strerror(errno));
+                return false;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        append_cleanup_error("observer process did not exit after process-group termination");
+        return false;
     };
 
     const auto deadline = std::chrono::steady_clock::now()
@@ -244,24 +254,26 @@ ObserverResult run_observer(const CaptureOptions& options,
                      WEXITED | WNOHANG | WNOWAIT) != 0) {
             if (errno == EINTR) continue;
             const int wait_error = errno;
-            (void)::kill(-child, SIGKILL);
-            reap_child();
+            terminate_group(std::chrono::milliseconds(0));
+            (void)reap_child();
             return {std::nullopt, false, std::string("could not wait for observer (")
-                + std::strerror(wait_error) + ")"};
+                + std::strerror(wait_error) + ")", cleanup_error};
         }
         if (child_info.si_pid == child) {
+            // Keep the leader unreaped during the grace period so its PID remains
+            // the process-group ID while descendants handle SIGTERM.
             terminate_group(std::chrono::milliseconds(100));
-            reap_child();
-            if (WIFEXITED(status)) return {WEXITSTATUS(status), false, {}};
-            if (WIFSIGNALED(status)) return {128 + WTERMSIG(status), false, {}};
-            return {std::nullopt, false, "observer exited in an unknown state"};
+            if (!reap_child()) return {std::nullopt, false, {}, cleanup_error};
+            if (WIFEXITED(status)) return {WEXITSTATUS(status), false, {}, cleanup_error};
+            if (WIFSIGNALED(status)) return {128 + WTERMSIG(status), false, {}, cleanup_error};
+            return {std::nullopt, false, "observer exited in an unknown state", cleanup_error};
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
 
     terminate_group(std::chrono::milliseconds(500));
-    reap_child();
-    return {std::nullopt, true, {}};
+    (void)reap_child();
+    return {std::nullopt, true, {}, cleanup_error};
 #else
     (void)options;
     (void)canonical_observer_path;
@@ -303,7 +315,10 @@ std::vector<std::string> collect_errors(const std::vector<Json>& events, const O
                                         const std::string& stream_error, bool started, bool finished) {
     std::vector<std::string> errors;
     if (!observer.launch_error.empty()) errors.push_back("observer could not be started");
-    else if (observer.timed_out) errors.push_back("observer exceeded the coordinator time limit");
+    if (observer.timed_out) errors.push_back("observer exceeded the coordinator time limit");
+    if (!observer.cleanup_error.empty()) {
+        errors.push_back("observer process cleanup failed: " + observer.cleanup_error);
+    }
     else if (observer.return_code && *observer.return_code != 0) {
         errors.push_back("observer exited with status " + std::to_string(*observer.return_code));
     } else if (!observer.return_code) errors.push_back("observer exit status was unavailable");
@@ -439,7 +454,8 @@ CaptureResult capture_run(const CaptureOptions& options) {
     });
     const bool completed = observer_result.return_code && *observer_result.return_code == 0
         && !observer_result.timed_out && observer_result.launch_error.empty()
-        && stream_error.empty() && started && finished && !observer_incomplete;
+        && observer_result.cleanup_error.empty() && stream_error.empty() && started && finished
+        && !observer_incomplete;
 #if defined(__APPLE__)
     const std::string platform_name = "macOS";
     const std::string source_name = "macos-libproc-polling";
