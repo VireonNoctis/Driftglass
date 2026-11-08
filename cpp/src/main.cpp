@@ -1,12 +1,29 @@
 #include "driftglass/core.hpp"
 
+#include <algorithm>
+#include <array>
+#include <cerrno>
 #include <chrono>
 #include <cstdlib>
-#include <fstream>
+#include <cstring>
 #include <iostream>
+#include <limits>
 #include <map>
 #include <optional>
 #include <set>
+
+#include <openssl/rand.h>
+
+#if defined(_WIN32)
+#include <fcntl.h>
+#include <io.h>
+#include <share.h>
+#include <sys/stat.h>
+#else
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
 
 namespace fs = std::filesystem;
 using driftglass::Error;
@@ -80,40 +97,107 @@ fs::path normalized_path(const std::string& value) {
     return (parent / path.filename()).lexically_normal();
 }
 
+std::pair<fs::path, int> create_temporary_output(const fs::path& target) {
+    static constexpr char hex[] = "0123456789abcdef";
+
+    for (unsigned int attempt = 0; attempt < 8U; ++attempt) {
+        std::array<unsigned char, 16> random_bytes{};
+        if (RAND_bytes(random_bytes.data(), static_cast<int>(random_bytes.size())) != 1) {
+            throw Error("could not generate a temporary output identifier");
+        }
+
+        std::string filename = ".driftglass-export-";
+        filename.reserve(filename.size() + random_bytes.size() * 2U);
+        for (const auto byte : random_bytes) {
+            filename.push_back(hex[byte >> 4U]);
+            filename.push_back(hex[byte & 0x0fU]);
+        }
+        const auto temporary = target.parent_path() / filename;
+
+#if defined(_WIN32)
+        int descriptor = -1;
+        const int open_error = _wsopen_s(
+            &descriptor, temporary.c_str(),
+            _O_CREAT | _O_EXCL | _O_WRONLY | _O_BINARY,
+            _SH_DENYRW, _S_IREAD | _S_IWRITE);
+        if (open_error == 0) return {temporary, descriptor};
+        if (open_error != EEXIST) throw Error("could not create temporary report output");
+#else
+        const int descriptor = ::open(
+            temporary.c_str(), O_CREAT | O_EXCL | O_WRONLY | O_CLOEXEC,
+            S_IRUSR | S_IWUSR);
+        if (descriptor >= 0) return {temporary, descriptor};
+        if (errno != EEXIST) throw Error("could not create temporary report output");
+#endif
+    }
+
+    throw Error("could not reserve a unique temporary report output");
+}
+
+void write_descriptor(int descriptor, const std::string& content) {
+    std::size_t offset = 0;
+    while (offset < content.size()) {
+#if defined(_WIN32)
+        const auto remaining = std::min(
+            content.size() - offset,
+            static_cast<std::size_t>(std::numeric_limits<unsigned int>::max()));
+        const auto written = ::_write(
+            descriptor, content.data() + offset, static_cast<unsigned int>(remaining));
+#else
+        const auto written = ::write(descriptor, content.data() + offset, content.size() - offset);
+#endif
+        if (written < 0 && errno == EINTR) continue;
+        if (written <= 0) throw Error("could not write report output");
+        offset += static_cast<std::size_t>(written);
+    }
+}
+
+void flush_and_close_descriptor(int& descriptor) {
+#if defined(_WIN32)
+    if (::_commit(descriptor) != 0) throw Error("could not sync report output");
+    const int close_result = ::_close(descriptor);
+#else
+    if (::fsync(descriptor) != 0) throw Error("could not sync report output");
+    const int close_result = ::close(descriptor);
+#endif
+    descriptor = -1;
+    if (close_result != 0) throw Error("could not close report output");
+}
+
 void write_output(const fs::path& path, const std::string& content, bool overwrite) {
     const auto target = normalized_path(path.string());
-    if (!fs::exists(target.parent_path())) throw Error("output directory does not exist");
+    if (!fs::is_directory(target.parent_path())) throw Error("output directory does not exist");
     if (fs::is_directory(target)) throw Error("output path is a directory");
     if (!overwrite && fs::exists(target)) throw Error("output already exists; pass --overwrite to replace it");
 
-    const auto nonce = std::chrono::steady_clock::now().time_since_epoch().count();
-    auto temporary = target;
-    temporary += ".tmp-" + std::to_string(nonce);
-    {
-        std::ofstream output(temporary, std::ios::binary | std::ios::out | std::ios::trunc);
-        if (!output) throw Error("could not create temporary report output");
-        output.write(content.data(), static_cast<std::streamsize>(content.size()));
-        output.put('\n');
-        output.flush();
-        if (!output) {
-            std::error_code ignored;
-            fs::remove(temporary, ignored);
-            throw Error("could not write report output");
-        }
-    }
+    auto [temporary, descriptor] = create_temporary_output(target);
+    try {
+        write_descriptor(descriptor, content);
+        write_descriptor(descriptor, "\n");
+        flush_and_close_descriptor(descriptor);
 
-    std::error_code error;
-    if (overwrite) {
-        fs::rename(temporary, target, error);
-    } else {
-        fs::create_hard_link(temporary, target, error);
-        if (!error) fs::remove(temporary);
-    }
-    if (error) {
+        std::error_code error;
+        if (overwrite) {
+            fs::rename(temporary, target, error);
+        } else {
+            fs::create_hard_link(temporary, target, error);
+            if (!error) fs::remove(temporary);
+        }
+        if (error) {
+            if (!overwrite && fs::exists(target)) throw Error("output already exists; no file was replaced");
+            throw Error("could not publish report output");
+        }
+    } catch (...) {
+        if (descriptor >= 0) {
+#if defined(_WIN32)
+            ::_close(descriptor);
+#else
+            ::close(descriptor);
+#endif
+        }
         std::error_code ignored;
         fs::remove(temporary, ignored);
-        if (!overwrite && fs::exists(target)) throw Error("output already exists; no file was replaced");
-        throw Error("could not publish report output");
+        throw;
     }
 }
 
