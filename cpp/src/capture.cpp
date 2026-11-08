@@ -136,9 +136,26 @@ struct ObserverResult {
     std::string launch_error;
 };
 
+#if defined(__linux__)
+class ScopedDescriptor {
+public:
+    explicit ScopedDescriptor(int descriptor) : descriptor_(descriptor) {}
+    ~ScopedDescriptor() {
+        if (descriptor_ >= 0) ::close(descriptor_);
+    }
+    ScopedDescriptor(const ScopedDescriptor&) = delete;
+    ScopedDescriptor& operator=(const ScopedDescriptor&) = delete;
+    int get() const { return descriptor_; }
+
+private:
+    int descriptor_;
+};
+#endif
+
 ObserverResult run_observer(const CaptureOptions& options,
                             const std::filesystem::path& canonical_observer_path,
-                            const std::filesystem::path& event_path) {
+                            const std::filesystem::path& event_path,
+                            int observer_descriptor) {
 #if defined(__APPLE__) || defined(__linux__)
     std::vector<std::string> arguments{
         canonical_observer_path.string(),
@@ -152,6 +169,16 @@ ObserverResult run_observer(const CaptureOptions& options,
     for (auto& argument : arguments) raw_arguments.push_back(argument.data());
     raw_arguments.push_back(nullptr);
 
+    std::string launch_path = canonical_observer_path.string();
+#if defined(__linux__)
+    if (observer_descriptor < 0) {
+        return {std::nullopt, false, "observer file was not pinned before launch"};
+    }
+    launch_path = "/proc/self/fd/" + std::to_string(observer_descriptor);
+#else
+    (void)observer_descriptor;
+#endif
+
     posix_spawn_file_actions_t actions;
     if (posix_spawn_file_actions_init(&actions) != 0) {
         return {std::nullopt, false, "could not prepare observer process actions"};
@@ -163,9 +190,26 @@ ObserverResult run_observer(const CaptureOptions& options,
         return {std::nullopt, false, "could not disable observer standard input"};
     }
 
+    posix_spawnattr_t attributes;
+    const int attributes_error = posix_spawnattr_init(&attributes);
+    if (attributes_error != 0) {
+        posix_spawn_file_actions_destroy(&actions);
+        return {std::nullopt, false, "could not prepare observer process group"};
+    }
+    const int group_error = posix_spawnattr_setpgroup(&attributes, 0);
+    const int flags_error = group_error == 0
+        ? posix_spawnattr_setflags(&attributes, POSIX_SPAWN_SETPGROUP)
+        : group_error;
+    if (flags_error != 0) {
+        posix_spawnattr_destroy(&attributes);
+        posix_spawn_file_actions_destroy(&actions);
+        return {std::nullopt, false, "could not isolate observer process group"};
+    }
+
     pid_t child{};
-    const int launched = posix_spawn(&child, canonical_observer_path.c_str(), &actions, nullptr,
+    const int launched = posix_spawn(&child, launch_path.c_str(), &actions, &attributes,
                                      raw_arguments.data(), environ);
+    posix_spawnattr_destroy(&attributes);
     posix_spawn_file_actions_destroy(&actions);
     if (launched != 0) {
         return {std::nullopt, false, std::string("observer could not be started (") + std::strerror(launched) + ")"};
@@ -182,30 +226,26 @@ ObserverResult run_observer(const CaptureOptions& options,
             return {std::nullopt, false, "observer exited in an unknown state"};
         }
         if (waited < 0 && errno != EINTR) {
-            return {std::nullopt, false, std::string("could not wait for observer (") + std::strerror(errno) + ")"};
+            const int wait_error = errno;
+            (void)::kill(-child, SIGKILL);
+            return {std::nullopt, false, std::string("could not wait for observer (") + std::strerror(wait_error) + ")"};
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
 
-    ::kill(child, SIGTERM);
-    const auto terminate_deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(500);
-    while (std::chrono::steady_clock::now() < terminate_deadline) {
-        const pid_t waited = ::waitpid(child, &status, WNOHANG);
-        if (waited == child) return {std::nullopt, true, {}};
-        if (waited < 0 && errno != EINTR) break;
-        std::this_thread::sleep_for(std::chrono::milliseconds(25));
-    }
-    ::kill(child, SIGKILL);
+    (void)::kill(-child, SIGTERM);
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    (void)::kill(-child, SIGKILL);
     while (::waitpid(child, &status, 0) < 0 && errno == EINTR) {}
     return {std::nullopt, true, {}};
 #else
     (void)options;
     (void)canonical_observer_path;
     (void)event_path;
+    (void)observer_descriptor;
     return {std::nullopt, false, "capture process spawning is not implemented on this platform"};
 #endif
 }
-
 std::string capture_boundary_error(const std::vector<Json>& events, std::uint32_t pid) {
     std::vector<std::size_t> starts;
     std::vector<std::size_t> finishes;
@@ -298,14 +338,49 @@ CaptureResult capture_run(const CaptureOptions& options) {
 
     std::error_code error;
     const auto observer = std::filesystem::canonical(options.observer_path, error);
+#if defined(__APPLE__)
     if (error || !executable_file(observer)) throw Error("observer_path must resolve to an executable file");
+#else
+    if (error) throw Error("observer_path must resolve to an executable file");
+#endif
     const auto event_path = new_output_path(options.event_output_path, "event output");
     const auto manifest_path = new_output_path(options.manifest_output_path, "manifest output");
     if (event_path == manifest_path) throw Error("event output and manifest output must be different paths");
     if (observer == event_path || observer == manifest_path) throw Error("capture outputs must not replace the observer executable");
 
+#if defined(__linux__)
+    int opened_descriptor = ::open(observer.c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+    if (opened_descriptor < 0) throw Error("observer_path could not be opened for pinned execution");
+    if (opened_descriptor <= STDERR_FILENO) {
+        const int duplicated_descriptor = ::fcntl(opened_descriptor, F_DUPFD_CLOEXEC, STDERR_FILENO + 1);
+        ::close(opened_descriptor);
+        if (duplicated_descriptor < 0) throw Error("could not reserve an observer descriptor");
+        opened_descriptor = duplicated_descriptor;
+    }
+    ScopedDescriptor observer_file(opened_descriptor);
+    struct stat observer_status {};
+    if (::fstat(observer_file.get(), &observer_status) != 0 || !S_ISREG(observer_status.st_mode)) {
+        throw Error("observer_path must identify a regular executable file");
+    }
+    char interpreter_prefix[2]{};
+    ssize_t prefix_size = 0;
+    do {
+        prefix_size = ::pread(observer_file.get(), interpreter_prefix, sizeof(interpreter_prefix), 0);
+    } while (prefix_size < 0 && errno == EINTR);
+    if (prefix_size < 0) throw Error("could not inspect observer executable format");
+    if (prefix_size == 2 && interpreter_prefix[0] == '#' && interpreter_prefix[1] == '!') {
+        const int descriptor_flags = ::fcntl(observer_file.get(), F_GETFD);
+        if (descriptor_flags < 0
+            || ::fcntl(observer_file.get(), F_SETFD, descriptor_flags & ~FD_CLOEXEC) != 0) {
+            throw Error("could not preserve the observer script for its interpreter");
+        }
+    }
     const auto started_at = timestamp_now();
-    const auto observer_result = run_observer(options, observer, event_path);
+    const auto observer_result = run_observer(options, observer, event_path, observer_file.get());
+#else
+    const auto started_at = timestamp_now();
+    const auto observer_result = run_observer(options, observer, event_path, -1);
+#endif
 
     std::vector<Json> records;
     std::string stream_error;
