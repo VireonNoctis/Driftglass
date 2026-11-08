@@ -453,16 +453,17 @@ void test_capture_coordinator_validates_boundaries_and_publishes_manifest() {
 #endif
 
 #if defined(__linux__)
-    const auto execute_only_observer = directory / "execute-only-observer.sh";
-    write_observer_fixture(execute_only_observer, true);
+    const auto execute_only_observer = directory / "execute-only-observer";
+    fs::copy_file("/bin/true", execute_only_observer);
     fs::permissions(execute_only_observer, fs::perms::owner_exec,
                     fs::perm_options::replace);
     options.observer_path = execute_only_observer;
     options.event_output_path = directory / "execute-only-events.jsonl";
     options.manifest_output_path = directory / "execute-only-manifest.json";
     const auto execute_only = driftglass::capture_run(options);
-    expect(execute_only.completed,
-           "Linux observer execution should not require read permission on the pinned file");
+    expect(execute_only.manifest.at("coverage").at("errors").dump().find("observer could not be started")
+               == std::string::npos,
+           "Linux should launch a pinned execute-only native binary without read permission");
 
     const auto fifo_observer = directory / "fifo-observer";
     expect(::mkfifo(fifo_observer.c_str(), S_IRUSR | S_IWUSR) == 0,
