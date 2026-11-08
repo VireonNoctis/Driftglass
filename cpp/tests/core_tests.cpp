@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
+#include <thread>
 #if defined(__APPLE__) || defined(__linux__)
 #include <unistd.h>
 #endif
@@ -372,6 +373,15 @@ void write_observer_fixture(const fs::path& path, bool successful_exit) {
            << "  esac\n"
            << "done\n"
            << "printf '%s\\n' \"$0\" > \"$OUT.argv0\"\n"
+           << "if [ \"\${DRIFTGLASS_TEST_OBSERVER_HANG:-}\" = \"1\" ]; then\n"
+           << "  (sleep 18; printf 'descendant-survived\\n' > \"$OUT.child-finished\") &\n"
+           << "  wait\n"
+           << "  exit 0\n"
+           << "fi\n"
+           << "if [ \"\${DRIFTGLASS_TEST_OBSERVER_MALFORMED:-}\" = \"1\" ]; then\n"
+           << "  printf '{malformed\\n' > \"$OUT\"\n"
+           << "  exit 0\n"
+           << "fi\n"
            << "printf '{\"schema_version\":1,\"event_id\":\"start\",\"timestamp\":\"2026-01-01T00:00:00Z\",\"category\":\"coverage\",\"action\":\"capture_started\",\"source\":{\"collector\":\"fixture\",\"event_ref\":\"capture:start\"},\"collection_quality\":\"complete\",\"attributes\":{\"target_pid\":%s}}\\n' \"$PID\" > \"$OUT\"\n"
            << "printf '{\"schema_version\":1,\"event_id\":\"finish\",\"timestamp\":\"2026-01-01T00:00:01Z\",\"category\":\"coverage\",\"action\":\"capture_finished\",\"source\":{\"collector\":\"fixture\",\"event_ref\":\"capture:finish\"},\"collection_quality\":\"complete\",\"attributes\":{\"capture_status\":\"completed\"}}\\n' >> \"$OUT\"\n"
            << (successful_exit ? "exit 0\n" : "exit 4\n");
@@ -426,10 +436,13 @@ void test_capture_coordinator_validates_boundaries_and_publishes_manifest() {
     std::ifstream invoked_path_file(options.event_output_path.string() + ".argv0");
     std::string invoked_path;
     std::getline(invoked_path_file, invoked_path);
-    expect(invoked_path_file.good() || invoked_path_file.eof(),
-           "observer fixture should record its executable path");
+#if defined(__linux__)
+    expect(invoked_path.find("/fd/") != std::string::npos,
+           "Linux script observer should be invoked through its pinned file descriptor");
+#else
     expect(invoked_path == fs::canonical(observer).string(),
-           "observer must receive the canonical executable path instead of the symlink alias");
+           "macOS observer should receive the canonical executable path instead of the symlink alias");
+#endif
 
     const auto failing_observer = directory / "failing-observer.sh";
     write_observer_fixture(failing_observer, false);
@@ -442,10 +455,56 @@ void test_capture_coordinator_validates_boundaries_and_publishes_manifest() {
            "a valid stream with a failed observer exit should produce an incomplete manifest");
     expect(!failed.manifest.at("coverage").at("errors").empty(),
            "observer exit failure should be visible in manifest coverage errors");
+
+    const auto malformed_observer = directory / "malformed-observer.sh";
+    write_observer_fixture(malformed_observer, true);
+    options.observer_path = malformed_observer;
+    options.event_output_path = directory / "malformed-events.jsonl";
+    options.manifest_output_path = directory / "malformed-manifest.json";
+    expect(::setenv("DRIFTGLASS_TEST_OBSERVER_MALFORMED", "1", 1) == 0,
+           "malformed-output test environment should be set");
+    const auto malformed = driftglass::capture_run(options);
+    (void)::unsetenv("DRIFTGLASS_TEST_OBSERVER_MALFORMED");
+    expect(!malformed.completed && malformed.manifest.at("capture").at("status") == "failed",
+           "malformed observer JSONL must produce a failed capture manifest");
+    expect(malformed.manifest.at("coverage").at("errors").dump().find("JSONL validation") != std::string::npos,
+           "malformed observer output must be visible in manifest errors");
+
+    const auto invalid_observer = directory / "invalid-observer";
+    {
+        std::ofstream invalid(invalid_observer, std::ios::binary);
+        invalid << "not an executable format\n";
+    }
+    fs::permissions(invalid_observer,
+                    fs::perms::owner_read | fs::perms::owner_write | fs::perms::owner_exec,
+                    fs::perm_options::replace);
+    options.observer_path = invalid_observer;
+    options.event_output_path = directory / "invalid-events.jsonl";
+    options.manifest_output_path = directory / "invalid-manifest.json";
+    const auto invalid = driftglass::capture_run(options);
+    expect(!invalid.completed
+           && invalid.manifest.at("coverage").at("errors").dump().find("observer could not be started") != std::string::npos,
+           "an executable with an unsupported format must fail visibly in the manifest");
+
+    const auto hanging_observer = directory / "hanging-observer.sh";
+    write_observer_fixture(hanging_observer, true);
+    options.observer_path = hanging_observer;
+    options.event_output_path = directory / "hanging-events.jsonl";
+    options.manifest_output_path = directory / "hanging-manifest.json";
+    expect(::setenv("DRIFTGLASS_TEST_OBSERVER_HANG", "1", 1) == 0,
+           "timeout test environment should be set");
+    const auto timed_out = driftglass::capture_run(options);
+    (void)::unsetenv("DRIFTGLASS_TEST_OBSERVER_HANG");
+    expect(!timed_out.completed
+           && timed_out.manifest.at("coverage").at("errors").dump().find("time limit") != std::string::npos,
+           "observer timeout must be reported as an incomplete capture");
+    std::this_thread::sleep_for(std::chrono::seconds(3));
+    expect(!fs::exists(options.event_output_path.string() + ".child-finished"),
+           "observer timeout must terminate descendants in the observer process group");
+
     fs::remove_all(directory);
 }
 #endif
-
 
 void test_capabilities_contract_describes_mac_process_only_scope() {
     const auto report = driftglass::capabilities_report();
