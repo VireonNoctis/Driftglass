@@ -97,6 +97,17 @@ if(NOT json_result EQUAL 0)
     message(FATAL_ERROR "JSON history export failed: ${json_error}")
 endif()
 
+if(UNIX)
+    file(GET_PERMISSIONS "${JSON_EXPORT}" export_permissions)
+    if(NOT "OWNER_READ" IN_LIST export_permissions OR NOT "OWNER_WRITE" IN_LIST export_permissions)
+        message(FATAL_ERROR "report export is not readable and writable by its owner")
+    endif()
+    if("GROUP_READ" IN_LIST export_permissions OR "GROUP_WRITE" IN_LIST export_permissions
+       OR "WORLD_READ" IN_LIST export_permissions OR "WORLD_WRITE" IN_LIST export_permissions)
+        message(FATAL_ERROR "report export permissions expose the file to other users")
+    endif()
+endif()
+
 execute_process(
     COMMAND "${DRIFTGLASS_CLI}" report validate "${JSON_EXPORT}"
     RESULT_VARIABLE validation_result
@@ -171,6 +182,45 @@ endif()
 file(READ "${JSON_EXPORT}" source_after_overwrite_attempt)
 if(NOT original_report STREQUAL source_after_overwrite_attempt)
     message(FATAL_ERROR "a refused overwrite changed the existing export")
+endif()
+
+if(UNIX)
+    set(SYMLINK_TARGET "${WORK_DIR}/symlink-target.txt")
+    set(SYMLINK_EXPORT "${WORK_DIR}/symlink-report.json")
+    file(WRITE "${SYMLINK_TARGET}" "sentinel data must remain unchanged")
+    file(CREATE_LINK "${SYMLINK_TARGET}" "${SYMLINK_EXPORT}" SYMBOLIC)
+
+    execute_process(
+        COMMAND "${DRIFTGLASS_CLI}" history export
+            --database "${DATABASE}" --report-id "${report_id}"
+            --format json --output "${SYMLINK_EXPORT}"
+        RESULT_VARIABLE symlink_refusal_result
+        ERROR_VARIABLE symlink_refusal_error
+    )
+    if(symlink_refusal_result EQUAL 0)
+        message(FATAL_ERROR "history export unexpectedly replaced a symlink without --overwrite")
+    endif()
+    file(READ "${SYMLINK_TARGET}" symlink_target_before_replace)
+
+    execute_process(
+        COMMAND "${DRIFTGLASS_CLI}" history export
+            --database "${DATABASE}" --report-id "${report_id}"
+            --format json --output "${SYMLINK_EXPORT}" --overwrite
+        RESULT_VARIABLE symlink_replace_result
+        ERROR_VARIABLE symlink_replace_error
+    )
+    if(NOT symlink_replace_result EQUAL 0)
+        message(FATAL_ERROR "history export could not replace a symlink safely: ${symlink_replace_error}")
+    endif()
+    file(IS_SYMLINK "${SYMLINK_EXPORT}" export_is_symlink)
+    if(export_is_symlink)
+        message(FATAL_ERROR "overwritten export destination is still a symlink")
+    endif()
+    file(READ "${SYMLINK_TARGET}" symlink_target_after_replace)
+    if(NOT symlink_target_before_replace STREQUAL symlink_target_after_replace
+       OR NOT symlink_target_after_replace STREQUAL "sentinel data must remain unchanged")
+        message(FATAL_ERROR "overwriting a symlink modified its referent")
+    endif()
 endif()
 
 set(CUSTOM_SCHEMA "${WORK_DIR}/strict-event-schema.json")
