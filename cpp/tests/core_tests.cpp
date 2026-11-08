@@ -383,12 +383,12 @@ void write_observer_fixture(const fs::path& path, bool successful_exit) {
            << "  printf '{malformed\\n' > \"$OUT\"\n"
            << "  exit 0\n"
            << "fi\n"
-           << "if [ \"${DRIFTGLASS_TEST_OBSERVER_DAEMON:-}\" = \"1\" ]; then\n"
+           << "printf '{\"schema_version\":1,\"event_id\":\"start\",\"timestamp\":\"2026-01-01T00:00:00Z\",\"category\":\"coverage\",\"action\":\"capture_started\",\"source\":{\"collector\":\"fixture\",\"event_ref\":\"capture:start\"},\"collection_quality\":\"complete\",\"attributes\":{\"target_pid\":%s}}\\n' \"$PID\" > \"$OUT\"\n"
+           << "printf '{\"schema_version\":1,\"event_id\":\"finish\",\"timestamp\":\"2026-01-01T00:00:01Z\",\"category\":\"coverage\",\"action\":\"capture_finished\",\"source\":{\"collector\":\"fixture\",\"event_ref\":\"capture:finish\"},\"collection_quality\":\"complete\",\"attributes\":{\"capture_status\":\"completed\"}}\\n' >> \"$OUT\"\n"
+           << "if [ \"\${DRIFTGLASS_TEST_OBSERVER_DAEMON:-}\" = \"1\" ]; then\n"
            << "  (sleep 5; printf 'descendant-survived\\n' > \"$OUT.child-finished\") &\n"
            << "  exit 0\n"
            << "fi\n"
-           << "printf '{\"schema_version\":1,\"event_id\":\"start\",\"timestamp\":\"2026-01-01T00:00:00Z\",\"category\":\"coverage\",\"action\":\"capture_started\",\"source\":{\"collector\":\"fixture\",\"event_ref\":\"capture:start\"},\"collection_quality\":\"complete\",\"attributes\":{\"target_pid\":%s}}\\n' \"$PID\" > \"$OUT\"\n"
-           << "printf '{\"schema_version\":1,\"event_id\":\"finish\",\"timestamp\":\"2026-01-01T00:00:01Z\",\"category\":\"coverage\",\"action\":\"capture_finished\",\"source\":{\"collector\":\"fixture\",\"event_ref\":\"capture:finish\"},\"collection_quality\":\"complete\",\"attributes\":{\"capture_status\":\"completed\"}}\\n' >> \"$OUT\"\n"
            << (successful_exit ? "exit 0\n" : "exit 4\n");
     script.close();
     fs::permissions(path, fs::perms::owner_read | fs::perms::owner_write | fs::perms::owner_exec,
