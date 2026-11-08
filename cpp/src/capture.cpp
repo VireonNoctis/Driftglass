@@ -215,6 +215,7 @@ ObserverResult run_observer(const CaptureOptions& options,
         return {std::nullopt, false, std::string("observer could not be started (") + std::strerror(launched) + ")"};
     }
 
+    int status = 0;
     const auto reap_child = [&]() {
         while (::waitpid(child, &status, 0) < 0 && errno == EINTR) {}
     };
