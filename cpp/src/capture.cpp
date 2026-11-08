@@ -373,10 +373,10 @@ CaptureResult capture_run(const CaptureOptions& options) {
     if (observer == event_path || observer == manifest_path) throw Error("capture outputs must not replace the observer executable");
 
 #if defined(__linux__)
-    int opened_descriptor = ::open(observer.c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+    int opened_descriptor = ::open(observer.c_str(), O_PATH | O_NOFOLLOW);
     if (opened_descriptor < 0) throw Error("observer_path could not be opened for pinned execution");
     if (opened_descriptor <= STDERR_FILENO) {
-        const int duplicated_descriptor = ::fcntl(opened_descriptor, F_DUPFD_CLOEXEC, STDERR_FILENO + 1);
+        const int duplicated_descriptor = ::fcntl(opened_descriptor, F_DUPFD, STDERR_FILENO + 1);
         ::close(opened_descriptor);
         if (duplicated_descriptor < 0) throw Error("could not reserve an observer descriptor");
         opened_descriptor = duplicated_descriptor;
@@ -385,19 +385,6 @@ CaptureResult capture_run(const CaptureOptions& options) {
     struct stat observer_status {};
     if (::fstat(observer_file.get(), &observer_status) != 0 || !S_ISREG(observer_status.st_mode)) {
         throw Error("observer_path must identify a regular executable file");
-    }
-    char interpreter_prefix[2]{};
-    ssize_t prefix_size = 0;
-    do {
-        prefix_size = ::pread(observer_file.get(), interpreter_prefix, sizeof(interpreter_prefix), 0);
-    } while (prefix_size < 0 && errno == EINTR);
-    if (prefix_size < 0) throw Error("could not inspect observer executable format");
-    if (prefix_size == 2 && interpreter_prefix[0] == '#' && interpreter_prefix[1] == '!') {
-        const int descriptor_flags = ::fcntl(observer_file.get(), F_GETFD);
-        if (descriptor_flags < 0
-            || ::fcntl(observer_file.get(), F_SETFD, descriptor_flags & ~FD_CLOEXEC) != 0) {
-            throw Error("could not preserve the observer script for its interpreter");
-        }
     }
     const auto started_at = timestamp_now();
     const auto observer_result = run_observer(options, observer, event_path, observer_file.get());
