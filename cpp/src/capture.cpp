@@ -215,28 +215,50 @@ ObserverResult run_observer(const CaptureOptions& options,
         return {std::nullopt, false, std::string("observer could not be started (") + std::strerror(launched) + ")"};
     }
 
+    const auto reap_child = [&]() {
+        while (::waitpid(child, &status, 0) < 0 && errno == EINTR) {}
+    };
+    const auto terminate_group = [&](std::chrono::milliseconds grace) {
+        (void)::kill(-child, SIGTERM);
+        const auto terminate_deadline = std::chrono::steady_clock::now() + grace;
+        while (std::chrono::steady_clock::now() < terminate_deadline) {
+            siginfo_t child_info{};
+            if (::waitid(P_PID, static_cast<id_t>(child), &child_info,
+                         WEXITED | WNOHANG | WNOWAIT) == 0
+                && child_info.si_pid == child) {
+                break;
+            }
+            if (errno != EINTR && errno != 0) break;
+            std::this_thread::sleep_for(std::chrono::milliseconds(25));
+        }
+        (void)::kill(-child, SIGKILL);
+    };
+
     const auto deadline = std::chrono::steady_clock::now()
         + std::chrono::seconds(options.duration_seconds + 15U);
-    int status = 0;
     while (std::chrono::steady_clock::now() < deadline) {
-        const pid_t waited = ::waitpid(child, &status, WNOHANG);
-        if (waited == child) {
+        siginfo_t child_info{};
+        if (::waitid(P_PID, static_cast<id_t>(child), &child_info,
+                     WEXITED | WNOHANG | WNOWAIT) != 0) {
+            if (errno == EINTR) continue;
+            const int wait_error = errno;
+            (void)::kill(-child, SIGKILL);
+            reap_child();
+            return {std::nullopt, false, std::string("could not wait for observer (")
+                + std::strerror(wait_error) + ")"};
+        }
+        if (child_info.si_pid == child) {
+            terminate_group(std::chrono::milliseconds(100));
+            reap_child();
             if (WIFEXITED(status)) return {WEXITSTATUS(status), false, {}};
             if (WIFSIGNALED(status)) return {128 + WTERMSIG(status), false, {}};
             return {std::nullopt, false, "observer exited in an unknown state"};
         }
-        if (waited < 0 && errno != EINTR) {
-            const int wait_error = errno;
-            (void)::kill(-child, SIGKILL);
-            return {std::nullopt, false, std::string("could not wait for observer (") + std::strerror(wait_error) + ")"};
-        }
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
 
-    (void)::kill(-child, SIGTERM);
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    (void)::kill(-child, SIGKILL);
-    while (::waitpid(child, &status, 0) < 0 && errno == EINTR) {}
+    terminate_group(std::chrono::milliseconds(500));
+    reap_child();
     return {std::nullopt, true, {}};
 #else
     (void)options;
