@@ -98,13 +98,23 @@ if(NOT json_result EQUAL 0)
 endif()
 
 if(UNIX)
-    file(GET_PERMISSIONS "${JSON_EXPORT}" export_permissions)
-    if(NOT "OWNER_READ" IN_LIST export_permissions OR NOT "OWNER_WRITE" IN_LIST export_permissions)
-        message(FATAL_ERROR "report export is not readable and writable by its owner")
+    if(APPLE)
+        execute_process(
+            COMMAND stat -f %Lp "${JSON_EXPORT}"
+            RESULT_VARIABLE permissions_result
+            OUTPUT_VARIABLE export_mode
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+    else()
+        execute_process(
+            COMMAND stat -c %a "${JSON_EXPORT}"
+            RESULT_VARIABLE permissions_result
+            OUTPUT_VARIABLE export_mode
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
     endif()
-    if("GROUP_READ" IN_LIST export_permissions OR "GROUP_WRITE" IN_LIST export_permissions
-       OR "WORLD_READ" IN_LIST export_permissions OR "WORLD_WRITE" IN_LIST export_permissions)
-        message(FATAL_ERROR "report export permissions expose the file to other users")
+    if(NOT permissions_result EQUAL 0 OR NOT export_mode STREQUAL "600")
+        message(FATAL_ERROR "report export should have owner-only mode 600, got ${export_mode}")
     endif()
 endif()
 
