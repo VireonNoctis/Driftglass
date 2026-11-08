@@ -261,10 +261,15 @@ ObserverResult run_observer(const CaptureOptions& options,
     }
     ScopedDescriptor process_queue(queue_descriptor);
     struct kevent process_exit_change {};
+    struct kevent registration_receipt {};
     EV_SET(&process_exit_change, static_cast<uintptr_t>(child), EVFILT_PROC,
-           EV_ADD | EV_ONESHOT, NOTE_EXIT, 0, nullptr);
-    if (::kevent(process_queue.get(), &process_exit_change, 1, nullptr, 0, nullptr) < 0) {
-        const int registration_error = errno;
+           EV_ADD | EV_ONESHOT | EV_RECEIPT, NOTE_EXIT, 0, nullptr);
+    const int registered = ::kevent(process_queue.get(), &process_exit_change, 1,
+                                    &registration_receipt, 1, nullptr);
+    if (registered != 1 || (registration_receipt.flags & EV_ERROR) == 0
+        || registration_receipt.data != 0) {
+        const int registration_error = registered == 1
+            ? static_cast<int>(registration_receipt.data) : errno;
         terminate_group(std::chrono::milliseconds(0));
         (void)reap_child();
         return {std::nullopt, false,
