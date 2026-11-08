@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <cstdlib>
+#include <cstdlib>
 #include <filesystem>
 #include <functional>
 #include <fstream>
@@ -374,16 +375,16 @@ void write_observer_fixture(const fs::path& path, bool successful_exit) {
            << "  esac\n"
            << "done\n"
            << "printf '%s\\n' \"$0\" > \"$OUT.argv0\"\n"
-           << "if [ \"\${DRIFTGLASS_TEST_OBSERVER_HANG:-}\" = \"1\" ]; then\n"
+           << "if [ \"${DRIFTGLASS_TEST_OBSERVER_HANG:-}\" = \"1\" ]; then\n"
            << "  (sleep 18; printf 'descendant-survived\\n' > \"$OUT.child-finished\") &\n"
            << "  wait\n"
            << "  exit 0\n"
            << "fi\n"
-           << "if [ \"\${DRIFTGLASS_TEST_OBSERVER_MALFORMED:-}\" = \"1\" ]; then\n"
+           << "if [ \"${DRIFTGLASS_TEST_OBSERVER_MALFORMED:-}\" = \"1\" ]; then\n"
            << "  printf '{malformed\\n' > \"$OUT\"\n"
            << "  exit 0\n"
            << "fi\n"
-           << "if [ \"\${DRIFTGLASS_TEST_OBSERVER_DAEMON:-}\" = \"1\" ]; then\n"
+           << "if [ \"${DRIFTGLASS_TEST_OBSERVER_DAEMON:-}\" = \"1\" ]; then\n"
            << "  (sleep 5; printf 'descendant-survived\\n' > \"$OUT.child-finished\") &\n"
            << "  exit 0\n"
            << "fi\n"
