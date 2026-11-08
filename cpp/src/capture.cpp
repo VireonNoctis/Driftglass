@@ -373,6 +373,7 @@ CaptureResult capture_run(const CaptureOptions& options) {
     if (observer == event_path || observer == manifest_path) throw Error("capture outputs must not replace the observer executable");
 
 #if defined(__linux__)
+    // Keep an inheritable O_PATH handle so Linux can execute this exact file, including shebang scripts.
     int opened_descriptor = ::open(observer.c_str(), O_PATH | O_NOFOLLOW);
     if (opened_descriptor < 0) throw Error("observer_path could not be opened for pinned execution");
     if (opened_descriptor <= STDERR_FILENO) {
