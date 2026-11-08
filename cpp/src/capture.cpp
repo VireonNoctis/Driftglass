@@ -223,12 +223,13 @@ ObserverResult run_observer(const CaptureOptions& options,
         const auto terminate_deadline = std::chrono::steady_clock::now() + grace;
         while (std::chrono::steady_clock::now() < terminate_deadline) {
             siginfo_t child_info{};
-            if (::waitid(P_PID, static_cast<id_t>(child), &child_info,
-                         WEXITED | WNOHANG | WNOWAIT) == 0
-                && child_info.si_pid == child) {
+            const int observed = ::waitid(P_PID, static_cast<id_t>(child), &child_info,
+                                          WEXITED | WNOHANG | WNOWAIT);
+            if (observed == 0) {
+                if (child_info.si_pid == child) break;
+            } else if (errno != EINTR) {
                 break;
             }
-            if (errno != EINTR && errno != 0) break;
             std::this_thread::sleep_for(std::chrono::milliseconds(25));
         }
         (void)::kill(-child, SIGKILL);
