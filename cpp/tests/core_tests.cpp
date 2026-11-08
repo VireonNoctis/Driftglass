@@ -421,7 +421,8 @@ void test_capture_coordinator_validates_boundaries_and_publishes_manifest() {
     options.profile = "fixture-process-observer";
 
     const auto result = driftglass::capture_run(options);
-    expect(result.completed, "valid observer run should complete");
+    expect(result.completed, "valid observer run should complete: "
+           + result.manifest.at("coverage").at("errors").dump());
     expect(result.event_count == 2, "capture coordinator should count validated event records");
     expect(result.manifest.at("capture").at("status") == "completed",
            "completed observer should produce a completed manifest");
@@ -485,7 +486,8 @@ void test_capture_coordinator_validates_boundaries_and_publishes_manifest() {
     const auto daemon_result = driftglass::capture_run(options);
     (void)::unsetenv("DRIFTGLASS_TEST_OBSERVER_DAEMON");
     expect(daemon_result.completed,
-           "a valid observer should complete even when it leaves a child process");
+           "a valid observer should complete even when it leaves a child process: "
+               + daemon_result.manifest.at("coverage").at("errors").dump());
     std::this_thread::sleep_for(std::chrono::seconds(6));
     expect(!fs::exists(options.event_output_path.string() + ".child-finished"),
            "observer exit must terminate remaining descendants in its process group");
