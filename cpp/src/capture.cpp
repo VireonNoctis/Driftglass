@@ -219,6 +219,8 @@ ObserverResult run_observer(const CaptureOptions& options,
         return {std::nullopt, false, std::string("observer could not be started (") + std::strerror(launched) + ")", {}};
     }
 
+    const pid_t observed_process_group = ::getpgid(child);
+    const bool dedicated_process_group = observed_process_group == child;
     int status = 0;
     std::string cleanup_error;
     const auto append_cleanup_error = [&](const std::string& message) {
@@ -226,12 +228,28 @@ ObserverResult run_observer(const CaptureOptions& options,
         cleanup_error += message;
     };
     const auto terminate_group = [&](std::chrono::milliseconds grace) {
+        if (!dedicated_process_group) {
+            append_cleanup_error("observer did not enter its dedicated process group (pid "
+                + std::to_string(child) + ", observed pgid " + std::to_string(observed_process_group) + ")");
+            if (::kill(child, SIGTERM) != 0 && errno != ESRCH) {
+                append_cleanup_error(std::string("observer SIGTERM failed: ") + std::strerror(errno));
+            }
+            if (grace.count() > 0) std::this_thread::sleep_for(grace);
+            if (::kill(child, SIGKILL) != 0 && errno != ESRCH) {
+                append_cleanup_error(std::string("observer SIGKILL failed: ") + std::strerror(errno));
+            }
+            return;
+        }
         if (::kill(-child, SIGTERM) != 0 && errno != ESRCH) {
-            append_cleanup_error(std::string("SIGTERM failed: ") + std::strerror(errno));
+            append_cleanup_error(std::string("process-group SIGTERM failed (pid ")
+                + std::to_string(child) + ", pgid " + std::to_string(observed_process_group)
+                + "): " + std::strerror(errno));
         }
         if (grace.count() > 0) std::this_thread::sleep_for(grace);
         if (::kill(-child, SIGKILL) != 0 && errno != ESRCH) {
-            append_cleanup_error(std::string("SIGKILL failed: ") + std::strerror(errno));
+            append_cleanup_error(std::string("process-group SIGKILL failed (pid ")
+                + std::to_string(child) + ", pgid " + std::to_string(observed_process_group)
+                + "): " + std::strerror(errno));
         }
     };
     const auto reap_child = [&]() {
