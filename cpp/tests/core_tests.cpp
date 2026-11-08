@@ -11,6 +11,9 @@
 #if defined(__APPLE__) || defined(__linux__)
 #include <unistd.h>
 #endif
+#if defined(__linux__)
+#include <sys/stat.h>
+#endif
 
 namespace fs = std::filesystem;
 using driftglass::Json;
@@ -447,6 +450,28 @@ void test_capture_coordinator_validates_boundaries_and_publishes_manifest() {
 #else
     expect(invoked_path == fs::canonical(observer).string(),
            "macOS observer should receive the canonical executable path instead of the symlink alias");
+#endif
+
+#if defined(__linux__)
+    const auto execute_only_observer = directory / "execute-only-observer.sh";
+    write_observer_fixture(execute_only_observer, true);
+    fs::permissions(execute_only_observer, fs::perms::owner_exec,
+                    fs::perm_options::replace);
+    options.observer_path = execute_only_observer;
+    options.event_output_path = directory / "execute-only-events.jsonl";
+    options.manifest_output_path = directory / "execute-only-manifest.json";
+    const auto execute_only = driftglass::capture_run(options);
+    expect(execute_only.completed,
+           "Linux observer execution should not require read permission on the pinned file");
+
+    const auto fifo_observer = directory / "fifo-observer";
+    expect(::mkfifo(fifo_observer.c_str(), S_IRUSR | S_IWUSR) == 0,
+           "FIFO observer fixture should be created");
+    options.observer_path = fifo_observer;
+    options.event_output_path = directory / "fifo-events.jsonl";
+    options.manifest_output_path = directory / "fifo-manifest.json";
+    expect_error([&] { (void)driftglass::capture_run(options); },
+                 "observer_path must identify a regular executable file");
 #endif
 
     const auto daemon_observer = directory / "daemon-observer.sh";
