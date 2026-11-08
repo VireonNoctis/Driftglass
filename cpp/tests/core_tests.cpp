@@ -1,6 +1,7 @@
 #include "driftglass/core.hpp"
 
 #include <chrono>
+#include <cstdlib>
 #include <filesystem>
 #include <functional>
 #include <fstream>
@@ -382,6 +383,10 @@ void write_observer_fixture(const fs::path& path, bool successful_exit) {
            << "  printf '{malformed\\n' > \"$OUT\"\n"
            << "  exit 0\n"
            << "fi\n"
+           << "if [ \"\${DRIFTGLASS_TEST_OBSERVER_DAEMON:-}\" = \"1\" ]; then\n"
+           << "  (sleep 5; printf 'descendant-survived\\n' > \"$OUT.child-finished\") &\n"
+           << "  exit 0\n"
+           << "fi\n"
            << "printf '{\"schema_version\":1,\"event_id\":\"start\",\"timestamp\":\"2026-01-01T00:00:00Z\",\"category\":\"coverage\",\"action\":\"capture_started\",\"source\":{\"collector\":\"fixture\",\"event_ref\":\"capture:start\"},\"collection_quality\":\"complete\",\"attributes\":{\"target_pid\":%s}}\\n' \"$PID\" > \"$OUT\"\n"
            << "printf '{\"schema_version\":1,\"event_id\":\"finish\",\"timestamp\":\"2026-01-01T00:00:01Z\",\"category\":\"coverage\",\"action\":\"capture_finished\",\"source\":{\"collector\":\"fixture\",\"event_ref\":\"capture:finish\"},\"collection_quality\":\"complete\",\"attributes\":{\"capture_status\":\"completed\"}}\\n' >> \"$OUT\"\n"
            << (successful_exit ? "exit 0\n" : "exit 4\n");
@@ -443,6 +448,21 @@ void test_capture_coordinator_validates_boundaries_and_publishes_manifest() {
     expect(invoked_path == fs::canonical(observer).string(),
            "macOS observer should receive the canonical executable path instead of the symlink alias");
 #endif
+
+    const auto daemon_observer = directory / "daemon-observer.sh";
+    write_observer_fixture(daemon_observer, true);
+    options.observer_path = daemon_observer;
+    options.event_output_path = directory / "daemon-events.jsonl";
+    options.manifest_output_path = directory / "daemon-manifest.json";
+    expect(::setenv("DRIFTGLASS_TEST_OBSERVER_DAEMON", "1", 1) == 0,
+           "descendant-cleanup test environment should be set");
+    const auto daemon_result = driftglass::capture_run(options);
+    (void)::unsetenv("DRIFTGLASS_TEST_OBSERVER_DAEMON");
+    expect(daemon_result.completed,
+           "a valid observer should complete even when it leaves a child process");
+    std::this_thread::sleep_for(std::chrono::seconds(6));
+    expect(!fs::exists(options.event_output_path.string() + ".child-finished"),
+           "observer exit must terminate remaining descendants in its process group");
 
     const auto failing_observer = directory / "failing-observer.sh";
     write_observer_fixture(failing_observer, false);
