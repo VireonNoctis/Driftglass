@@ -176,7 +176,7 @@ ObserverResult run_observer(const CaptureOptions& options,
     std::string launch_path = canonical_observer_path.string();
 #if defined(__linux__)
     if (observer_descriptor < 0) {
-        return {std::nullopt, false, "observer file was not pinned before launch"};
+        return {std::nullopt, false, "observer file was not pinned before launch", {}};
     }
     launch_path = "/proc/self/fd/" + std::to_string(observer_descriptor);
 #else
@@ -185,20 +185,20 @@ ObserverResult run_observer(const CaptureOptions& options,
 
     posix_spawn_file_actions_t actions;
     if (posix_spawn_file_actions_init(&actions) != 0) {
-        return {std::nullopt, false, "could not prepare observer process actions"};
+        return {std::nullopt, false, "could not prepare observer process actions", {}};
     }
     const int spawn_error = posix_spawn_file_actions_addopen(
         &actions, STDIN_FILENO, "/dev/null", O_RDONLY, 0);
     if (spawn_error != 0) {
         posix_spawn_file_actions_destroy(&actions);
-        return {std::nullopt, false, "could not disable observer standard input"};
+        return {std::nullopt, false, "could not disable observer standard input", {}};
     }
 
     posix_spawnattr_t attributes;
     const int attributes_error = posix_spawnattr_init(&attributes);
     if (attributes_error != 0) {
         posix_spawn_file_actions_destroy(&actions);
-        return {std::nullopt, false, "could not prepare observer process group"};
+        return {std::nullopt, false, "could not prepare observer process group", {}};
     }
     const int group_error = posix_spawnattr_setpgroup(&attributes, 0);
     const int flags_error = group_error == 0
@@ -207,7 +207,7 @@ ObserverResult run_observer(const CaptureOptions& options,
     if (flags_error != 0) {
         posix_spawnattr_destroy(&attributes);
         posix_spawn_file_actions_destroy(&actions);
-        return {std::nullopt, false, "could not isolate observer process group"};
+        return {std::nullopt, false, "could not isolate observer process group", {}};
     }
 
     pid_t child{};
@@ -216,7 +216,7 @@ ObserverResult run_observer(const CaptureOptions& options,
     posix_spawnattr_destroy(&attributes);
     posix_spawn_file_actions_destroy(&actions);
     if (launched != 0) {
-        return {std::nullopt, false, std::string("observer could not be started (") + std::strerror(launched) + ")"};
+        return {std::nullopt, false, std::string("observer could not be started (") + std::strerror(launched) + ")", {}};
     }
 
     int status = 0;
@@ -330,7 +330,7 @@ ObserverResult run_observer(const CaptureOptions& options,
     (void)canonical_observer_path;
     (void)event_path;
     (void)observer_descriptor;
-    return {std::nullopt, false, "capture process spawning is not implemented on this platform"};
+    return {std::nullopt, false, "capture process spawning is not implemented on this platform", {}};
 #endif
 }
 std::string capture_boundary_error(const std::vector<Json>& events, std::uint32_t pid) {
