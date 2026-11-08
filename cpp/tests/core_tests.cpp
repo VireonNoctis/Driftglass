@@ -371,6 +371,7 @@ void write_observer_fixture(const fs::path& path, bool successful_exit) {
            << "    *) shift;;\n"
            << "  esac\n"
            << "done\n"
+           << "printf '%s\\\\n' \"$0\" > \"$OUT.argv0\"\n"
            << "printf '{\"schema_version\":1,\"event_id\":\"start\",\"timestamp\":\"2026-01-01T00:00:00Z\",\"category\":\"coverage\",\"action\":\"capture_started\",\"source\":{\"collector\":\"fixture\",\"event_ref\":\"capture:start\"},\"collection_quality\":\"complete\",\"attributes\":{\"target_pid\":%s}}\\n' \"$PID\" > \"$OUT\"\n"
            << "printf '{\"schema_version\":1,\"event_id\":\"finish\",\"timestamp\":\"2026-01-01T00:00:01Z\",\"category\":\"coverage\",\"action\":\"capture_finished\",\"source\":{\"collector\":\"fixture\",\"event_ref\":\"capture:finish\"},\"collection_quality\":\"complete\",\"attributes\":{\"capture_status\":\"completed\"}}\\n' >> \"$OUT\"\n"
            << (successful_exit ? "exit 0\n" : "exit 4\n");
@@ -412,6 +413,23 @@ void test_capture_coordinator_validates_boundaries_and_publishes_manifest() {
 
     expect_error([&] { (void)driftglass::capture_run(options); },
                  "capture outputs must not be overwritten");
+
+    const auto observer_alias = directory / "observer-alias.sh";
+    fs::create_symlink(observer.filename(), observer_alias);
+    options.observer_path = observer_alias;
+    options.event_output_path = directory / "symlink-events.jsonl";
+    options.manifest_output_path = directory / "symlink-manifest.json";
+    const auto symlink_result = driftglass::capture_run(options);
+    expect(symlink_result.completed,
+           "capture through a symlinked observer path should complete");
+
+    std::ifstream invoked_path_file(options.event_output_path.string() + ".argv0");
+    std::string invoked_path;
+    std::getline(invoked_path_file, invoked_path);
+    expect(invoked_path_file.good() || invoked_path_file.eof(),
+           "observer fixture should record its executable path");
+    expect(invoked_path == fs::canonical(observer).string(),
+           "observer must receive the canonical executable path instead of the symlink alias");
 
     const auto failing_observer = directory / "failing-observer.sh";
     write_observer_fixture(failing_observer, false);
