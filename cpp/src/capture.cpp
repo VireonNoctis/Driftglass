@@ -20,6 +20,9 @@
 #if defined(__APPLE__) || defined(__linux__)
 #include <fcntl.h>
 #include <spawn.h>
+#if defined(__APPLE__)
+#include <sys/event.h>
+#endif
 #include <signal.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -137,7 +140,7 @@ struct ObserverResult {
     std::string cleanup_error;
 };
 
-#if defined(__linux__)
+#if defined(__APPLE__) || defined(__linux__)
 class ScopedDescriptor {
 public:
     explicit ScopedDescriptor(int descriptor) : descriptor_(descriptor) {}
@@ -246,9 +249,53 @@ ObserverResult run_observer(const CaptureOptions& options,
         return false;
     };
 
+#if defined(__APPLE__)
+    const int queue_descriptor = ::kqueue();
+    if (queue_descriptor < 0) {
+        const int queue_error = errno;
+        terminate_group(std::chrono::milliseconds(0));
+        (void)reap_child();
+        return {std::nullopt, false,
+                std::string("could not monitor observer exit (") + std::strerror(queue_error) + ")",
+                cleanup_error};
+    }
+    ScopedDescriptor process_queue(queue_descriptor);
+    struct kevent process_exit_change {};
+    EV_SET(&process_exit_change, static_cast<uintptr_t>(child), EVFILT_PROC,
+           EV_ADD | EV_ONESHOT, NOTE_EXIT, 0, nullptr);
+    if (::kevent(process_queue.get(), &process_exit_change, 1, nullptr, 0, nullptr) < 0) {
+        const int registration_error = errno;
+        terminate_group(std::chrono::milliseconds(0));
+        (void)reap_child();
+        return {std::nullopt, false,
+                std::string("could not monitor observer exit (") + std::strerror(registration_error) + ")",
+                cleanup_error};
+    }
+#endif
+
     const auto deadline = std::chrono::steady_clock::now()
         + std::chrono::seconds(options.duration_seconds + 15U);
+    bool observer_exited = false;
     while (std::chrono::steady_clock::now() < deadline) {
+#if defined(__APPLE__)
+        struct kevent process_exit_event {};
+        const timespec poll_timeout{0, 50'000'000};
+        const int observed = ::kevent(process_queue.get(), nullptr, 0,
+                                      &process_exit_event, 1, &poll_timeout);
+        if (observed < 0) {
+            if (errno == EINTR) continue;
+            const int wait_error = errno;
+            terminate_group(std::chrono::milliseconds(0));
+            (void)reap_child();
+            return {std::nullopt, false,
+                    std::string("could not wait for observer exit event (")
+                        + std::strerror(wait_error) + ")",
+                    cleanup_error};
+        }
+        if (observed > 0 && (process_exit_event.fflags & NOTE_EXIT) != 0) {
+            observer_exited = true;
+        }
+#else
         siginfo_t child_info{};
         if (::waitid(P_PID, static_cast<id_t>(child), &child_info,
                      WEXITED | WNOHANG | WNOWAIT) != 0) {
@@ -259,16 +306,20 @@ ObserverResult run_observer(const CaptureOptions& options,
             return {std::nullopt, false, std::string("could not wait for observer (")
                 + std::strerror(wait_error) + ")", cleanup_error};
         }
-        if (child_info.si_pid == child) {
-            // Keep the leader unreaped during the grace period so its PID remains
-            // the process-group ID while descendants handle SIGTERM.
-            terminate_group(std::chrono::milliseconds(100));
-            if (!reap_child()) return {std::nullopt, false, {}, cleanup_error};
-            if (WIFEXITED(status)) return {WEXITSTATUS(status), false, {}, cleanup_error};
-            if (WIFSIGNALED(status)) return {128 + WTERMSIG(status), false, {}, cleanup_error};
-            return {std::nullopt, false, "observer exited in an unknown state", cleanup_error};
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        observer_exited = child_info.si_pid == child;
+        if (!observer_exited) std::this_thread::sleep_for(std::chrono::milliseconds(50));
+#endif
+        if (observer_exited) break;
+    }
+
+    if (observer_exited) {
+        // Keep the leader unreaped during the grace period so its PID remains
+        // the process-group ID while descendants handle SIGTERM.
+        terminate_group(std::chrono::milliseconds(100));
+        if (!reap_child()) return {std::nullopt, false, {}, cleanup_error};
+        if (WIFEXITED(status)) return {WEXITSTATUS(status), false, {}, cleanup_error};
+        if (WIFSIGNALED(status)) return {128 + WTERMSIG(status), false, {}, cleanup_error};
+        return {std::nullopt, false, "observer exited in an unknown state", cleanup_error};
     }
 
     terminate_group(std::chrono::milliseconds(500));
