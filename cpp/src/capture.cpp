@@ -138,10 +138,12 @@ struct ObserverResult {
     std::string launch_error;
 };
 
-ObserverResult run_observer(const CaptureOptions& options, const std::filesystem::path& event_path) {
+ObserverResult run_observer(const CaptureOptions& options,
+                            const std::filesystem::path& canonical_observer_path,
+                            const std::filesystem::path& event_path) {
 #if defined(__APPLE__) || defined(__linux__)
     std::vector<std::string> arguments{
-        options.observer_path.string(),
+        canonical_observer_path.string(),
         "--pid", std::to_string(options.pid),
         "--duration-seconds", std::to_string(options.duration_seconds),
         "--interval-ms", std::to_string(options.interval_ms),
@@ -164,7 +166,7 @@ ObserverResult run_observer(const CaptureOptions& options, const std::filesystem
     }
 
     pid_t child{};
-    const int launched = posix_spawn(&child, options.observer_path.c_str(), &actions, nullptr,
+    const int launched = posix_spawn(&child, canonical_observer_path.c_str(), &actions, nullptr,
                                      raw_arguments.data(), environ);
     posix_spawn_file_actions_destroy(&actions);
     if (launched != 0) {
@@ -200,6 +202,7 @@ ObserverResult run_observer(const CaptureOptions& options, const std::filesystem
     return {std::nullopt, true, {}};
 #else
     (void)options;
+    (void)canonical_observer_path;
     (void)event_path;
     return {std::nullopt, false, "capture process spawning is not implemented on this platform"};
 #endif
@@ -304,7 +307,7 @@ CaptureResult capture_run(const CaptureOptions& options) {
     if (observer == event_path || observer == manifest_path) throw Error("capture outputs must not replace the observer executable");
 
     const auto started_at = timestamp_now();
-    const auto observer_result = run_observer(options, event_path);
+    const auto observer_result = run_observer(options, observer, event_path);
 
     std::vector<Json> records;
     std::string stream_error;
