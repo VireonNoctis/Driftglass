@@ -121,16 +121,14 @@ void publish_new_file(const std::filesystem::path& destination, const std::strin
 #endif
 }
 
+#if defined(__APPLE__)
 bool executable_file(const std::filesystem::path& path) {
     std::error_code error;
     const auto status = std::filesystem::status(path, error);
-    if (error || !std::filesystem::is_regular_file(status)) return false;
-#if defined(_WIN32)
-    return true;
-#else
-    return ::access(path.c_str(), X_OK) == 0;
-#endif
+    return !error && std::filesystem::is_regular_file(status)
+        && ::access(path.c_str(), X_OK) == 0;
 }
+#endif
 
 struct ObserverResult {
     std::optional<int> return_code;
