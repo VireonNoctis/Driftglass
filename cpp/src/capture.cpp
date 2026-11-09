@@ -21,6 +21,7 @@
 #include <fcntl.h>
 #include <spawn.h>
 #if defined(__APPLE__)
+#include <libproc.h>
 #include <sys/event.h>
 #endif
 #include <signal.h>
@@ -156,6 +157,18 @@ private:
 };
 #endif
 
+#if defined(__APPLE__)
+bool process_group_contains_only_leader(pid_t process_group, pid_t leader) {
+    std::array<pid_t, 64> process_ids{};
+    const int bytes = ::proc_listpids(
+        PROC_PGRP_ONLY, static_cast<uint32_t>(process_group),
+        process_ids.data(), static_cast<int>(sizeof(process_ids)));
+    if (bytes <= 0 || bytes % static_cast<int>(sizeof(pid_t)) != 0) return false;
+    const auto count = static_cast<std::size_t>(bytes) / sizeof(pid_t);
+    return count == 1U && process_ids[0] == leader;
+}
+#endif
+
 ObserverResult run_observer(const CaptureOptions& options,
                             const std::filesystem::path& canonical_observer_path,
                             const std::filesystem::path& event_path,
@@ -227,7 +240,7 @@ ObserverResult run_observer(const CaptureOptions& options,
         if (!cleanup_error.empty()) cleanup_error += "; ";
         cleanup_error += message;
     };
-    const auto terminate_group = [&](std::chrono::milliseconds grace) {
+    const auto terminate_group = [&](std::chrono::milliseconds grace, bool leader_exited) {
         if (!dedicated_process_group) {
             append_cleanup_error("observer did not enter its dedicated process group (pid "
                 + std::to_string(child) + ", observed pgid " + std::to_string(observed_process_group) + ")");
@@ -240,17 +253,28 @@ ObserverResult run_observer(const CaptureOptions& options,
             }
             return;
         }
-        if (::kill(-child, SIGTERM) != 0 && errno != ESRCH) {
-            append_cleanup_error(std::string("process-group SIGTERM failed (pid ")
-                + std::to_string(child) + ", pgid " + std::to_string(observed_process_group)
-                + "): " + std::strerror(errno));
-        }
+        const auto record_group_signal_error = [&](const char* signal_name, int result, int signal_error) {
+            if (result == 0 || signal_error == ESRCH) return;
+#if defined(__APPLE__)
+            // Darwin reports EPERM when an unreaped zombie leader is the only
+            // process left in its group. Ignore that case only after libproc
+            // confirms there are no other group members; unknown members remain
+            // a visible cleanup failure.
+            if (leader_exited && signal_error == EPERM
+                && process_group_contains_only_leader(observed_process_group, child)) return;
+#endif
+            append_cleanup_error(std::string("process-group ") + signal_name
+                + " failed (pid " + std::to_string(child)
+                + ", pgid " + std::to_string(observed_process_group)
+                + "): " + std::strerror(signal_error));
+        };
+        const int term_result = ::kill(-child, SIGTERM);
+        const int term_error = errno;
+        record_group_signal_error("SIGTERM", term_result, term_error);
         if (grace.count() > 0) std::this_thread::sleep_for(grace);
-        if (::kill(-child, SIGKILL) != 0 && errno != ESRCH) {
-            append_cleanup_error(std::string("process-group SIGKILL failed (pid ")
-                + std::to_string(child) + ", pgid " + std::to_string(observed_process_group)
-                + "): " + std::strerror(errno));
-        }
+        const int kill_result = ::kill(-child, SIGKILL);
+        const int kill_error = errno;
+        record_group_signal_error("SIGKILL", kill_result, kill_error);
     };
     const auto reap_child = [&]() {
         const auto reap_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
@@ -271,7 +295,7 @@ ObserverResult run_observer(const CaptureOptions& options,
     const int queue_descriptor = ::kqueue();
     if (queue_descriptor < 0) {
         const int queue_error = errno;
-        terminate_group(std::chrono::milliseconds(0));
+        terminate_group(std::chrono::milliseconds(0), false);
         (void)reap_child();
         return {std::nullopt, false,
                 std::string("could not monitor observer exit (") + std::strerror(queue_error) + ")",
@@ -288,7 +312,7 @@ ObserverResult run_observer(const CaptureOptions& options,
         || registration_receipt.data != 0) {
         const int registration_error = registered == 1
             ? static_cast<int>(registration_receipt.data) : errno;
-        terminate_group(std::chrono::milliseconds(0));
+        terminate_group(std::chrono::milliseconds(0), false);
         (void)reap_child();
         return {std::nullopt, false,
                 std::string("could not monitor observer exit (") + std::strerror(registration_error) + ")",
@@ -308,7 +332,7 @@ ObserverResult run_observer(const CaptureOptions& options,
         if (observed < 0) {
             if (errno == EINTR) continue;
             const int wait_error = errno;
-            terminate_group(std::chrono::milliseconds(0));
+            terminate_group(std::chrono::milliseconds(0), false);
             (void)reap_child();
             return {std::nullopt, false,
                     std::string("could not wait for observer exit event (")
@@ -324,7 +348,7 @@ ObserverResult run_observer(const CaptureOptions& options,
                      WEXITED | WNOHANG | WNOWAIT) != 0) {
             if (errno == EINTR) continue;
             const int wait_error = errno;
-            terminate_group(std::chrono::milliseconds(0));
+            terminate_group(std::chrono::milliseconds(0), false);
             (void)reap_child();
             return {std::nullopt, false, std::string("could not wait for observer (")
                 + std::strerror(wait_error) + ")", cleanup_error};
@@ -338,14 +362,14 @@ ObserverResult run_observer(const CaptureOptions& options,
     if (observer_exited) {
         // Keep the leader unreaped during the grace period so its PID remains
         // the process-group ID while descendants handle SIGTERM.
-        terminate_group(std::chrono::milliseconds(100));
+        terminate_group(std::chrono::milliseconds(100), true);
         if (!reap_child()) return {std::nullopt, false, {}, cleanup_error};
         if (WIFEXITED(status)) return {WEXITSTATUS(status), false, {}, cleanup_error};
         if (WIFSIGNALED(status)) return {128 + WTERMSIG(status), false, {}, cleanup_error};
         return {std::nullopt, false, "observer exited in an unknown state", cleanup_error};
     }
 
-    terminate_group(std::chrono::milliseconds(500));
+    terminate_group(std::chrono::milliseconds(500), false);
     (void)reap_child();
     return {std::nullopt, true, {}, cleanup_error};
 #else
