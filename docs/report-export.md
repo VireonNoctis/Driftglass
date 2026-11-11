@@ -34,7 +34,7 @@ build/cpp/driftglass-core compare \
   --candidate-manifest ./candidate-manifest.json \
   --baseline-events ./baseline-events.jsonl \
   --candidate-events ./candidate-events.jsonl \
-  --json-output ./comparison-redacted.json \
+  --output ./comparison-redacted.json \
   --html-output ./comparison-redacted.html \
   --paths --network --process-names
 ~~~
