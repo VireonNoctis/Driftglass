@@ -423,6 +423,8 @@ void test_capture_coordinator_validates_boundaries_and_publishes_manifest() {
     const auto result = driftglass::capture_run(options);
     expect(result.completed, "valid observer run should complete: "
            + result.manifest.at("coverage").at("errors").dump());
+    expect(result.manifest.at("coverage").at("errors").empty(),
+           "an exited observer with no remaining descendants must not produce a process-group cleanup error");
     expect(result.event_count == 2, "capture coordinator should count validated event records");
     expect(result.manifest.at("capture").at("status") == "completed",
            "completed observer should produce a completed manifest");
