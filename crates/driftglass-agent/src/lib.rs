@@ -809,10 +809,10 @@ mod tests {
         fs::create_dir_all(&net_dir).expect("create synthetic network namespace directory");
         fs::write(
             &stat_path,
-            format!("{pid} (fixture) S 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 98765\\n"),
+            format!("{pid} (fixture) S 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 98765\n"),
         )
         .expect("write synthetic process stat");
-        let header = "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\\n";
+        let header = "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n";
         for table in ["tcp", "tcp6", "udp", "udp6"] {
             fs::write(net_dir.join(table), header).expect("write synthetic network table");
         }
