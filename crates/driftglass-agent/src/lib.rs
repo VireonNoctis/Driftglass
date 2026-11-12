@@ -774,6 +774,80 @@ mod tests {
         fs::remove_dir_all(root).expect("remove synthetic procfs fixture");
     }
 
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn restricted_procfs_reads_are_counted_as_permission_errors() {
+        use std::os::unix::fs::PermissionsExt;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let effective_uid = fs::read_to_string("/proc/self/status")
+            .expect("read test process status")
+            .lines()
+            .find_map(|line| line.strip_prefix("Uid:"))
+            .and_then(|uids| uids.split_whitespace().nth(1))
+            .and_then(|uid| uid.parse::<u32>().ok())
+            .expect("parse effective UID");
+        if effective_uid == 0 {
+            eprintln!("skipping permission-bit fixture because root can bypass mode bits");
+            return;
+        }
+
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("current time")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "driftglass-restricted-procfs-{}-{unique}",
+            std::process::id()
+        ));
+        let pid = 4242_u32;
+        let process_dir = root.join(pid.to_string());
+        let stat_path = process_dir.join("stat");
+        let fd_dir = process_dir.join("fd");
+        let net_dir = process_dir.join("net");
+        fs::create_dir_all(&fd_dir).expect("create synthetic process fd directory");
+        fs::create_dir_all(&net_dir).expect("create synthetic network namespace directory");
+        fs::write(
+            &stat_path,
+            format!("{pid} (fixture) S 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 98765\\n"),
+        )
+        .expect("write synthetic process stat");
+        let header = "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\\n";
+        for table in ["tcp", "tcp6", "udp", "udp6"] {
+            fs::write(net_dir.join(table), header).expect("write synthetic network table");
+        }
+        let tcp_path = net_dir.join("tcp");
+
+        fs::set_permissions(&stat_path, fs::Permissions::from_mode(0))
+            .expect("restrict process stat permissions");
+        fs::set_permissions(&fd_dir, fs::Permissions::from_mode(0))
+            .expect("restrict process fd directory permissions");
+        fs::set_permissions(&tcp_path, fs::Permissions::from_mode(0))
+            .expect("restrict TCP table permissions");
+
+        let process_scan = read_process_snapshot(&root).expect("enumerate synthetic procfs root");
+        let owner_scan = read_socket_owners(&root, &[pid]);
+        let network_scan = read_network_snapshot(&root, pid);
+
+        fs::set_permissions(&stat_path, fs::Permissions::from_mode(0o600))
+            .expect("restore process stat permissions");
+        fs::set_permissions(&fd_dir, fs::Permissions::from_mode(0o700))
+            .expect("restore process fd directory permissions");
+        fs::set_permissions(&tcp_path, fs::Permissions::from_mode(0o600))
+            .expect("restore TCP table permissions");
+        fs::remove_dir_all(&root).expect("remove synthetic procfs fixture");
+
+        assert!(process_scan.processes.is_empty());
+        assert_eq!(process_scan.permission_denied, 1);
+        assert_eq!(process_scan.read_errors, 0);
+        assert_eq!(owner_scan.permission_denied, 1);
+        assert_eq!(owner_scan.read_errors, 0);
+        assert_eq!(network_scan.table_errors, 1);
+        assert_eq!(network_scan.table_permission_denied, 1);
+        assert_eq!(network_scan.table_read_errors, 0);
+        assert_eq!(network_scan.table_not_found, 0);
+    }
+
     #[test]
     fn parses_tcp_metadata_row() {
         let row = "  0: 0100007F:1F90 08080808:01BB 01 00000000:00000000 00:00000000 00000000 1000 0 12345";
