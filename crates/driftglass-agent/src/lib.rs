@@ -787,10 +787,10 @@ mod tests {
             .and_then(|uids| uids.split_whitespace().nth(1))
             .and_then(|uid| uid.parse::<u32>().ok())
             .expect("parse effective UID");
-        if effective_uid == 0 {
-            eprintln!("skipping permission-bit fixture because root can bypass mode bits");
-            return;
-        }
+        assert_ne!(
+            effective_uid, 0,
+            "run this permission-bit regression as a non-root user; root bypasses ordinary mode bits"
+        );
 
         let unique = SystemTime::now()
             .duration_since(UNIX_EPOCH)
