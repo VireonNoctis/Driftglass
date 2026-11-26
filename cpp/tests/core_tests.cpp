@@ -315,6 +315,29 @@ void test_report_redaction_is_deterministic_and_preserves_source() {
 }
 
 
+void test_network_redaction_hides_uri_authorities_and_ipv6() {
+    const auto base_manifest = manifest("redact-base", "baseline", "1.0", std::string(64, 'a'));
+    const auto candidate_manifest = manifest("redact-candidate", "candidate", "2.0", std::string(64, 'b'));
+    auto before = event("redact-before", "198.51.100.10", 53000, 12345);
+    auto after = event("redact-after", "198.51.100.11", 54000, 67890);
+    before["resource"]["identifier"] = "https://alice:secret@example.com:8443/path";
+    after["resource"]["identifier"] = "https://bob:token@[2001:db8::1]:9443/path";
+
+    const auto report = driftglass::compare_loaded_runs(
+        base_manifest, candidate_manifest, {before}, {after});
+    const auto redacted = driftglass::redact_report(report, false, true, false);
+    const auto serialized = driftglass::canonical_json(redacted);
+
+    for (const auto& sensitive : {
+             "alice", "secret", "example.com", "8443",
+             "bob", "token", "2001:db8::1", "9443"}) {
+        expect(serialized.find(sensitive) == std::string::npos,
+               std::string("network redaction must not expose URI authority component: ") + sensitive);
+    }
+    expect(serialized.find("[REDACTED_HOST_") != std::string::npos,
+           "network URI authorities should be replaced with stable host tokens");
+}
+
 void test_sqlite_history_is_transactional_idempotent_and_explicit() {
     const auto directory = fs::temp_directory_path()
         / ("driftglass-history-test-" + std::to_string(
@@ -604,6 +627,7 @@ int main() {
         run_test("digest_and_status_string_types", test_digest_and_status_fields_require_strings);
         run_test("report_repeat_integrity", test_report_validation_repeat_analysis_and_integrity);
         run_test("report_redaction", test_report_redaction_is_deterministic_and_preserves_source);
+        run_test("network_uri_redaction", test_network_redaction_hides_uri_authorities_and_ipv6);
         run_test("sqlite_history", test_sqlite_history_is_transactional_idempotent_and_explicit);
         run_test("html_report", test_html_report_is_standalone_and_escapes_untrusted_content);
 #if defined(__APPLE__) || defined(__linux__)
