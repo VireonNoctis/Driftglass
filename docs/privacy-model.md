@@ -20,7 +20,7 @@ The Linux observer reads procfs process stat, TCP/TCP6/UDP/UDP6 tables, and trac
 
 ## Storage and deletion
 
-- Capture outputs must be new files. On POSIX, the native C++ capture coordinator creates manifest and observer output files with owner-only permissions where supported.
+- Capture outputs must be new files. On POSIX, the C++ coordinator publishes manifests owner-only, and the Rust and Swift observers create event streams with owner-only (0600) permissions without replacing existing paths.
 - The operator selects when to export reports or save a comparison to SQLite.
 - SQLite history is bounded to a 512 MiB database-file cap, a 256 MiB aggregate report-JSON payload cap, and 1,000 reports. The file cap does not include transient rollback-journal or filesystem overhead.
 - SQLite report deletion requires the full report ID and matching explicit confirmation. It deletes selected local report/index data, not original JSONL, manifest, export copies, backups, or storage-media remnants.

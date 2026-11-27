@@ -215,39 +215,81 @@ private func collect(_ options: Options) throws -> [[String: Any]] {
     return events
 }
 
-private func writeEvents(_ events: [[String: Any]], to output: URL) throws {
-    let fileManager = FileManager.default
-    guard fileManager.fileExists(atPath: output.deletingLastPathComponent().path) else {
+private func posixError(_ operation: String, at path: URL) -> NSError {
+    let errorCode = errno
+    return NSError(domain: NSPOSIXErrorDomain, code: Int(errorCode), userInfo: [
+        NSLocalizedDescriptionKey: "\(operation) '\(path.path)': \(String(cString: strerror(errorCode)))",
+        NSFilePathErrorKey: path.path
+    ])
+}
+
+private func removeTemporaryEventFile(_ path: URL) throws {
+    let result = path.path.withCString { Darwin.unlink($0) }
+    guard result == 0 else {
+        throw posixError("could not remove temporary event file", at: path)
+    }
+}
+
+private func throwAfterRemovingTemporaryEventFile(_ path: URL, original: Error) throws -> Never {
+    do {
+        try removeTemporaryEventFile(path)
+    } catch {
+        throw NSError(domain: "DriftglassMacObserver", code: 4, userInfo: [
+            NSLocalizedDescriptionKey: "\((original as NSError).localizedDescription); temporary-file cleanup also failed: \(error.localizedDescription)"
+        ])
+    }
+    throw original
+}
+
+func writeEvents(_ events: [[String: Any]], to output: URL) throws {
+    var isDirectory: ObjCBool = false
+    let parent = output.deletingLastPathComponent()
+    guard FileManager.default.fileExists(atPath: parent.path, isDirectory: &isDirectory),
+          isDirectory.boolValue else {
         throw NSError(domain: "DriftglassMacObserver", code: 1, userInfo: [
             NSLocalizedDescriptionKey: "output directory does not exist"
         ])
     }
-    guard !fileManager.fileExists(atPath: output.path) else {
-        throw NSError(domain: "DriftglassMacObserver", code: 2, userInfo: [
-            NSLocalizedDescriptionKey: "output already exists; choose a new path"
-        ])
+
+    let temporary = parent.appendingPathComponent(".driftglass-events-\(UUID().uuidString).tmp")
+    let privateMode = mode_t(S_IRUSR | S_IWUSR)
+    let descriptor = temporary.path.withCString {
+        Darwin.open($0, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, privateMode)
+    }
+    guard descriptor >= 0 else {
+        throw posixError("could not create private temporary event file", at: temporary)
+    }
+    guard Darwin.fchmod(descriptor, privateMode) == 0 else {
+        let permissionError = posixError("could not restrict temporary event file permissions", at: temporary)
+        _ = Darwin.close(descriptor)
+        try throwAfterRemovingTemporaryEventFile(temporary, original: permissionError)
     }
 
-    let temporary = output.appendingPathExtension("tmp-\(UUID().uuidString)")
+    let handle = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
     do {
-        guard fileManager.createFile(atPath: temporary.path, contents: nil) else {
-            throw NSError(domain: "DriftglassMacObserver", code: 3, userInfo: [
-                NSLocalizedDescriptionKey: "could not create temporary event file"
-            ])
-        }
-        let handle = try FileHandle(forWritingTo: temporary)
-        defer { try? handle.close() }
         for event in events {
             let data = try JSONSerialization.data(withJSONObject: event, options: [.sortedKeys, .fragmentsAllowed])
             try handle.write(contentsOf: data)
             try handle.write(contentsOf: Data([0x0A]))
         }
         try handle.synchronize()
-        try fileManager.moveItem(at: temporary, to: output)
+        try handle.close()
     } catch {
-        try? fileManager.removeItem(at: temporary)
-        throw error
+        let writeError = error
+        try? handle.close()
+        try throwAfterRemovingTemporaryEventFile(temporary, original: writeError)
     }
+
+    let published = temporary.path.withCString { temporaryPath in
+        output.path.withCString { outputPath in
+            Darwin.link(temporaryPath, outputPath)
+        }
+    }
+    guard published == 0 else {
+        let publishError = posixError("could not publish event file without replacing an existing path", at: output)
+        try throwAfterRemovingTemporaryEventFile(temporary, original: publishError)
+    }
+    try removeTemporaryEventFile(temporary)
 }
 
 do {
