@@ -43,31 +43,41 @@ bool path_field(const std::string& key, const std::string& resource_kind) {
         || (normalized == "identifier" && resource_kind == "file");
 }
 
+std::string authority_from_identifier(const std::string& value) {
+    const auto scheme = value.find("://");
+    if (scheme == std::string::npos) return value;
+    const auto start = scheme + 3U;
+    const auto end = value.find_first_of("/?#", start);
+    return value.substr(start, end == std::string::npos ? std::string::npos : end - start);
+}
+
 std::string host_from_identifier(const std::string& value) {
     if (value.empty()) return {};
-    const auto scheme = value.find("://");
-    if (scheme != std::string::npos) {
-        const auto start = scheme + 3U;
-        const auto end = value.find_first_of("/:?#", start);
-        auto host = value.substr(start, end == std::string::npos ? std::string::npos : end - start);
-        if (!host.empty() && host.front() == '[') {
-            const auto closing = host.find(']');
-            if (closing != std::string::npos) host = host.substr(1, closing - 1U);
-        }
+    auto host = authority_from_identifier(value);
+    const auto userinfo = host.rfind('@');
+    if (userinfo != std::string::npos) host.erase(0, userinfo + 1U);
+    if (host.empty()) return {};
+    if (host.front() == '[') {
+        const auto closing = host.find(']');
+        if (closing != std::string::npos) return host.substr(1, closing - 1U);
         return host;
     }
-    if (value.front() == '[') {
-        const auto closing = value.find(']');
-        if (closing != std::string::npos) return value.substr(1, closing - 1U);
-    }
-    const auto colon = value.rfind(':');
-    if (colon != std::string::npos && colon > 0U && colon + 1U < value.size()) {
-        const auto port = value.substr(colon + 1U);
+    const auto colon = host.rfind(':');
+    if (colon != std::string::npos && host.find(':') == colon
+        && colon > 0U && colon + 1U < host.size()) {
+        const auto port = host.substr(colon + 1U);
         if (std::all_of(port.begin(), port.end(), [](unsigned char c) { return std::isdigit(c) != 0; })) {
-            return value.substr(0, colon);
+            return host.substr(0, colon);
         }
     }
-    return value;
+    return host;
+}
+
+void collect_identifier_tokens(const std::string& value, Tokens& hosts) {
+    const auto authority = authority_from_identifier(value);
+    if (!authority.empty()) add_token(hosts, authority, "HOST");
+    const auto host = host_from_identifier(value);
+    if (!host.empty()) add_token(hosts, host, "HOST");
 }
 
 void collect_paths(const Json& value, Tokens& paths, const std::string& key = "",
@@ -90,13 +100,12 @@ void collect_hosts(const Json& value, Tokens& hosts) {
     if (value.is_object()) {
         const bool network_resource = has(value, "kind") && value.at("kind") == "network";
         if (network_resource) {
-            for (const auto& field : {"address", "identifier"}) {
-                if (has(value, field) && value.at(field).is_string()) {
-                    auto host = field == std::string("address")
-                        ? value.at(field).get<std::string>()
-                        : host_from_identifier(value.at(field).get<std::string>());
-                    if (!host.empty()) add_token(hosts, host, "HOST");
-                }
+            if (has(value, "address") && value.at("address").is_string()) {
+                const auto address = value.at("address").get<std::string>();
+                if (!address.empty()) add_token(hosts, address, "HOST");
+            }
+            if (has(value, "identifier") && value.at("identifier").is_string()) {
+                collect_identifier_tokens(value.at("identifier").get<std::string>(), hosts);
             }
         }
         for (auto it = value.begin(); it != value.end(); ++it) {
@@ -109,8 +118,7 @@ void collect_hosts(const Json& value, Tokens& hosts) {
                 || key.find("_ip") != std::string::npos
                 || key.find("destination") != std::string::npos;
             if (host_field && it.value().is_string() && !it.value().get<std::string>().empty()) {
-                const auto host = host_from_identifier(it.value().get<std::string>());
-                if (!host.empty()) add_token(hosts, host, "HOST");
+                collect_identifier_tokens(it.value().get<std::string>(), hosts);
             } else {
                 collect_hosts(it.value(), hosts);
             }

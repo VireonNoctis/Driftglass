@@ -39,6 +39,6 @@ build/cpp/driftglass-core compare \
   --paths --network --process-names
 ~~~
 
-Redaction replaces detected absolute paths, values associated with network evidence, and executable names with stable tokens within one exported report. It recomputes finding and report IDs so the redacted JSON remains valid under report schema v1. It does not modify the stored or source report; when comparison and history storage are used together, SQLite retains the unredacted source.
+Redaction replaces detected absolute paths, values associated with network evidence, and executable names with stable tokens within one exported report. Network identifiers containing a URI have their full authority redacted, including user-info credentials and ports; bracketed IPv6 hosts are handled as a single address. It recomputes finding and report IDs so the redacted JSON remains valid under report schema v1. It does not modify the stored or source report; when comparison and history storage are used together, SQLite retains the unredacted source.
 
 Redaction is a best-effort privacy aid, not proof that every sensitive value has been removed. Report v1 does not carry a redaction-provenance field, so keep the CLI output and label the exported file clearly. Inspect the copy before sharing.
