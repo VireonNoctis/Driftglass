@@ -38,7 +38,7 @@ Driftglass does not provide a containment boundary, automatically block/delete/r
 ## Security validation still needed
 
 - Controlled, real Linux workloads with expected event sets and measured misses.
-- Testing under restricted procfs permissions and namespace configurations.
+- Synthetic permission-denied tests exercise process-stat, fd-directory and network-table readers; controlled tests against restricted procfs mounts (for example, `hidepid`) and separate namespace configurations remain outstanding.
 - Adversarial report/JSONL fuzzing, SQLite history size bounds, and controlled real-workload coverage measurements.
 - Independent review of HTML export escaping and browser rendering paths.
 - Dependency and release-artifact integrity review.

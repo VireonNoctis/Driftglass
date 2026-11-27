@@ -760,6 +760,29 @@ mod tests {
         assert_eq!(totals.network_table_malformed_headers, 1);
     }
 
+    #[test]
+    fn permission_denied_procfs_reads_mark_coverage_partial() {
+        let mut totals = Totals::default();
+
+        let mut processes = driftglass_agent::ProcessScan::default();
+        processes.permission_denied = 1;
+        totals.add_process(&processes);
+
+        let mut owners = driftglass_agent::SocketOwnerScan::default();
+        owners.permission_denied = 1;
+        totals.add_owners(&owners);
+
+        let mut network = driftglass_agent::NetworkScan::default();
+        network.table_errors = 1;
+        network.table_permission_denied = 1;
+        totals.add_network(&network);
+
+        assert!(totals.has_gaps());
+        assert_eq!(totals.process_permission_denied, 1);
+        assert_eq!(totals.fd_permission_denied, 1);
+        assert_eq!(totals.network_table_permission_denied, 1);
+    }
+
     #[cfg(target_os = "linux")]
     #[test]
     fn live_procfs_observes_this_process_and_its_loopback_tcp_listener() {
